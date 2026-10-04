@@ -46,10 +46,10 @@ namespace HWC.EditorTools
                 t.textureType = TextureImporterType.Default;
                 t.sRGBTexture = !file.EndsWith("_mask");
             }
-            if (assetPath.Contains("/Textures/Baked/")) t.maxTextureSize = 1024;
+            if (assetPath.Contains("/Textures/Baked/")) t.maxTextureSize = 2048;
             bool clamp = file.StartsWith("decal_") || file == "label";
             t.wrapMode = clamp ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
-            t.alphaIsTransparency = file.StartsWith("decal_");
+            t.alphaIsTransparency = file.StartsWith("decal_") || file == "clouds";
         }
 
         void OnPreprocessAudio()

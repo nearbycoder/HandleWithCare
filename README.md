@@ -95,10 +95,16 @@ Assets/
   Editor/             Project setup, import settings, build script
   Resources/          Models (FBX from Blender), Textures, Audio, Fonts, template materials
 ArtSource/            Blender/numpy generators (+ .blend sources in ArtSource/blend)
-  hwc_lib.py          Modeling helpers (Unity-space bmesh primitives, FBX export, previews)
+  hwc_lib.py          Modeling helpers (Unity-space bmesh primitives, voxel-fused organic
+                      shapes, FBX export, Cycles preview renders)
+  pbr.py              Procedural physically based materials (ceramic, plush, glass, chrome,
+                      car paint, foliage, timber...) and the Cycles bake that turns them into
+                      albedo / normal / mask (metallic, occlusion, smoothness) textures
   items.py boxes.py station.py stages.py   Model builders
-  build_assets.py     Builds/exports every model, optional Eevee contact sheets
-  make_textures.py    Kraft, corrugation, tape, labels, stamps, wood, plaster...
+  build_assets.py     Builds, bakes and exports every model, optional contact sheets
+  make_textures.py    Kraft, corrugation, tape, labels, stamps, plus tileable PBR surface sets
+                      (asphalt, concrete, grass, cobbles, brick, shingles, tread plate, water,
+                      hay) and the painted cloud layer
   make_audio.py       Every sound effect and music loop
 Tools/
   SimCheck/           .NET console app compiling Assets/Scripts/Sim: validates every level,
@@ -122,8 +128,10 @@ Tools/play.sh                   # play (windowed 1920x1080; uses -force-wayland 
 Rebuild the generated assets (each is deterministic):
 
 ```sh
-blender -b -P ArtSource/build_assets.py -- items boxes station stages   # models -> Assets/Resources/Models
-blender -b -P ArtSource/build_assets.py -- items --preview /tmp/prev     # + contact sheets for review
+blender -b -P ArtSource/build_assets.py -- items boxes station stages   # models -> Assets/Resources/Models,
+                                                                        # baked maps -> Textures/Baked (~40 min)
+blender -b -P ArtSource/build_assets.py -- items --preview /tmp/prev     # + Cycles contact sheets for review
+blender -b -P ArtSource/build_assets.py -- stages --no-bake --no-export --preview /tmp/prev   # fast look
 blender -b -P ArtSource/make_textures.py                                # textures -> Assets/Resources/Textures
 ~/.local/opt/blender-4.5.9-linux-x64/4.5/python/bin/python3.11 ArtSource/make_audio.py   # audio (needs numpy)
 ```

@@ -105,7 +105,9 @@ def main():
                 for o in objs:
                     for c in [o] + list(o.children_recursive):
                         if c.type == "MESH" and any(s.material and s.material.name.startswith("p_") for s in c.material_slots):
-                            pbr.bake(c, res=res)
+                            # children are named for their role (Arm, Head...), so prefix them with the model
+                            tex_name = c.name if c is o or c.name.startswith(o.name) else f"{o.name}__{c.name}"
+                            pbr.bake(c, res=res, name=tex_name)
             if export:
                 fname = objs[0].name
                 L.export_fbx(os.path.join(OUT, fname + ".fbx"), objs)

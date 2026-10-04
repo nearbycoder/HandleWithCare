@@ -76,7 +76,6 @@ namespace HWC.Gameplay
             preset.AmbientSky = Palette.Hex("B8A8D0");
             preset.SkyBottom = Palette.Hex("3A2C3A");
             preset.Apply(G.Sun, G.Rig.Cam);
-            G.Post.SetDof(0.7f, 1.6f);
 
             // the box arrives on the table, closed and taped
             box.transform.SetParent(room.transform, false);
@@ -95,6 +94,8 @@ namespace HWC.Gameplay
             rig.Snap();
             rig.LookAt(center + new Vector3(0.25f, dist * 0.32f, -dist), center + Vector3.up * 0.05f, 30f);
             rig.PosSharpness = 2.5f;
+            // keep the box and the lineup sharp; only the room behind them softens
+            G.Post.SetDof(0.7f, dist * 1.05f + size * 0.7f);
 
             // drop onto the table
             float t = 0;

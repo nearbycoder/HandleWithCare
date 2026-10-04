@@ -405,7 +405,83 @@ def _thread(nb, c):
     return dict(color=nb.vary(c, twist, 0.15), rough=0.8, metal=0.0, height=twist, bump=0.3, bump_dist=0.0002)
 
 
-TWO_TONE = {"swirl", "stripes"}
+# ---- scenery (props are 0.5-6 m, so features are coarser than the items')
+
+def _carpaint(nb, c):
+    peel = nb.noise(90, 3, 0.5)
+    return dict(color=nb.vary(c, nb.noise(4, 2), 0.025), rough=nb.remap(nb.noise(12, 3), 0.1, 0.2), metal=0.15,
+                height=peel, bump=0.03, bump_dist=0.0008)
+
+
+def _enamel(nb, c):
+    chips = nb.math("GREATER_THAN", nb.math("POWER", nb.noise(14, 6, 0.7), 3.0), 0.32)
+    return dict(color=nb.mix(chips, (*c,), (0.32, 0.3, 0.29)), rough=nb.remap(nb.noise(25, 4), 0.25, 0.45), metal=0.0,
+                height=nb.add(nb.noise(120, 3), nb.mul(chips, -0.6)), bump=0.05, bump_dist=0.001)
+
+
+def _bark(nb, c):
+    ridges = nb.wave(9, "X", kind="BANDS", distortion=9.0, detail=4, vec=nb.mapped(scale=(1, 1, 0.12)))
+    grit = nb.noise(60, 5, 0.7)
+    tone = nb.add(nb.mul(ridges, 0.7), nb.mul(grit, 0.3))
+    return dict(color=nb.vary(c, tone, 0.45), rough=0.92, metal=0.0, height=tone, bump=0.9, bump_dist=0.01)
+
+
+def _foliage(nb, c):
+    leaf = nb.voronoi(26, "F1", out="Color", vec=nb.mapped(scale=(1, 1, 1.2)))
+    edge = nb.voronoi(26, "F1", out="Distance", vec=nb.mapped(scale=(1, 1, 1.2)))
+    sun = nb.noise(1.5, 3, 0.6)
+    tone = nb.add(nb.mul(leaf, 0.55), nb.mul(sun, 0.45))
+    return dict(color=nb.vary(c, tone, 0.42), rough=nb.remap(leaf, 0.45, 0.75), metal=0.0,
+                height=nb.math("SUBTRACT", 1.0, edge), bump=0.9, bump_dist=0.015)
+
+
+def _needles(nb, c):
+    tufts = nb.voronoi(40, "F1", out="Color", vec=nb.mapped(scale=(1, 1, 0.5)))
+    fine = nb.noise(140, 4, 0.7, vec=nb.mapped(scale=(1, 1, 0.3)))
+    tone = nb.add(nb.mul(tufts, 0.5), nb.mul(fine, 0.5))
+    return dict(color=nb.vary(c, tone, 0.4), rough=0.8, metal=0.0, height=fine, bump=0.8, bump_dist=0.01)
+
+
+def _burlap(nb, c):
+    weft = nb.wave(160, "X", profile="SIN")
+    warp = nb.wave(160, "Z", profile="SIN")
+    weave = nb.mul(nb.add(weft, warp), 0.5)
+    return dict(color=nb.vary(c, nb.add(nb.mul(nb.noise(6, 4), 0.6), nb.mul(weave, 0.4)), 0.2), rough=0.95, metal=0.0,
+                height=weave, bump=0.5, bump_dist=0.002)
+
+
+def _gingham(nb, c, c2):
+    cx = nb.math("GREATER_THAN", nb.wave(45, "X", profile="SIN"), 0.5)
+    cz = nb.math("GREATER_THAN", nb.wave(45, "Y", profile="SIN"), 0.5)
+    tone = nb.mul(nb.add(cx, cz), 0.5)
+    weave = nb.mul(nb.add(nb.wave(700, "X"), nb.wave(700, "Y")), 0.5)
+    return dict(color=nb.mix(tone, c2, c), rough=0.85, metal=0.0, height=weave, bump=0.2, bump_dist=0.0006)
+
+
+def _gingham_v(nb, c, c2):
+    """Gingham for vertical faces (checks across x and height)."""
+    cx = nb.math("GREATER_THAN", nb.wave(45, "X", profile="SIN"), 0.5)
+    cz = nb.math("GREATER_THAN", nb.wave(45, "Z", profile="SIN"), 0.5)
+    tone = nb.mul(nb.add(cx, cz), 0.5)
+    weave = nb.mul(nb.add(nb.wave(700, "X"), nb.wave(700, "Z")), 0.5)
+    return dict(color=nb.mix(tone, c2, c), rough=0.85, metal=0.0, height=weave, bump=0.2, bump_dist=0.0006)
+
+
+def _rope(nb, c):
+    twist = nb.wave(60, "Z", kind="BANDS", distortion=1.0, vec=nb.mapped(rot=(0.6, 0.6, 0)))
+    return dict(color=nb.vary(c, nb.add(nb.mul(twist, 0.6), nb.mul(nb.noise(30, 3), 0.4)), 0.25), rough=0.9, metal=0.0,
+                height=twist, bump=0.6, bump_dist=0.003)
+
+
+def _timber(nb, c):
+    """Rough sawn, weathered planks (catapult, crates)."""
+    grain = nb.noise(2.0, 6, 0.65, vec=nb.mapped(scale=(30, 1.2, 30)), distortion=0.4)
+    knots = nb.math("POWER", nb.noise(6, 3, 0.5), 6.0)
+    tone = nb.add(nb.mul(grain, 0.8), nb.mul(knots, 2.0))
+    return dict(color=nb.vary(c, tone, 0.3), rough=0.85, metal=0.0, height=grain, bump=0.5, bump_dist=0.004)
+
+
+TWO_TONE = {"swirl", "stripes", "gingham", "ginghamv"}
 
 RECIPES = {
     "liquid": _liquid, "satin": _satin, "thread": _thread, "swirl": _swirl, "stripes": _stripes,
@@ -416,6 +492,8 @@ RECIPES = {
     "scales": _scales, "eggshell": _eggshell, "armour": _armour, "flesh": _flesh, "foam": _foam, "wax": _wax,
     "bead": _bead, "paint": _paint, "matte": _matte, "webbing": _webbing, "cardboard": _cardboard,
     "varnish": lambda nb, c: _wood(nb, c, 0.18),
+    "carpaint": _carpaint, "enamel": _enamel, "bark": _bark, "foliage": _foliage, "needles": _needles,
+    "burlap": _burlap, "gingham": _gingham, "ginghamv": _gingham_v, "rope": _rope, "timber": _timber,
 }
 
 
@@ -451,7 +529,7 @@ def build_material(name):
 # ----------------------------------------------------------------------------- baking
 
 def _is_baked(mat):
-    return mat is not None and not (mat.name.startswith("glass_") or mat.name.startswith("glow_"))
+    return mat is not None and not mat.name.startswith(("glass_", "glow_", "tex_", "decal_"))
 
 
 def _setup_cycles(samples):
@@ -501,16 +579,31 @@ def _to_srgb(x):
     return np.where(x <= 0.0031308, x * 12.92, 1.055 * np.power(x, 1 / 2.4) - 0.055)
 
 
-def _unwrap(obj, margin):
+def _unwrap(obj, margin, bake_faces):
+    """New atlas for the faces that get baked; every other face keeps its authored UVs (tex_/decal_)."""
+    import bmesh
     me = obj.data
+    old = None
+    if len(me.uv_layers) > 0:
+        old = np.empty(len(me.loops) * 2, dtype=np.float32)
+        me.uv_layers[0].data.foreach_get("uv", old)
     while len(me.uv_layers) > 0:
         me.uv_layers.remove(me.uv_layers[0])
-    me.uv_layers.new(name="UVMap")
+    layer = me.uv_layers.new(name="UVMap")
+    if old is not None:
+        layer.data.foreach_set("uv", old)
     bpy.ops.object.select_all(action="DESELECT")
     bpy.context.view_layer.objects.active = obj
     obj.select_set(True)
     bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.select_mode(type="FACE")
+    bm = bmesh.from_edit_mesh(me)
+    for f in bm.faces:
+        f.select_set(False)
+    for f in bm.faces:
+        if bake_faces[f.index]:
+            f.select_set(True)
+    bmesh.update_edit_mesh(me)
     bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=margin, area_weight=0.0,
                              correct_aspect=True, scale_to_bounds=False)
     try:
@@ -546,22 +639,26 @@ def _bake_emit(obj, mats, img, socket_name, samples):
             nt.links.new(old, out.inputs["Surface"])
 
 
-def bake(obj, res=1024, ao_samples=96, ao_strength=0.55, margin=0.004):
-    """Unwrap `obj`, bake its p_ materials into textures, and swap them for bake_<obj.name>."""
+def bake(obj, res=1024, ao_samples=96, ao_strength=0.55, margin=0.004, name=None):
+    """Unwrap `obj`, bake its p_ materials into textures, and swap them for bake_<name> (default obj.name)."""
     os.makedirs(BAKED_DIR, exist_ok=True)
-    name = obj.name
+    name = name or obj.name
+    res = int(obj.get("bake_res", res))
     mats = [s.material for s in obj.material_slots]
     baked = [m for m in mats if _is_baked(m)]
     if not baked:
         return
     _setup_cycles(4)
-    _unwrap(obj, margin)
+    fidx = np.empty(len(obj.data.polygons), dtype=np.int32)
+    obj.data.polygons.foreach_get("material_index", fidx)
+    _unwrap(obj, margin, [_is_baked(mats[i]) if i < len(mats) else True for i in fidx])
 
     img = _image("__bake_" + name, res)
+    dummy = _image("__bake_dummy", 16)                     # target for faces that are not baked
     for m in mats:
         nt = m.node_tree
         tn = nt.nodes.new("ShaderNodeTexImage")
-        tn.image = img
+        tn.image = img if _is_baked(m) else dummy
         tn.name = "__bake_target"
         for n in nt.nodes:
             n.select = False
@@ -590,6 +687,7 @@ def bake(obj, res=1024, ao_samples=96, ao_strength=0.55, margin=0.004):
         if tn:
             m.node_tree.nodes.remove(tn)
     bpy.data.images.remove(img)
+    bpy.data.images.remove(dummy)
 
     shade = 1.0 - ao_strength * (1.0 - ao)
     alb = _to_srgb(albedo * shade[..., None])

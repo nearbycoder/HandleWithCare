@@ -17,7 +17,7 @@ namespace HWC.Visuals
 
         public static GameObject Load(string id)
         {
-            if (prefabs.TryGetValue(id, out var p)) return p;
+            if (prefabs.TryGetValue(id, out var p) && p != null) return p;
             if (missing.Contains(id)) return null;
             p = Resources.Load<GameObject>("Models/" + id);
             if (p == null) { missing.Add(id); return null; }
@@ -66,7 +66,7 @@ namespace HWC.Visuals
             int dot = name.IndexOf('.');
             if (dot > 0) name = name.Substring(0, dot);
             name = name.Replace(" (Instance)", "");
-            if (resolved.TryGetValue(name, out var m)) return m;
+            if (resolved.TryGetValue(name, out var m) && m != null) return m;
             int us = name.IndexOf('_');
             string kind = us > 0 ? name.Substring(0, us) : name;
             string arg = us > 0 ? name.Substring(us + 1) : "";

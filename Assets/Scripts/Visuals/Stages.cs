@@ -74,6 +74,27 @@ namespace HWC.Visuals
 
         public Vector3 BoxWorld(double x, double y) => transform.TransformPoint(new Vector3((float)x, (float)y + BoxHalfH, 0f));
 
+        /// <summary>A tileable surface material (Textures/name) repeated `u` x `v` times over a 0..1 UV face.</summary>
+        static Material Tiled(string name, float u, float v)
+        {
+            var m = new Material(TextureLibrary.MaterialFor(name));
+            m.SetTextureScale("_BaseMap", new Vector2(u, v));
+            return m;
+        }
+
+        /// <summary>Flat ground-like surface (Unity's plane: upward normals, tangents, 0..1 UVs).</summary>
+        GameObject Plane(string name, Material m, Vector3 pos, Vector2 size)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            go.name = name;
+            Destroy(go.GetComponent<Collider>());
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = pos;
+            go.transform.localScale = new Vector3(size.x / 10f, 1f, size.y / 10f);
+            go.GetComponent<MeshRenderer>().sharedMaterial = m;
+            return go;
+        }
+
         GameObject Spawn(string id, Vector3 pos, float yaw = 0, Vector3? scale = null, Transform parent = null)
         {
             var go = ModelLibrary.Spawn(id, parent ?? transform);
@@ -129,14 +150,30 @@ namespace HWC.Visuals
             quad.transform.localScale = new Vector3(maxX - minX + 300f, 80f, 1f);
             quad.transform.localRotation = Quaternion.Euler(0, 180, 0);
             quad.GetComponent<MeshRenderer>().receiveShadows = false;
-            var rnd = new System.Random(31);
-            for (float x = minX - 20; x < maxX + 20; x += 9f + (float)rnd.NextDouble() * 8f)
+            // painted cloud layers at two depths; they drift past at different speeds as the camera follows the box
+            var clouds = TextureLibrary.Get("clouds");
+            if (clouds != null)
             {
-                var c = Spawn("prop_cloud", new Vector3(x, 5f + (float)rnd.NextDouble() * 4f, 25f + (float)rnd.NextDouble() * 15f), (float)rnd.NextDouble() * 360f, Vector3.one * (1.2f + (float)rnd.NextDouble()));
-                if (c != null)
+                var tint = Color.Lerp(Color.white, Lighting.Sun, 0.3f);
+                // (height, depth, tile width, opacity); in the plane the box flies among the clouds
+                var layers = Kind == LegKind.Plane
+                    ? new[] { new Vector4(10f, 55f, 46f, 0.95f), new Vector4(2.5f, 34f, 40f, 0.9f), new Vector4(-2.5f, 22f, 28f, 1f) }
+                    : new[] { new Vector4(10f, 55f, 46f, 0.95f), new Vector4(6.5f, 42f, 30f, 0.7f) };
+                for (int layer = 0; layer < layers.Length; layer++)
                 {
-                    foreach (var r in c.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                    bobbers.Add((c.transform, 0.3f + (float)rnd.NextDouble() * 0.3f, c.transform.localPosition.y));
+                    var L = layers[layer];
+                    float width = maxX - minX + 240f;
+                    float tileW = L.z, tileH = tileW / 4f;
+                    var cm = Mat.UnlitInstance(new Color(tint.r, tint.g, tint.b, L.w), clouds);
+                    cm.SetTextureScale("_BaseMap", new Vector2(width / tileW, 1f));
+                    cm.SetTextureOffset("_BaseMap", new Vector2(layer * 0.37f, 0f));
+                    var cq = MeshGen.Make("clouds" + layer, MeshGen.Quad(), cm, sky.transform, Vector3.zero, false);
+                    cq.transform.localPosition = new Vector3((minX + maxX) * 0.5f, L.x, L.y);
+                    cq.transform.localScale = new Vector3(width, tileH, 1f);
+                    cq.transform.localRotation = Quaternion.Euler(0, 180, 0);
+                    var mr = cq.GetComponent<MeshRenderer>();
+                    mr.receiveShadows = false;
+                    mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 }
             }
         }
@@ -151,7 +188,7 @@ namespace HWC.Visuals
                 float roll = (float)rnd.NextDouble();
                 if (houses && roll < 0.18f)
                 {
-                    Spawn("house_" + rnd.Next(3), new Vector3(x, groundY, z + 3f), 180f + (float)(rnd.NextDouble() * 20 - 10));
+                    Spawn("house_" + rnd.Next(3), new Vector3(x, groundY, z + 3f), (float)(rnd.NextDouble() * 30 - 15));
                     x += 2.5f;
                 }
                 else if (roll < 0.65f) Spawn(trees[rnd.Next(trees.Length)], new Vector3(x, groundY, z), (float)rnd.NextDouble() * 360f, Vector3.one * (0.8f + (float)rnd.NextDouble() * 0.6f));
@@ -160,8 +197,7 @@ namespace HWC.Visuals
             for (float x = minX; x < maxX; x += 2f) Spawn("prop_fence", new Vector3(x, groundY, 3.4f), 0);
             for (float x = minX - 10; x < maxX + 10; x += 16f + (float)rnd.NextDouble() * 8f)
                 Spawn("prop_hill", new Vector3(x, groundY - 1.5f, 28f + (float)rnd.NextDouble() * 10f), (float)rnd.NextDouble() * 360f, Vector3.one * (1.2f + (float)rnd.NextDouble()));
-            var ground = MeshGen.Make("ground", MeshGen.RoundedBox(new Vector3(maxX - minX + 120, 0.2f, 80), 0.01f), Mat.Lit(Palette.Hex("8DB36B"), 0.1f), transform,
-                new Vector3((minX + maxX) * 0.5f, groundY - 0.11f, 30f));
+            var ground = Plane("ground", Tiled("grass", (maxX - minX + 120) / 2.5f, 80f / 2.5f), new Vector3((minX + maxX) * 0.5f, groundY - 0.02f, 30f), new Vector2(maxX - minX + 120, 80));
             ground.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
 
@@ -328,7 +364,7 @@ namespace HWC.Visuals
                     float sh = sp.Def.B > 0 ? sp.Def.B : 0.18f;
                     for (int i = 0; i < n; i++)
                     {
-                        var stp = Spawn("prop_step", new Vector3((float)sp.X0 + 0.28f * i + 0.05f, groundY + sh * (i + 1), 0.4f), 0, new Vector3(1, 1 + sh * (i + 1) / 0.2f, 1));
+                        var stp = Spawn("prop_step", new Vector3((float)sp.X0 + 0.28f * i + 0.05f, groundY + sh * (i + 1), 0.4f));
                     }
                 }
                 if (sp.Kind == EventKind.Toss)
@@ -342,7 +378,7 @@ namespace HWC.Visuals
                     float h = porchY - groundY;
                     int n = Mathf.Max(1, Mathf.RoundToInt(h / 0.18f));
                     for (int i = 0; i < n; i++)
-                        Spawn("prop_step", new Vector3((float)sp.X1 - 1.6f - 0.3f * (n - i), groundY + h * (i + 1) / n, -0.2f), 0, new Vector3(1, 1 + h * (i + 1) / n / 0.2f, 1));
+                        Spawn("prop_step", new Vector3((float)sp.X1 - 1.6f - 0.3f * (n - i), groundY + h * (i + 1) / n, -0.2f));
                 }
             }
             Scenery(minX, maxX, groundY, 23);
@@ -377,7 +413,7 @@ namespace HWC.Visuals
                     if (w != null) bobbers.Add((w.transform, 0.8f + k * 0.2f, w.transform.localPosition.y));
                 }
             }
-            var sea = MeshGen.Make("sea", MeshGen.RoundedBox(new Vector3(maxX - minX + 200, 0.2f, 120), 0.01f), Mat.Lit(Palette.Hex("3F7FA6"), 0.6f), transform, new Vector3((minX + maxX) * 0.5f, -2.0f, 50f));
+            var sea = Plane("sea", Tiled("water", (maxX - minX + 200) / 4f, 120f / 4f), new Vector3((minX + maxX) * 0.5f, -1.9f, 50f), new Vector2(maxX - minX + 200, 120));
             sea.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             Spawn("prop_hill", new Vector3(maxX + 10, -3f, 45f), 0, new Vector3(2, 1.2f, 1.5f));
             Spawn("tree_round", new Vector3(maxX + 8, -0.2f, 42f), 0, Vector3.one * 2f);

@@ -434,10 +434,238 @@ def make_paper_ui():
     save("ui_paper", rgb)
 
 
+# ----------------------------------------------------------------------------- PBR surfaces
+# Tileable albedo + normal + mask (R metallic, G occlusion, A smoothness) for the big journey
+# surfaces, where a per-model bake would be far too blurry.
+
+def worley(n, cells, seed=0, jitter=0.9):
+    """Tileable cellular noise on an n x n image: (F1, F2, cell id), distances in cell units."""
+    r = np.random.default_rng(seed)
+    px = (r.random((cells, cells)) - 0.5) * jitter + 0.5
+    py = (r.random((cells, cells)) - 0.5) * jitter + 0.5
+    ids = r.random((cells, cells))
+    coord = (np.arange(n) + 0.5) / n * cells
+    gy, gx = np.meshgrid(coord, coord, indexing="ij")
+    cy, cx = np.floor(gy).astype(int), np.floor(gx).astype(int)
+    f1 = np.full((n, n), 9.0)
+    f2 = np.full((n, n), 9.0)
+    cid = np.zeros((n, n))
+    for oy in (-1, 0, 1):
+        for ox in (-1, 0, 1):
+            ny, nx = cy + oy, cx + ox
+            wy, wx = ny % cells, nx % cells
+            d = np.hypot(gx - (nx + px[wy, wx]), gy - (ny + py[wy, wx]))
+            closer = d < f1
+            f2 = np.where(closer, f1, np.minimum(f2, d))
+            cid = np.where(closer, ids[wy, wx], cid)
+            f1 = np.where(closer, d, f1)
+    return f1, f2, cid
+
+
+def save_mask(name, metal, ao, smooth):
+    h, w = ao.shape
+    px = np.dstack([np.broadcast_to(metal, (h, w)), ao, np.zeros((h, w)), np.broadcast_to(smooth, (h, w))])[::-1]
+    img = bpy.data.images.new(name, w, h, alpha=True)
+    img.colorspace_settings.name = "Non-Color"
+    img.alpha_mode = "CHANNEL_PACKED"
+    img.pixels = px.astype(np.float32).ravel()
+    img.filepath_raw = os.path.join(OUT, name + ".png")
+    img.file_format = "PNG"
+    img.save()
+    bpy.data.images.remove(img)
+    print(f"[tex] {name} (mask)")
+
+
+def pbr_set(name, rgb, hgt, strength, metal, ao, smooth):
+    save(name, rgb)
+    save_normal(name + "_n", normal_from_height(hgt, strength))
+    save_mask(name + "_mask", metal, np.clip(ao, 0, 1), np.clip(smooth, 0, 1))
+
+
+def tint(hexcol, lum):
+    return hexrgb(hexcol)[None, None, :] * lum[..., None]
+
+
+def make_asphalt():
+    n = 1024
+    f1, f2, cid = worley(n, 160, seed=11)
+    stones = np.clip(1 - f1 / 0.45, 0, 1) ** 0.7                    # rounded aggregate
+    fine = blur(rng.random((n, n)), 1)
+    patches = fbm(n, n, base=3, octaves=5, seed=12)
+    lum = 0.30 + 0.12 * patches + 0.18 * stones * (cid - 0.3) + 0.06 * (fine - 0.5)
+    rgb = tint("8E8A88", np.clip(lum, 0.12, 0.75) / 0.42)
+    # tar seams and a few cracks
+    crack = np.zeros((n, n))                                         # (hairline cracks read as doodles; left out)
+    hgt = stones * 0.6 + fine * 0.25 - crack * 0.8
+    pbr_set("asphalt", rgb, hgt, 3.0, 0.0, 1 - 0.35 * (1 - stones) * (f1 > 0.3) - 0.4 * crack, 0.12 + 0.12 * (1 - stones) + 0.08 * patches)
+
+
+def make_concrete():
+    n = 1024
+    blot = fbm(n, n, base=3, octaves=6, seed=21)
+    fine = fbm(n, n, base=64, octaves=3, seed=22)
+    f1, _, _ = worley(n, 90, seed=23)
+    pores = (f1 < 0.12).astype(float) * (rng.random((n, n)) > 0.4)
+    pores = blur(pores, 1)
+    lum = 0.86 + 0.12 * (blot - 0.5) + 0.06 * (fine - 0.5) - 0.25 * pores
+    rgb = tint("B7B2AC", lum)
+    hgt = blot * 0.3 + fine * 0.3 - pores * 0.8
+    pbr_set("concrete", rgb, hgt, 2.5, 0.0, 1 - 0.5 * pores, 0.2 + 0.15 * blot)
+
+
+def make_grass():
+    n = 1024
+    # blades: thin vertical streaks of random length and lean, overlapping in layers
+    hgt = np.zeros((n, n))
+    col = np.zeros((n, n, 3))
+    base = tint("4F6E2E", 0.55 + 0.3 * fbm(n, n, base=4, octaves=5, seed=31))
+    col[:] = base
+    r = np.random.default_rng(32)
+    yy = np.arange(n)
+    for layer in range(3):
+        count = 9000
+        xs = r.integers(0, n, count)
+        ys = r.integers(0, n, count)
+        lens = r.integers(14, 38, count)
+        leans = r.uniform(-0.35, 0.35, count)
+        shades = r.uniform(0.55, 1.15, count) * (0.75 + 0.15 * layer)
+        hues = r.integers(0, 4, count)
+        palette = [hexrgb(h) for h in ("6E9A3A", "86AC48", "5D8A35", "A3B45A")]
+        for k in range(count):
+            for t in range(lens[k]):
+                y = (ys[k] - t) % n
+                x = int(xs[k] + leans[k] * t) % n
+                w = 1.0 - t / lens[k]
+                col[y, x] = palette[hues[k]] * shades[k] * (0.55 + 0.45 * (t / lens[k]))
+                hgt[y, x] = layer * 0.3 + w * 0.3
+    dirt = fbm(n, n, base=5, octaves=5, seed=33)
+    soil = np.clip((dirt - 0.7) / 0.08, 0, 1) * blur(rng.random((n, n)), 2) * 1.6   # sparse, broken-up bare spots
+    soil = np.clip(blur(soil, 2), 0, 1)
+    col = col * (1 - 0.45 * soil[..., None]) + tint("6B5236", np.ones((n, n))) * (0.45 * soil[..., None])
+    col *= (0.9 + 0.2 * fbm(n, n, base=2, octaves=3, seed=34))[..., None]                  # broad tonal variation
+    hgt = blur(hgt, 1)
+    pbr_set("grass", col, hgt, 2.5, 0.0, 0.55 + 0.45 * np.clip(hgt / 0.9, 0, 1), 0.08 + 0.1 * hgt)
+
+
+def make_cobble():
+    n = 1024
+    f1, f2, cid = worley(n, 8, seed=41, jitter=0.6)
+    edge = np.clip((f2 - f1) / 0.12, 0, 1)                         # 0 at the mortar joints
+    dome = np.sqrt(np.clip(edge, 0, 1))
+    grain = fbm(n, n, base=24, octaves=4, seed=42)
+    tone = 0.75 + 0.3 * (cid - 0.5) + 0.12 * (grain - 0.5)
+    rgb = tint("9A928B", tone) * (0.35 + 0.65 * edge ** 0.4)[..., None]
+    joint = 1 - edge ** 0.25
+    rgb = rgb * (1 - joint[..., None]) + tint("5A524A", 0.8 + 0.2 * grain) * joint[..., None]
+    pbr_set("cobble", rgb, dome * 0.9 + grain * 0.15, 3.5, 0.0, 0.35 + 0.65 * edge ** 0.5, 0.15 + 0.25 * edge * grain)
+
+
+def make_brick():
+    n = 1024
+    rows, cols = 16, 4
+    yy, xx = np.mgrid[0:n, 0:n] / n
+    row = np.floor(yy * rows).astype(int)
+    off = (row % 2) * 0.5
+    u = (xx * cols + off) % 1
+    v = (yy * rows) % 1
+    ids = np.floor(xx * cols + off).astype(int) % cols + row * cols
+    r = np.random.default_rng(51)
+    rnd = r.random(rows * cols + cols)[ids]
+    mortar = np.minimum(np.minimum(u, 1 - u) * cols * 6, np.minimum(v, 1 - v) * rows * 1.5)
+    brick = np.clip(mortar * 3, 0, 1)
+    grain = fbm(n, n, base=32, octaves=4, seed=52)
+    blot = fbm(n, n, base=6, octaves=4, seed=53)
+    rgb = tint("A4553C", 0.75 + 0.35 * rnd + 0.12 * (grain - 0.5) + 0.1 * (blot - 0.5))
+    rgb = rgb * brick[..., None] + tint("CFC4B4", 0.85 + 0.1 * grain) * (1 - brick[..., None])
+    pbr_set("brick", rgb, brick * 0.8 + grain * 0.2, 3.0, 0.0, 0.5 + 0.5 * brick, 0.12 + 0.1 * grain)
+
+
+def make_shingle():
+    n = 1024
+    rows, cols = 12, 6
+    yy, xx = np.mgrid[0:n, 0:n] / n
+    row = np.floor(yy * rows).astype(int)
+    u = (xx * cols + (row % 2) * 0.5) % 1
+    v = (yy * rows) % 1
+    ids = (np.floor(xx * cols + (row % 2) * 0.5).astype(int) % cols) + row * cols
+    rnd = np.random.default_rng(61).random(rows * cols + cols)[ids]
+    gap = np.clip(np.minimum(u, 1 - u) * cols * 20, 0, 1)
+    lip = v                                                         # each tile thickens toward its lower edge
+    grain = fbm(n, n, base=40, octaves=4, seed=62)
+    hgt = lip * 0.6 * gap + grain * 0.15
+    lum = (0.75 + 0.3 * rnd + 0.1 * (grain - 0.5)) * (0.55 + 0.45 * gap) * (0.75 + 0.25 * lip)
+    pbr_set("shingle", tint("8A8E96", lum), hgt, 3.0, 0.0, 0.5 + 0.5 * gap * lip, 0.15 + 0.1 * grain)
+
+
+def make_treadplate():
+    n = 512
+    yy, xx = np.mgrid[0:n, 0:n] / n * 8
+    def lug(ax, ay, ang):
+        ca, sa = math.cos(ang), math.sin(ang)
+        dx, dy = (xx - ax) % 1 - 0.5, (yy - ay) % 1 - 0.5
+        u, v = dx * ca + dy * sa, -dx * sa + dy * ca
+        return np.clip(1 - np.hypot(u / 0.32, v / 0.07), 0, 1) ** 0.5
+    lugs = np.maximum(lug(0, 0, math.radians(45)), lug(0.5, 0.5, math.radians(-45)))
+    scuff = fbm(n, n, base=8, octaves=6, seed=71)
+    lum = 0.62 + 0.15 * (scuff - 0.5) + 0.1 * lugs
+    pbr_set("treadplate", tint("B7BCC2", lum), lugs + scuff * 0.1, 4.0, 1.0, 0.7 + 0.3 * lugs, 0.45 + 0.25 * lugs - 0.15 * scuff)
+
+
+def make_water():
+    n = 1024
+    swell = fbm(n, n, base=3, octaves=6, seed=81, aspect=(1, 0.5))
+    ripple = fbm(n, n, base=24, octaves=4, seed=82, aspect=(1, 0.4))
+    hgt = swell * 0.7 + ripple * 0.3
+    foam = np.clip((ripple - 0.74) / 0.1, 0, 1) * np.clip((swell - 0.55) / 0.2, 0, 1) * 0.6
+    rgb = tint("2F6E8C", 0.75 + 0.35 * swell) * (1 - foam[..., None]) + tint("E6F0F2", np.ones((n, n))) * foam[..., None]
+    pbr_set("water", rgb, hgt, 6.0, 0.0, np.ones((n, n)), 0.92 - 0.5 * foam)
+
+
+def make_hay():
+    n = 512
+    hgt = np.zeros((n, n))
+    col = tint("B08A3A", 0.6 + 0.2 * fbm(n, n, base=4, octaves=4, seed=91))
+    r = np.random.default_rng(92)
+    pal = [hexrgb(h) for h in ("E8C46A", "D9B04A", "F0D68A", "C49A3C", "A9893F")]
+    for k in range(14000):
+        x0, y0 = r.uniform(0, n, 2)
+        ang = r.uniform(-0.6, 0.6) + (math.pi / 2 if r.random() < 0.3 else 0)
+        ln = r.integers(20, 60)
+        c = pal[r.integers(0, 5)] * r.uniform(0.75, 1.1)
+        for t in range(ln):
+            x = int(x0 + math.cos(ang) * t) % n
+            y = int(y0 + math.sin(ang) * t) % n
+            col[y, x] = c
+            hgt[y, x] = 0.5 + 0.5 * math.sin(t / ln * math.pi)
+    hgt = blur(hgt, 1)
+    pbr_set("hay", col, hgt, 3.0, 0.0, 0.45 + 0.55 * hgt, 0.15 + 0.15 * hgt)
+
+
+def make_clouds():
+    """Sky cloud layer (white with alpha), tiles horizontally; tinted per lighting preset in Unity."""
+    w, h = 2048, 512
+    warp = fbm(h, w, base=3, octaves=4, seed=101, aspect=(1, 4))
+    d = fbm(h, w, base=3, octaves=7, seed=102, aspect=(1, 4))
+    d2 = np.roll(d, (int(20), int(60)), axis=(0, 1))
+    dens = 0.6 * d + 0.4 * d2 + 0.25 * (warp - 0.5)
+    yy = np.linspace(0, 1, h)[:, None]                           # row 0 = top
+    band = np.clip(1 - np.abs(yy - 0.55) / 0.4, 0, 1)           # clouds sit in the middle band
+    dens = np.clip((dens - 0.52) / 0.18, 0, 1) * band
+    alpha = dens ** 0.8
+    soft = blur(dens, 6)
+    above = sum(np.roll(soft, k, axis=0) for k in (6, 12, 20, 30)) / 4   # cloud mass between here and the sun
+    shade = np.clip(1.02 - 0.32 * above, 0.74, 1.0)                    # lit tops, grey undersides
+    rgb = np.dstack([shade, shade * 0.99, shade * 0.97])
+    save("clouds", rgb, alpha)
+
+
 ALL = {
     "kraft": make_kraft, "kraftin": make_kraftin, "corrugate": make_corrugate, "tapes": make_tapes,
     "label": make_label, "decals": make_decals, "wood": make_wood, "plaster": make_plaster,
     "pegboard": make_pegboard, "paper_ui": make_paper_ui,
+    "asphalt": make_asphalt, "concrete": make_concrete, "grass": make_grass, "cobble": make_cobble,
+    "brick": make_brick, "shingle": make_shingle, "treadplate": make_treadplate, "water": make_water,
+    "hay": make_hay, "clouds": make_clouds,
 }
 
 

@@ -49,7 +49,7 @@ namespace HWC.Visuals
         public static Sprite Piece(PieceKind kind)
         {
             string id = "piece_" + kind;
-            if (cache.TryGetValue(id, out var s)) return s;
+            if (cache.TryGetValue(id, out var s) && s != null) return s;
             Setup();
             var root = new GameObject("icon_" + kind);
             root.transform.position = Origin;
@@ -63,7 +63,7 @@ namespace HWC.Visuals
 
         public static Sprite Object3D(string id, GameObject root)
         {
-            if (cache.TryGetValue(id, out var s)) { if (root != null) Object.Destroy(root); return s; }
+            if (cache.TryGetValue(id, out var s) && s != null) { if (root != null) Object.Destroy(root); return s; }
             Setup();
             root.transform.position = Origin;
             return Capture(root, id, -20f);

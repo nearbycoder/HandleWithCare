@@ -12,7 +12,7 @@ namespace HWC.Visuals
         public static Mesh RoundedBox(Vector3 size, float r, int seg = 6)
         {
             string key = $"rb{size.x:0.###}_{size.y:0.###}_{size.z:0.###}_{r:0.###}_{seg}";
-            if (cache.TryGetValue(key, out var m)) return m;
+            if (cache.TryGetValue(key, out var m) && m != null) return m;
             var half = size * 0.5f;
             r = Mathf.Min(r, Mathf.Min(half.x, Mathf.Min(half.y, half.z)) * 0.999f);
             var inner = half - Vector3.one * r;
@@ -78,7 +78,7 @@ namespace HWC.Visuals
         /// <summary>Surface of revolution around Y from a (radius, height) profile.</summary>
         public static Mesh Lathe(string key, Vector2[] profile, int sides = 32)
         {
-            if (cache.TryGetValue(key, out var m)) return m;
+            if (cache.TryGetValue(key, out var m) && m != null) return m;
             var verts = new List<Vector3>();
             var norms = new List<Vector3>();
             var uvs = new List<Vector2>();
@@ -115,6 +115,7 @@ namespace HWC.Visuals
             m.SetUVs(0, uvs);
             m.SetTriangles(tris, 0);
             m.RecalculateBounds();
+            m.RecalculateTangents();
             cache[key] = m;
             return m;
         }
@@ -133,13 +134,14 @@ namespace HWC.Visuals
 
         public static Mesh Quad()
         {
-            if (cache.TryGetValue("quad", out var m)) return m;
+            if (cache.TryGetValue("quad", out var m) && m != null) return m;
             m = new Mesh { name = "quad" };
             m.vertices = new[] { new Vector3(-0.5f, -0.5f, 0), new Vector3(0.5f, -0.5f, 0), new Vector3(-0.5f, 0.5f, 0), new Vector3(0.5f, 0.5f, 0) };
             m.normals = new[] { Vector3.back, Vector3.back, Vector3.back, Vector3.back };
             m.uv = new[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 1), new Vector2(1, 1) };
             m.triangles = new[] { 0, 2, 1, 1, 2, 3 };
             m.RecalculateBounds();
+            m.RecalculateTangents();
             cache["quad"] = m;
             return m;
         }

@@ -99,7 +99,41 @@ def get_material(name):
             mat.surface_render_method = "BLENDED"
         if kind == "shiny":
             bsdf.inputs["Coat Weight"].default_value = 0.5
+        if kind == "tex":
+            _preview_texture(mat, bsdf, arg)
     return mat
+
+
+def _preview_texture(mat, bsdf, name):
+    """Show Resources/Textures/<name> (+ _n, _mask) on tex_ materials so previews match the game."""
+    import os
+    base = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Assets", "Resources", "Textures", name)
+    if not os.path.exists(base + ".png"):
+        return
+    nt = mat.node_tree
+
+    def img(path, color):
+        n = nt.nodes.new("ShaderNodeTexImage")
+        n.image = bpy.data.images.load(path, check_existing=True)
+        n.image.colorspace_settings.name = "sRGB" if color else "Non-Color"
+        n.image.alpha_mode = "CHANNEL_PACKED"
+        return n
+
+    nt.links.new(img(base + ".png", True).outputs["Color"], bsdf.inputs["Base Color"])
+    if os.path.exists(base + "_n.png"):
+        nm = nt.nodes.new("ShaderNodeNormalMap")
+        nt.links.new(img(base + "_n.png", False).outputs["Color"], nm.inputs["Color"])
+        nt.links.new(nm.outputs["Normal"], bsdf.inputs["Normal"])
+    if os.path.exists(base + "_mask.png"):
+        m = img(base + "_mask.png", False)
+        sep = nt.nodes.new("ShaderNodeSeparateColor")
+        nt.links.new(m.outputs["Color"], sep.inputs["Color"])
+        nt.links.new(sep.outputs["Red"], bsdf.inputs["Metallic"])
+        inv = nt.nodes.new("ShaderNodeMath")
+        inv.operation = "SUBTRACT"
+        inv.inputs[0].default_value = 1.0
+        nt.links.new(m.outputs["Alpha"], inv.inputs[1])
+        nt.links.new(inv.outputs[0], bsdf.inputs["Roughness"])
 
 
 # ----------------------------------------------------------------------------- primitives
@@ -510,8 +544,15 @@ class Model:
         self.materials = []
         self.bm.loops.layers.uv.verify()
 
-    def add(self, prim, material, smooth=None, transform=None, uv_scale=None, uv_offset=(0, 0)):
+    def add(self, prim, material, smooth=None, transform=None, uv_scale=None, uv_offset=(0, 0), uv_local=False):
+        """uv_local: box-project UVs before `transform`, so textures follow a rotated part (roof slopes)."""
         part, default_smooth = prim
+        if uv_local and uv_scale is not None:
+            _uv_box(part, uv_scale, uv_offset)
+            uv_scale = None
+            uv_done = True
+        else:
+            uv_done = False
         if transform is not None:
             part.transform(transform)
             part.normal_update()
@@ -527,7 +568,7 @@ class Model:
             _sharpen(part, 50.0)
         if uv_scale is not None:
             _uv_box(part, uv_scale, uv_offset)
-        else:
+        elif not uv_done:
             part.loops.layers.uv.verify()
         mesh = bpy.data.meshes.new("_part")
         part.to_mesh(mesh)

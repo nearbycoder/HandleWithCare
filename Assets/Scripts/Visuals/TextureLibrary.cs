@@ -10,7 +10,7 @@ namespace HWC.Visuals
 
         public static Texture2D Get(string name)
         {
-            if (cache.TryGetValue(name, out var t)) return t;
+            if (cache.TryGetValue(name, out var t) && t != null) return t;
             t = Resources.Load<Texture2D>("Textures/" + name);
             cache[name] = t;
             return t;
@@ -22,6 +22,8 @@ namespace HWC.Visuals
             var tex = Get(name);
             var nrm = Get(name + "_n");
             if (tex == null) return Mat.Lit(Palette.Kraft, 0.25f);
+            var mask = Get(name + "_mask");
+            if (mask != null) return Mat.Baked("tex_" + name, tex, nrm, mask);
             float smooth = name.Contains("tape") ? 0.55f : (name.Contains("wood") ? 0.3f : 0.18f);
             return Mat.Textured("tex_" + name, tex, Color.white, smooth, nrm, 0.8f);
         }
@@ -43,7 +45,7 @@ namespace HWC.Visuals
         {
             get
             {
-                if (cache.TryGetValue("__dot", out var t)) return t;
+                if (cache.TryGetValue("__dot", out var t) && t != null) return t;
                 const int N = 64;
                 t = new Texture2D(N, N, TextureFormat.RGBA32, false) { name = "softdot", wrapMode = TextureWrapMode.Clamp };
                 var px = new Color32[N * N];
@@ -68,7 +70,7 @@ namespace HWC.Visuals
         {
             get
             {
-                if (cache.TryGetValue("__grid", out var t)) return t;
+                if (cache.TryGetValue("__grid", out var t) && t != null) return t;
                 const int N = 128;
                 t = new Texture2D(N, N, TextureFormat.RGBA32, true) { name = "gridcell", wrapMode = TextureWrapMode.Repeat, anisoLevel = 4 };
                 var px = new Color32[N * N];
