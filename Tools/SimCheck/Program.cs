@@ -26,6 +26,14 @@ static class Program
                 case "trace": return RunOne(int.Parse(args[1]), args.Length > 2 ? args[2] : "ref", true);
                 case "map": return RunMap(args);
                 case "route": return PrintRoute(int.Parse(args[1]));
+                case "debug":
+                {
+                    var lv = Levels.Get(int.Parse(args[1]));
+                    var rows = args[2].Split('/');
+                    return DebugRun.Run(lv, LevelParse.Parse(lv, rows, null, null, null), int.Parse(args[3]), float.Parse(args[4]), float.Parse(args[5]));
+                }
+                case "explore": return Search.Explore(int.Parse(args[1]), args.Length > 2 ? int.Parse(args[2]) : 400);
+                case "solve": return Search.Solve(int.Parse(args[1]), args.Length > 2 ? int.Parse(args[2]) : 600, args.Length > 3 ? int.Parse(args[3]) : 16);
                 default: Console.Error.WriteLine("unknown command"); return 2;
             }
         }
@@ -76,7 +84,9 @@ static class Program
         {
             if (args.Length > 0 && !args.Contains(lv.Number.ToString())) continue;
             var problems = new List<string>();
-            var pk = lv.ReferencePacking();
+            Packing pk;
+            try { pk = lv.ReferencePacking(); }
+            catch (Exception e) { Console.WriteLine($"#{lv.Number,2} {lv.Title,-28} ref: PARSE ERROR {e.Message}"); failures++; continue; }
             string err = pk.Validate(lv);
             if (err != null) problems.Add("reference invalid: " + err);
             Recording rec = null;
@@ -122,7 +132,7 @@ static class Program
         return failures == 0 ? 0 : 1;
     }
 
-    static string Stars(Outcome o) => new string('★', o.Stars) + new string('☆', 3 - o.Stars);
+    public static string Stars(Outcome o) => new string('★', o.Stars) + new string('☆', 3 - o.Stars);
 
     static string Describe(Recording rec)
     {
@@ -158,14 +168,17 @@ static class Program
         var rec = Simulator.Run(lv, pk);
         Console.WriteLine($"cost {rec.Outcome.Cost} par {lv.Par}  stars {Stars(rec.Outcome)}  delivered {rec.Outcome.Delivered}  care {rec.Outcome.WorstCare:0.00}");
         foreach (var i in rec.Outcome.Items)
-            Console.WriteLine($"  {i.Kind,-12} {i.Status,-9} peak jolt {i.PeakJolt,5:0.0} / {i.Limit,4:0.0}  care {i.Care:0.00}");
+        {
+            string at = i.PeakLeg >= 0 ? $"{rec.Kin.Route.Legs[i.PeakLeg].Kind}/{(i.PeakEvent >= 0 ? rec.Kin.Route.Legs[i.PeakLeg].Events[i.PeakEvent].Kind.ToString() : "end")} @{i.PeakTick * SimConst.Dt:0.00}s" : "";
+            Console.WriteLine($"  {i.Kind,-12} {i.Status,-9} peak jolt {i.PeakJolt,5:0.0} / {i.Limit,4:0.0}  care {i.Care:0.00}  {at}");
+        }
         Console.WriteLine("incidents:");
         foreach (var inc in rec.Incidents)
             Console.WriteLine($"  {inc.Time,5:0.00}s {rec.Bodies[inc.Body].Kind,-12} {inc.Kind,-13} {inc.Value,5:0.0}/{inc.Limit,4:0.0} {(inc.Other >= 0 ? "by " + Name(rec, inc.Other) : ""),-16} [{EventName(rec, inc)}]{(inc.IsFailure ? " FAIL" : "")}");
         // peak jolt per event for the items
         if (trace)
         {
-            for (int f = 0; f < rec.Frames.Count; f += 15)
+            for (int f = 0; f < rec.Frames.Count; f += 6)
             {
                 var sb = new StringBuilder($"{Recording.TimeOfFrame(f),5:0.00}s ");
                 var fr = rec.Frames[f];
@@ -193,15 +206,17 @@ static class Program
         var lv = Levels.Get(int.Parse(args[1]));
         var rows = new List<string>();
         int[] div = null; string shelf = null, mods = null;
+        bool trace = false;
         for (int i = 2; i < args.Length; i++)
         {
+            if (args[i] == "--trace") { trace = true; continue; }
             if (args[i] == "--div") div = args[++i].Split(',').Select(int.Parse).ToArray();
             else if (args[i] == "--shelf") shelf = args[++i];
             else if (args[i] == "--mods") mods = args[++i];
             else rows.Add(args[i]);
         }
         var pk = LevelParse.Parse(lv, rows.ToArray(), div, shelf, mods);
-        return Report(lv, pk, false);
+        return Report(lv, pk, trace);
     }
 
     static int PrintRoute(int n)

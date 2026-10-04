@@ -375,6 +375,14 @@ namespace HWC.Sim
                 {
                     if (a.Has(Quirk.Sharp)) Prick(b, a);
                     if (b.Has(Quirk.Sharp)) Prick(a, b);
+                    // two magnets that touch are stuck together for good
+                    if (DamageEnabled && a.Has(Quirk.Magnet) && b.Has(Quirk.Magnet) && (!a.Is(BodyState.Stuck) || !b.Is(BodyState.Stuck)))
+                    {
+                        a.State |= BodyState.Stuck;
+                        b.State |= BodyState.Stuck;
+                        AddIncident(a, IncidentKind.Stuck, -c.Vn0, 0, b.Index, true);
+                        AddIncident(b, IncidentKind.Stuck, -c.Vn0, 0, a.Index, true);
+                    }
                 }
 
                 // notable bumps for sound/particles
@@ -395,19 +403,24 @@ namespace HWC.Sim
             {
                 var b = Bodies[i];
                 if (!b.IsPiece || !b.Active) continue;
-                float jolt;
+                // jolt = hardness-weighted velocity change from contacts, summed over a 3-tick
+                // (12.5 ms) window so an impact counts the same however the solver splits it
+                V2 dvc;
                 if (b.Fixed)
                 {
-                    jolt = DvLocal.Length * SimConst.StrapHardness + b.WeightedImpulseMag / b.Mass;
+                    dvc = DvLocal * SimConst.StrapHardness + b.ContactImpulse * (1f / b.Mass) * (b.ContactImpulseMag > 1e-6f ? b.WeightedImpulseMag / b.ContactImpulseMag : 1f);
                 }
                 else
                 {
                     var dv = b.Vel - b.VelBefore;
                     float hAvg = b.ContactImpulseMag > 1e-6f ? b.WeightedImpulseMag / b.ContactImpulseMag : 1f;
-                    jolt = dv.Length * hAvg;
+                    dvc = dv * hAvg;
                 }
-                // ignore the gentle support that just cancels gravity
-                jolt = Math.Max(0, jolt - AEff.Length * dt * 1.5f);
+                var win = dvc + b.Jw0 + b.Jw1;
+                b.Jw1 = b.Jw0;
+                b.Jw0 = dvc;
+                // ignore the gentle support that just cancels gravity (never the box's own jolts)
+                float jolt = Math.Max(0, win.Length - GLocal.Length * dt * 3.6f);
                 b.LastJolt = jolt;
 
                 float comp = Math.Max(Math.Min(b.CompPosX, b.CompNegX), Math.Min(b.CompPosY, b.CompNegY));
@@ -695,7 +708,13 @@ namespace HWC.Sim
                 if (d.JoltLimit > 0 && d.Kind != PieceKind.Bubble) ratio = Math.Max(ratio, b.LastJolt / d.JoltLimit);
                 if (d.CrushLimit > 0 && d.Kind != PieceKind.Bubble) ratio = Math.Max(ratio, crush / d.CrushLimit);
                 if (d.WakeLimit > 0) ratio = Math.Max(ratio, b.LastJolt / d.WakeLimit);
-                if (ratio > b.PeakJoltRatio) b.PeakJoltRatio = ratio;
+                if (ratio > b.PeakJoltRatio)
+                {
+                    b.PeakJoltRatio = ratio;
+                    b.PeakTick = Tick - RouteStartTick;
+                    b.PeakLeg = CurrentLeg;
+                    b.PeakEvent = CurrentEvent;
+                }
             }
         }
 
@@ -831,6 +850,13 @@ namespace HWC.Sim
             {
                 b.State |= BodyState.Spilled;
                 AddIncident(b, IncidentKind.Spilled, 0, 0, -1, true);
+            }
+
+            // falling over is never "handled with care"
+            if (b.PeakJoltRatio < 0.75f)
+            {
+                b.PeakJoltRatio = 0.75f;
+                b.PeakTick = Tick - RouteStartTick; b.PeakLeg = CurrentLeg; b.PeakEvent = CurrentEvent;
             }
 
             // falling over is itself a hit, softened by whatever it lands on

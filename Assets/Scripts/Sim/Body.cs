@@ -25,6 +25,7 @@ namespace HWC.Sim
         Sneezing = 1 << 14,   // flame active (visual)
         Walking = 1 << 15,
         Hopping = 1 << 16,
+        Stuck = 1 << 17,      // magnets that touched each other
     }
 
     /// <summary>A rigid axis-aligned rectangle in box-local cell coordinates.</summary>
@@ -66,6 +67,8 @@ namespace HWC.Sim
 
         // damage tracking
         public float LastJolt, PeakJolt, PeakCrush, PeakJoltRatio;
+        public int PeakTick = -1, PeakLeg = -1, PeakEvent = -1;
+        public V2 Jw0, Jw1;          // contact velocity changes of the last two ticks (jolt window)
         public float[] CrushRing;
         public int CrushHead;
         public float CrushSum;

@@ -246,6 +246,22 @@ namespace HWC.Gameplay
                 v.ApplyFrame(fr, snap);
             }
 
+            // creature chatter from state changes
+            if (!snap && f0 != lastSoundFrame)
+            {
+                lastSoundFrame = f0;
+                var prevF = Rec.Frames[Mathf.Max(0, f0 - 1)];
+                for (int b = 0; b < bodyViews.Length; b++)
+                {
+                    if (bodyViews[b] == null) continue;
+                    var kind = Rec.Bodies[b].Kind;
+                    var bst = A[b].State;
+                    if ((bst & BodyState.Hopping) != 0 && (prevF[b].State & BodyState.Hopping) == 0) G.Hud.Sfx("ribbit", 0.8f);
+                    if (kind == PieceKind.Armadillo && (bst & BodyState.Awake) == 0 && f0 % 150 == 40) G.Hud.Sfx("snore", 0.45f);
+                    if (kind == PieceKind.Robot && f0 % 45 == 10) G.Hud.Sfx("whirr", 0.35f);
+                }
+            }
+
             // captions for route events
             int span = kin.EventOf[k];
             if (span != lastSpan)
@@ -289,6 +305,7 @@ namespace HWC.Gameplay
             var ib = Rec.Bodies[b.B];
             PieceKind? k = ia.Type == BodyType.Piece ? ia.Kind : (ib.Type == BodyType.Piece ? ib.Kind : (PieceKind?)null);
             if (k == null) return "thud";
+            if ((ia.Type == BodyType.Piece && ia.Kind == PieceKind.BouncyBall) || (ib.Type == BodyType.Piece && ib.Kind == PieceKind.BouncyBall)) return "boing";
             var def = Catalog.Get(k.Value);
             if (def.Kind == PieceKind.Bubble || def.Kind == PieceKind.Paper || def.Kind == PieceKind.Foam) return "soft";
             if (def.Has(Quirk.Metal)) return "clank";
@@ -335,6 +352,7 @@ namespace HWC.Gameplay
         }
 
         float anchorY;
+        int lastSoundFrame = -1;
 
         void Camera(StageSet st, Vector3 boxPos, float angDeg, bool snap)
         {

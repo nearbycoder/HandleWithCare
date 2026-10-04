@@ -146,7 +146,7 @@ namespace HWC.Sim
                 Kind = PieceKind.Books, Id = "books", Name = "Encyclopedias",
                 Blurb = "Heavy and sturdy. Burns.",
                 W = 2, H = 1, Mass = 2.4f, Friction = 0.65f, Restitution = 0.05f, Hardness = 0.9f,
-                Quirks = Quirk.Flammable, Rotatable = true,
+                Quirks = Quirk.Flammable,
             });
             Add(new PieceDef
             {

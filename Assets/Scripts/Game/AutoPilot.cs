@@ -25,12 +25,13 @@ namespace HWC.Gameplay
         public static bool TryStart(Game g)
         {
             var args = Environment.GetCommandLineArgs();
-            string shots = Arg(args, "-hwcShots"), auto = Arg(args, "-hwcAutopilot");
-            if (shots == null && auto == null) return false;
+            string shots = Arg(args, "-hwcShots"), auto = Arg(args, "-hwcAutopilot"), menus = Arg(args, "-hwcMenus");
+            if (shots == null && auto == null && menus == null) return false;
             SaveData.Disabled = true;
             var ap = g.gameObject.AddComponent<AutoPilot>();
-            ap.dir = shots ?? auto;
+            ap.dir = shots ?? auto ?? menus;
             ap.all = auto != null;
+            ap.menus = menus != null;
             int.TryParse(Arg(args, "-hwcLevel") ?? "1", out ap.level);
             ap.which = Arg(args, "-hwcWhich") ?? "ref";
             Directory.CreateDirectory(ap.dir);
@@ -43,10 +44,55 @@ namespace HWC.Gameplay
             return null;
         }
 
+        bool menus;
+
+        IEnumerator MenuTour()
+        {
+            var g = Game.I;
+            g.Save.SeenTips.Clear();
+            g.Save.Records.Add(new SaveData.LevelRecord { Number = 1, Stars = 3, Delivered = true, UnderBudget = true, Careful = true });
+            g.Save.Records.Add(new SaveData.LevelRecord { Number = 2, Stars = 2, Delivered = true });
+            g.Save.Records.Add(new SaveData.LevelRecord { Number = 3, Stars = 1, Delivered = true });
+            g.ShowTitle();
+            yield return new WaitForSecondsRealtime(2.0f);
+            Shot("M1_title");
+            yield return AfterShot();
+            g.Menus.ShowSelect();
+            yield return new WaitForSecondsRealtime(0.8f);
+            Shot("M2_select");
+            yield return AfterShot();
+            g.Menus.ShowSettings(g.ShowTitle);
+            yield return new WaitForSecondsRealtime(0.8f);
+            Shot("M3_settings");
+            yield return AfterShot();
+            g.Menus.HideAll();
+            g.StartLevel(1);
+            yield return new WaitForSecondsRealtime(1.2f);
+            Shot("M4_tutorial");
+            var lv = Levels.Get(1);
+            foreach (var p in lv.ReferencePacking().Pieces) g.Packing.DebugPlace(p);
+            yield return new WaitForSecondsRealtime(0.6f);
+            Shot("M5_tutorial_seal");
+            g.SealAndShip();
+            while (g.Phase != Phase.Reveal) yield return null;
+            yield return new WaitForSecondsRealtime(2.9f);
+            Shot("M6_reveal");
+            while (g.Phase != Phase.Results) yield return null;
+            yield return new WaitForSecondsRealtime(2.2f);
+            Shot("M7_results");
+            yield return AfterShot();
+            g.Hud.SetPaused(true);
+            yield return new WaitForSecondsRealtime(0.4f);
+            Shot("M8_pause");
+            Debug.Log("[AutoPilot] done");
+            Application.Quit();
+        }
+
         IEnumerator Start()
         {
             yield return null;
             yield return new WaitForSecondsRealtime(0.5f);
+            if (menus) { yield return MenuTour(); yield break; }
             if (all)
             {
                 for (int n = 1; n <= Levels.All.Count; n++) yield return RunLevel(n, "ref", false);
@@ -129,6 +175,15 @@ namespace HWC.Gameplay
             var path = Path.Combine(dir, name + ".png");
             ScreenCapture.CaptureScreenshot(path);
             Debug.Log("[AutoPilot] shot " + path);
+            shotFrame = Time.frameCount;
+        }
+
+        int shotFrame = -10;
+
+        /// <summary>Waits until the screenshot taken this frame has been written.</summary>
+        IEnumerator AfterShot()
+        {
+            while (Time.frameCount <= shotFrame + 1) yield return null;
         }
 
         static Packing NaivePacking(LevelDef lv)

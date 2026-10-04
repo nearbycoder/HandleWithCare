@@ -119,6 +119,33 @@ namespace HWC.Gameplay
             if (snap) rig.Snap();
         }
 
+        /// <summary>Title backdrop: a sealed parcel on the bench, the shelf hidden.</summary>
+        public void ShowTitle()
+        {
+            LightingPreset.For(null).Apply(Game.I.Sun, Game.I.Rig.Cam);
+            if (Box == null || Box.W != 4 || Box.H != 3)
+            {
+                if (Box != null) Destroy(Box.gameObject);
+                Box = BoxView.Create(transform, 4, 3);
+            }
+            foreach (var p in Box.Pieces) if (p != null) Destroy(p.gameObject);
+            Box.Pieces.Clear();
+            Box.ClearStatics();
+            Box.transform.SetParent(transform, false);
+            Box.transform.localPosition = new Vector3(0.55f, Box.OuterHalfHeight, -0.05f);
+            Box.transform.localRotation = Quaternion.Euler(0, -18f, 0);
+            Box.ShowGrid(false);
+            Box.SetFlaps(1f, true);
+            Box.SetTapeStyle(Game.I.Save.Tape);
+            Box.SetTape(1f, true);
+            foreach (Transform c in ItemShelf) Destroy(c.gameObject);
+            var rig = Game.I.Rig;
+            rig.Anchor = Vector3.zero;
+            rig.LookAt(new Vector3(-0.25f, 1.05f, -2.6f), new Vector3(0.15f, 0.42f, 0.1f), 30f);
+            rig.Snap();
+            rig.PosSharpness = 1.5f;
+        }
+
         public Vector3 SlotPosition(int i) => i < ShelfSlots.Count ? ShelfSlots[i] : ItemShelf.position;
     }
 }

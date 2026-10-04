@@ -73,8 +73,8 @@ namespace HWC.Sim
                 ReviewGood = "Volumes A to M, perfect. The mug too. Shh!",
                 ReviewBad = "Books: fine. Mug: overdue for a funeral.",
                 W = 5, H = 2, Items = new[] { PieceKind.Teacup, PieceKind.Books, PieceKind.Books },
-                Materials = M(paper: 6), Par = 5,
-                Route = Route(Van(Depart(0.7f, 8f), Cruise(0.6f), Pothole(0.06f), Cruise(0.8f), Bump(0.06f), Cruise(0.6f), Brake(0.55f), Rest(0.5f))),
+                Materials = M(paper: 8), Par = 5,
+                Route = Route(Van(Depart(0.7f, 8f), Cruise(0.6f), Pothole(0.045f), Cruise(0.8f), Bump(0.045f), Cruise(0.6f), Brake(0.55f), Rest(0.5f))),
                 Ref = new[] {
                     "cpppp",
                     "kkkkp" },
@@ -124,7 +124,7 @@ namespace HWC.Sim
                 ReviewBad = "Snoozles is awake and furious. He has eaten the packing slip.",
                 W = 5, H = 3, Items = new[] { PieceKind.Armadillo, PieceKind.Vase },
                 Materials = M(paper: 4, bubble: 3, foam: 3, divider: 1), Par = 15,
-                Route = Route(Van(Depart(0.9f, 6f), Cruise(0.4f), Cobbles(1.6f), Cruise(0.4f), SpeedBump(0.09f), Cruise(0.5f), SpeedBump(0.09f), Cruise(0.5f), Brake(0.55f), Rest(0.6f))),
+                Route = Route(Van(Depart(0.9f, 6f), Cruise(0.4f), Cobbles(1.6f, 0.0012f), Cruise(0.4f), SpeedBump(0.055f), Cruise(0.5f), SpeedBump(0.055f), Cruise(0.5f), Brake(0.55f), Rest(0.6f))),
                 Ref = new[] {
                     ".....",
                     "babpv",
@@ -132,8 +132,8 @@ namespace HWC.Sim
             });
         }
 
-        static void AddChapter2(List<LevelDef> L) { }
-        static void AddChapter3(List<LevelDef> L) { }
-        static void AddChapter4(List<LevelDef> L) { }
+        static void AddChapter2(List<LevelDef> L) { L.AddRange(Chapter2()); }
+        static void AddChapter3(List<LevelDef> L) { L.AddRange(Chapter3()); }
+        static void AddChapter4(List<LevelDef> L) { L.AddRange(Chapter4()); }
     }
 }

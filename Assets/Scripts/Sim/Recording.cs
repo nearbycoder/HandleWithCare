@@ -5,7 +5,7 @@ namespace HWC.Sim
     public enum IncidentKind
     {
         Broke, Woke, Toppled, Spilled, Popped, Burned, Melted, Squished,
-        SneezeWindup, Sneezed, StrapSnapped, Scorched, Chilled, Tickled,
+        SneezeWindup, Sneezed, StrapSnapped, Scorched, Chilled, Tickled, Stuck,
     }
 
     /// <summary>Something noteworthy that happened during the journey.</summary>
@@ -54,7 +54,7 @@ namespace HWC.Sim
         public bool Strapped;
     }
 
-    public enum ItemStatus { Perfect, Fine, Broken, Spilled, Awake, Melted, Popped, Scorched, Squished, Chilled, Burned }
+    public enum ItemStatus { Perfect, Fine, Broken, Spilled, Awake, Melted, Popped, Scorched, Squished, Chilled, Burned, Stuck }
 
     public sealed class ItemResult
     {
@@ -65,6 +65,7 @@ namespace HWC.Sim
         public float Care;          // worst fraction of any limit reached (0..1+)
         public float PeakJolt;
         public float Limit;
+        public int PeakTick = -1, PeakLeg = -1, PeakEvent = -1;
         public bool Failed => Status != ItemStatus.Perfect && Status != ItemStatus.Fine;
     }
 

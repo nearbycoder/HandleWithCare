@@ -35,7 +35,11 @@ namespace HWC.Gameplay
         public PackingController Packing;
         public JourneyPlayer Journey;
         public Hud Hud;
+        public Menus Menus;
+        public Tutorial Tutorial;
+        public RevealController Reveal;
         public Phase Phase;
+        public bool Autopilot;
 
         public LevelDef Level;
         public Packing CurrentPacking;
@@ -91,18 +95,64 @@ namespace HWC.Gameplay
             Hud = new GameObject("Hud").AddComponent<Hud>();
             Hud.transform.SetParent(transform, false);
             Hud.Build(Canvas.transform);
+            Reveal = new GameObject("Reveal").AddComponent<RevealController>();
+            Reveal.transform.SetParent(transform, false);
+            Menus = new GameObject("Menus").AddComponent<Menus>();
+            Menus.transform.SetParent(transform, false);
+            Menus.Build(OverlayCanvas.transform);
+            Tutorial = new GameObject("Tutorial").AddComponent<Tutorial>();
+            Tutorial.transform.SetParent(transform, false);
+            Tutorial.Build(OverlayCanvas.transform);
+            Hud.HookReveal(Reveal);
+            ApplySettings();
+        }
+
+        public void ApplySettings()
+        {
+            Rig.ShakeEnabled = Save.ScreenShake;
+            Fx.Reduced = Save.ReducedMotion;
+            Menus.ApplyAudio();
+            if (!Application.isEditor) Screen.fullScreenMode = Save.Fullscreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
         }
 
         void Start()
         {
-            if (AutoPilot.TryStart(this)) Save = new SaveData();
-            StartLevel(Mathf.Clamp(Save.LastLevel, 1, Levels.All.Count));
+            if (AutoPilot.TryStart(this))
+            {
+                Save = new SaveData { SeenTips = new System.Collections.Generic.List<string> { "basics" } };
+                Autopilot = !System.Array.Exists(System.Environment.GetCommandLineArgs(), a => a == "-hwcMenus");
+                ApplySettings();
+                if (Autopilot) StartLevel(1);
+                return;
+            }
+            ShowTitle();
+        }
+
+        public void ShowTitle()
+        {
+            Phase = Phase.Title;
+            Journey.Stop();
+            Reveal.Hide();
+            Packing.End();
+            Tutorial.Stop();
+            Hud.HideAllScreens();
+            Post.SetDof(0f, 2f);
+            Station.gameObject.SetActive(true);
+            Station.ShowTitle();
+            Menus.ShowTitle();
+        }
+
+        public void ShowDeliveryLog()
+        {
+            Menus.ShowSelect();
         }
 
         // ---- Flow ---------------------------------------------------------------------------------
 
         public void StartLevel(int number)
         {
+            Menus.HideAll();
+            Reveal.Hide();
             Level = Levels.Get(number);
             Save.LastLevel = number;
             CurrentPacking = Save.GetPacking(Level) ?? new Packing(Level.W, Level.H);
@@ -114,10 +164,13 @@ namespace HWC.Gameplay
         {
             Phase = Phase.Packing;
             Journey.Stop();
+            Reveal.Hide();
+            Post.SetDof(0f, 2f);
             Station.gameObject.SetActive(true);
             Station.SetupFor(Level);
             Packing.Begin(Level, CurrentPacking, LastRun);
             Hud.ShowPacking(Level);
+            Tutorial.MaybeStart(Level);
         }
 
         public void SealAndShip()
@@ -136,6 +189,7 @@ namespace HWC.Gameplay
             var rec = Simulator.Run(Level, CurrentPacking);
             var box = Station.Box;
             box.ShowGrid(false);
+            box.SetTapeStyle(Save.Tape);
             box.SetFlaps(1f, false);
             yield return new WaitForSeconds(0.8f);
             box.SetTape(1f, false);
@@ -148,8 +202,22 @@ namespace HWC.Gameplay
 
         void OnJourneyDone()
         {
-            Phase = Phase.Results;
             Save.Record(Level, LastRun.Outcome);
+            if (Autopilot) { ShowResultsNow(); return; }
+            Phase = Phase.Reveal;
+            Hud.ShowReveal();
+            StartCoroutine(Reveal.Play(LastRun, Station.Box, ShowResultsNow));
+        }
+
+        void ShowResultsNow()
+        {
+            Phase = Phase.Results;
+            Hud.ShowResults(Level, LastRun);
+        }
+
+        void OnReplayDone()
+        {
+            Phase = Phase.Results;
             Hud.ShowResults(Level, LastRun);
         }
 
@@ -162,16 +230,18 @@ namespace HWC.Gameplay
         public void NextLevel()
         {
             int n = Level.Number + 1;
-            if (n > Levels.All.Count) n = 1;
+            if (n > Levels.All.Count) { ShowTitle(); Menus.ShowCreditsFinale(); return; }
             StartLevel(n);
         }
 
         public void Replay()
         {
             if (LastRun == null) return;
+            Reveal.Hide();
+            Post.SetDof(0f, 2f);
             Phase = Phase.Journey;
-            Hud.ShowJourney(Level, LastRun);
-            Journey.Play(LastRun, Station.Box, OnJourneyDone);
+            Hud.ShowJourney(Level, LastRun, true);
+            Journey.Play(LastRun, Station.Box, OnReplayDone, true);
         }
     }
 }

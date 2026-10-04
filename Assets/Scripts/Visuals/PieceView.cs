@@ -187,22 +187,95 @@ namespace HWC.Visuals
             }
         }
 
+        string currentModel;
+
+        /// <summary>Replaces the mesh with another model (broken shards, awake armadillo, puddle).</summary>
+        void SwapModel(string id, Color? tint)
+        {
+            if (currentModel == id) return;
+            var go = ModelLibrary.Spawn(id, rollT);
+            if (go == null) return;
+            currentModel = id;
+            Destroy(model.gameObject);
+            model = go.transform;
+            model.localScale = new Vector3(Facing, 1, 1);
+            renderers = GetComponentsInChildren<Renderer>(true);
+            originalMats = new Material[renderers.Length][];
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (tint.HasValue)
+                {
+                    var mats = renderers[i].sharedMaterials;
+                    for (int j = 0; j < mats.Length; j++) mats[j] = Mat.Lit(tint.Value, 0.6f);
+                    renderers[i].sharedMaterials = mats;
+                }
+                originalMats[i] = renderers[i].sharedMaterials;
+            }
+        }
+
         void ApplyStateLook()
         {
             bool removed = (State & BodyState.Removed) != 0;
             if (removed) hidden = 1f;
-            if ((State & (BodyState.Broken | BodyState.Squished)) != 0)
+            if ((State & BodyState.Broken) != 0 && Kind != PieceKind.Cake)
             {
-                SetTint(Palette.Hex("6B5E57"), 0.35f);
-                baseScale = (State & BodyState.Squished) != 0 ? new Vector3(1.15f, 0.45f, 1.1f) : new Vector3(1.05f, 0.55f, 1.0f);
+                SwapModel("piece_shards", Palette.ItemColor(Kind));
+                rollT.localRotation = Quaternion.identity;
+            }
+            else if ((State & BodyState.Squished) != 0)
+            {
+                SetTint(Palette.Hex("B8867A"), 0.25f);
+                baseScale = new Vector3(1.12f, 0.5f, 1.08f);
             }
             else if ((State & (BodyState.Scorched | BodyState.Burned)) != 0) SetTint(Palette.Hex("2A2220"), 0.6f);
             else if ((State & BodyState.Popped) != 0 && Kind == PieceKind.Bubble) SetTint(Palette.Hex("A0A8AC"), 0.4f);
-            else if ((State & BodyState.Spilled) != 0) SetTint(Palette.Hex("5A3B7A"), 0.3f);
+            if ((State & BodyState.Awake) != 0 && Kind == PieceKind.Armadillo) SwapModel("piece_armadillo_awake", null);
+            if ((State & BodyState.Spilled) != 0 && spill == null)
+            {
+                spill = ModelLibrary.Spawn("piece_puddle", transform);
+                if (spill != null)
+                {
+                    foreach (var r in spill.GetComponentsInChildren<Renderer>()) r.sharedMaterial = Mat.Glass(new Color(0.56f, 0.31f, 0.77f, 0.7f));
+                    spill.transform.localPosition = new Vector3(0, -Mathf.Min(Def.W, Def.H) * Cell * 0.5f + 0.01f, 0);
+                    spill.transform.localScale = new Vector3(1.6f, 1, 1.2f);
+                }
+            }
+        }
+
+        GameObject spill;
+
+        /// <summary>For pieces that no longer exist (popped, melted, burned): show what's left.</summary>
+        public void ShowRemnant(ItemStatus status)
+        {
+            switch (status)
+            {
+                case ItemStatus.Melted:
+                    SwapModel("piece_puddle", new Color(0.75f, 0.9f, 0.97f));
+                    foreach (var r in renderers) r.sharedMaterial = Mat.Glass(new Color(0.75f, 0.9f, 0.97f, 0.6f));
+                    break;
+                case ItemStatus.Popped:
+                    SwapModel("piece_shards", Palette.ItemColor(Kind));
+                    baseScale = new Vector3(0.8f, 0.4f, 0.8f);
+                    break;
+                default:
+                    SwapModel("piece_shards", Palette.Hex("2A2220"));
+                    break;
+            }
         }
 
         public void ResetLook()
         {
+            if (currentModel != null)
+            {
+                Destroy(model.gameObject);
+                model = ModelLibrary.SpawnPiece(Kind, rollT).transform;
+                model.localScale = new Vector3(Facing, 1, 1);
+                renderers = GetComponentsInChildren<Renderer>(true);
+                originalMats = new Material[renderers.Length][];
+                for (int i = 0; i < renderers.Length; i++) originalMats[i] = renderers[i].sharedMaterials;
+                currentModel = null;
+            }
+            if (spill != null) { Destroy(spill); spill = null; }
             State = BodyState.None;
             hidden = 0f;
             popScale = 1f;

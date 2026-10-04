@@ -276,21 +276,27 @@ namespace HWC.Sim
                         double rise = e.Kind == EventKind.WaveSlam ? Math.Max(0.4, e.B) : 0;
                         double tf = Math.Sqrt(2 * h / G);
                         double fwd = e.Kind == EventKind.Drop ? v0 * 0.6 : v0;
-                        double baseY = e.Kind == EventKind.Drop ? y0 - h : y0;
-                        double topY = e.Kind == EventKind.Drop ? y0 : y0 + h;
+                        // Drop / AirPocket fall from here to h below; WaveSlam rises h then falls back
+                        double baseY = e.Kind == EventKind.WaveSlam ? y0 : y0 - h;
+                        double topY = e.Kind == EventKind.WaveSlam ? y0 + h : y0;
                         double bounce = 0.12;
                         double vLand = G * tf;
                         double tb = 2 * bounce * vLand / G;
-                        double total = rise + tf + tb + Math.Max(0.05, d);
+                        // the stop takes a few milliseconds (belts and floors give a little)
+                        double ts = (e.Kind == EventKind.Drop ? 2.0 : 3.0) / SimConst.TickRate;
+                        double sink = vLand * ts * 0.5;
+                        double total = rise + tf + ts + tb + Math.Max(0.05, d);
                         Emit(li, ei, total, t =>
                         {
                             double px = x0 + fwd * Math.Min(t, rise + tf);
                             if (t < rise) return (px, y0 + h * Smoother(t / rise), a0);
                             double tt = t - rise;
                             if (tt < tf) return (px, topY - 0.5 * G * tt * tt, a0);
-                            double tb2 = tt - tf;
-                            if (tb2 < tb) return (px, baseY + bounce * vLand * tb2 - 0.5 * G * tb2 * tb2, a0);
-                            return (px, baseY, a0);
+                            double tsq = tt - tf;
+                            if (tsq < ts) { double u = tsq / ts; return (px, baseY - sink * (2 * u - u * u), a0); }
+                            double tb2 = tsq - ts;
+                            if (tb2 < tb) return (px, baseY - sink + bounce * vLand * tb2 - 0.5 * G * tb2 * tb2, a0);
+                            return (px, baseY - sink, a0);
                         });
                         vx = 0;
                         break;
@@ -377,7 +383,14 @@ namespace HWC.Sim
                         Emit(li, ei, tf, t => (wx + vxT * t, wy + vy0 * t - 0.5 * G * t * t, wa + (spin - (wa - a0)) * Smooth(t / tf)));
                         double lx = x, ly = y;
                         double la = a0 + spin;
-                        Emit(li, ei, 0.6, t => (lx, ly, la));
+                        double lvx = vxT, lvy = vy0 - G * tf;
+                        double tsT = 4.0 / SimConst.TickRate;
+                        Emit(li, ei, 0.6, t =>
+                        {
+                            double u = Math.Min(t, tsT);
+                            double k = u - u * u / (2 * tsT);
+                            return (lx + lvx * k, ly + lvy * k, la);
+                        });
                         vx = 0;
                         break;
                     }

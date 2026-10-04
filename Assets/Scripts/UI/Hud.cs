@@ -50,6 +50,7 @@ namespace HWC.Gameplay
             BuildJourney();
             BuildResults();
             BuildPause();
+            BuildReveal();
             HideAll();
         }
 
@@ -61,6 +62,89 @@ namespace HWC.Gameplay
             journeyRoot.gameObject.SetActive(false);
             resultsRoot.gameObject.SetActive(false);
             pauseRoot.gameObject.SetActive(false);
+            revealRoot.gameObject.SetActive(false);
+        }
+
+        public void HideAllScreens()
+        {
+            HideAll();
+            Paused = false;
+            Time.timeScale = 1f;
+        }
+
+        // =================================================================================
+        // Reveal stamps
+        // =================================================================================
+
+        RectTransform revealRoot;
+        readonly List<(RectTransform rt, Vector3 world, float t)> stamps = new List<(RectTransform, Vector3, float)>();
+
+        void BuildReveal()
+        {
+            revealRoot = Ui.Rect("Reveal", root).Stretch();
+            var skip = Ui.Button(revealRoot, "skip", "SKIP  ▶▶", () => G.Reveal.Skip(), Palette.Cream, Palette.Ink, 28);
+            skip.Image.rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 22), new Vector2(170, 56));
+        }
+
+        public void HookReveal(RevealController r)
+        {
+            r.ItemRevealed += (it, world) =>
+            {
+                var box = Ui.Panel(revealRoot, "stamp", new Color(0, 0, 0, 0), Ui.Rounded(10, 0));
+                var txt = Ui.Text(box.transform, "t", StatusWord(it.Status), 58, it.Failed ? Palette.Bad : (it.Status == ItemStatus.Perfect ? Palette.Good : Palette.Teal), Ui.Display);
+                txt.rectTransform.Stretch();
+                txt.outlineWidth = 0.18f;
+                txt.outlineColor = Palette.Cream;
+                box.rectTransform.sizeDelta = new Vector2(420, 90);
+                stamps.Add((box.rectTransform, world, 0f));
+            };
+        }
+
+        public void ShowReveal()
+        {
+            HideAll();
+            foreach (var st in stamps) if (st.rt != null) Destroy(st.rt.gameObject);
+            stamps.Clear();
+            revealRoot.gameObject.SetActive(true);
+            AudioDirector.I?.Loop(null, 0);
+            AudioDirector.I?.PlayMusic("reveal", 0.8f);
+        }
+
+        void UpdateStamps(float dt)
+        {
+            for (int i = stamps.Count - 1; i >= 0; i--)
+            {
+                var (rt, world, t) = stamps[i];
+                t += dt;
+                if (rt == null || t > 1.5f) { if (rt != null) Destroy(rt.gameObject); stamps.RemoveAt(i); continue; }
+                stamps[i] = (rt, world, t);
+                var sp = G.Rig.Cam.WorldToScreenPoint(world);
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(root, sp, null, out var lp);
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.anchoredPosition = lp + new Vector2(260, 30);
+                float sc = t < 0.12f ? Mathf.Lerp(2.4f, 1f, t / 0.12f) : 1f;
+                rt.localScale = Vector3.one * sc;
+                rt.localRotation = Quaternion.Euler(0, 0, -8f);
+                var txt = rt.GetComponentInChildren<TextMeshProUGUI>();
+                txt.alpha = Mathf.Clamp01((1.5f - t) * 3f);
+            }
+        }
+
+        // tutorial anchors (canvas-local, centred)
+        public Vector2? SlotScreen(MaterialSlot slot)
+        {
+            foreach (var sl in slots) if (sl.slot == slot && sl.btn.gameObject.activeInHierarchy) return CanvasLocal(sl.btn.Image.rectTransform);
+            return null;
+        }
+
+        public Vector2? SealScreen() => CanvasLocal(sealBtn.Image.rectTransform);
+
+        Vector2 CanvasLocal(RectTransform rt)
+        {
+            var wp = rt.TransformPoint(rt.rect.center);
+            var sp = RectTransformUtility.WorldToScreenPoint(null, wp);
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(root, sp, null, out var lp);
+            return lp;
         }
 
         // =================================================================================
@@ -167,16 +251,116 @@ namespace HWC.Gameplay
             cardStats.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(18, -204), new Vector2(344, 40));
             itemCard.gameObject.SetActive(false);
 
+            // last trip report (under the order card)
+            var lt = Ui.Panel(packRoot, "lastTrip", Palette.Paper, Ui.Rounded(12, 3));
+            lastTrip = lt.rectTransform;
+            lastTrip.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(28, -262), new Vector2(520, 150));
+            Ui.Shadow(lt);
+            var lth = Ui.Text(lastTrip, "h", "LAST TRIP", 22, Palette.PostalRedDark, Ui.Display, TextAlignmentOptions.TopLeft);
+            lth.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(18, -10), new Vector2(480, 28));
+            lastTripText = Ui.Text(lastTrip, "t", "", 20, Palette.Ink, Ui.Body, TextAlignmentOptions.TopLeft);
+            lastTripText.rectTransform.Stretch(18, 14, 40, 10);
+            newBadge = Ui.Panel(sticky.transform, "new", Palette.PostalRed, Ui.Rounded(10));
+            newBadge.rectTransform.Place(new Vector2(0, 1), new Vector2(0.5f, 0.5f), new Vector2(18, -4), new Vector2(84, 34));
+            var nb = Ui.Text(newBadge.transform, "t", "NEW!", 24, Palette.Cream, Ui.Display);
+            nb.rectTransform.Stretch();
+
             // feedback toast
             feedbackText = Ui.Text(packRoot, "feedback", "", 30, Palette.Cream, Ui.Display);
             feedbackText.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-90, 190), new Vector2(800, 44));
             feedbackText.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(2, -2);
         }
 
+        RectTransform lastTrip;
+        TextMeshProUGUI lastTripText;
+        Image newBadge;
+        float packT;
+
+        public static string EventName(Recording rec, int leg, int ev)
+        {
+            if (rec == null || leg < 0 || leg >= rec.Kin.Route.Legs.Count) return "the trip";
+            var l = rec.Kin.Route.Legs[leg];
+            if (ev < 0 || ev >= l.Events.Count) return "the end of the trip";
+            switch (l.Events[ev].Kind)
+            {
+                case EventKind.Depart: return "pulling away";
+                case EventKind.Brake: return "the hard brake";
+                case EventKind.Bump: return "a bump";
+                case EventKind.SpeedBump: return "the speed bump";
+                case EventKind.Pothole: return "the pothole";
+                case EventKind.Cobbles: return "the cobblestones";
+                case EventKind.Hill: return "the hill";
+                case EventKind.Conveyor: return "the conveyor";
+                case EventKind.Drop: return "the belt drop";
+                case EventKind.ArmTip: return "the robot arm";
+                case EventKind.Chute: return "the chute";
+                case EventKind.Stairs: return "the stairs";
+                case EventKind.Toss: return "the porch toss";
+                case EventKind.Righting: return "the pick-up";
+                case EventKind.Rock: return "the rough seas";
+                case EventKind.WaveSlam: return "the big wave";
+                case EventKind.Turbulence: return "the turbulence";
+                case EventKind.AirPocket: return "the air pocket";
+                case EventKind.Launch: return "the launch";
+                case EventKind.Flight: return "the flight";
+                case EventKind.HayLand: return "the landing";
+            }
+            return "the trip";
+        }
+
+        void FillLastTrip(Recording rec)
+        {
+            if (rec == null) { lastTrip.gameObject.SetActive(false); return; }
+            var lines = new List<string>();
+            foreach (var inc in rec.Incidents)
+            {
+                if (!inc.IsFailure || lines.Count >= 3) continue;
+                var kind = rec.Bodies[inc.Body].Kind;
+                string what = Catalog.Get(kind).Name;
+                string how = inc.Kind == IncidentKind.Stuck ? "stuck to the other magnet" : StatusWordForIncident(inc.Kind).ToLowerInvariant();
+                string detail = inc.Limit > 0 && (inc.Kind == IncidentKind.Broke || inc.Kind == IncidentKind.Woke || inc.Kind == IncidentKind.Squished) ? $" (jolt {inc.Value:0.#}/{inc.Limit:0.#})" : "";
+                lines.Add($"<color=#A8322A>\u2717</color> {what} {how} at {EventName(rec, inc.Leg, inc.Event)}{detail}");
+            }
+            if (lines.Count == 0)
+            {
+                foreach (var it in rec.Outcome.Items)
+                {
+                    if (it.Care < SimConst.CareFraction || lines.Count >= 3) continue;
+                    lines.Add($"<color=#B07A1A>!</color> {Catalog.Get(it.Kind).Name} rattled ({it.Care * 100:0}%) at {EventName(rec, it.PeakLeg, it.PeakEvent)}");
+                }
+                if (lines.Count == 0) lines.Add("<color=#2E8B57>\u2713</color> Everything arrived calm and happy.");
+            }
+            lastTrip.gameObject.SetActive(true);
+            lastTripText.text = string.Join("\n", lines);
+            lastTrip.sizeDelta = new Vector2(520, 52 + lines.Count * 30);
+        }
+
+        static string StatusWordForIncident(IncidentKind k)
+        {
+            switch (k)
+            {
+                case IncidentKind.Broke: return "SHATTERED";
+                case IncidentKind.Woke: return "WOKE UP";
+                case IncidentKind.Spilled: return "SPILLED";
+                case IncidentKind.Popped: return "POPPED";
+                case IncidentKind.Melted: return "MELTED";
+                case IncidentKind.Squished: return "GOT SQUISHED";
+                case IncidentKind.Scorched: return "GOT SCORCHED";
+                case IncidentKind.Chilled: return "GOT COLD";
+                case IncidentKind.Stuck: return "STUCK";
+            }
+            return k.ToString().ToUpperInvariant();
+        }
+
         public void ShowPacking(LevelDef lv)
         {
             HideAll();
             packRoot.gameObject.SetActive(true);
+            FillLastTrip(G.LastRun);
+            bool isNew = lv.NewThing != null && !G.Save.SeenTips.Contains("new_" + lv.NewThing);
+            newBadge.gameObject.SetActive(isNew);
+            if (isNew) { G.Save.SeenTips.Add("new_" + lv.NewThing); }
+            packT = 0;
             orderNum.text = $"DELIVERY {lv.Number}";
             orderTitle.text = lv.Title.ToUpperInvariant();
             orderCustomer.text = "To: " + lv.Customer;
@@ -338,12 +522,45 @@ namespace HWC.Gameplay
 
             var skip = Ui.Button(journeyRoot, "skip", "SKIP  ▶▶", () => G.Journey.Skip(), Palette.Cream, Palette.Ink, 28);
             skip.Image.rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 22), new Vector2(170, 56));
+            skipBtn = skip;
+
+            // replay controls (scrub by clicking the timeline, speed, done)
+            replayBar = Ui.Rect("replay", journeyRoot);
+            replayBar.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 66), new Vector2(1100, 64));
+            var click = timeline.gameObject.AddComponent<UiButton>();
+            click.Init(timeline.GetComponent<Image>(), null);
+            click.HoverScale = 1.0f;
+            click.OnClick = () =>
+            {
+                var mp = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(timeline, mp, null, out var lp);
+                float frac = Mathf.Clamp01((lp.x + timeline.rect.width * 0.5f) / timeline.rect.width);
+                G.Journey.Seek(frac * G.Journey.Duration);
+            };
+            string[] spd = { "❚❚", "¼×", "½×", "1×", "2×" };
+            float[] speeds = { -1, 0.25f, 0.5f, 1f, 2f };
+            for (int i = 0; i < spd.Length; i++)
+            {
+                float v = speeds[i];
+                var b = Ui.Button(replayBar, "sp" + i, spd[i], () => { if (v < 0) G.Journey.UserPaused = !G.Journey.UserPaused; else { G.Journey.Speed = v; G.Journey.UserPaused = false; } }, Palette.Cream, Palette.Ink, 26, Ui.Bold);
+                b.Image.rectTransform.Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(i * 96, 0), new Vector2(88, 52));
+            }
+            var done = Ui.Button(replayBar, "done", "DONE", () => G.Journey.Skip(), Palette.PostalRed, Palette.Cream, 28);
+            done.Image.rectTransform.Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), Vector2.zero, new Vector2(150, 52));
+            var hint = Ui.Text(replayBar, "hint", "Click the timeline to jump  ·  red marks = trouble", 20, Palette.Cream, Ui.Bold, TextAlignmentOptions.Center);
+            hint.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(110, 0), new Vector2(520, 40));
+            hint.gameObject.AddComponent<Shadow>();
         }
 
-        public void ShowJourney(LevelDef lv, Recording rec)
+        RectTransform replayBar;
+        UiButton skipBtn;
+
+        public void ShowJourney(LevelDef lv, Recording rec, bool replay = false)
         {
             HideAll();
             journeyRoot.gameObject.SetActive(true);
+            replayBar.gameObject.SetActive(replay);
+            skipBtn.gameObject.SetActive(!replay);
             foreach (var m in markers) Destroy(m);
             markers.Clear();
             foreach (var inc in rec.Incidents)
@@ -410,6 +627,7 @@ namespace HWC.Gameplay
                 case IncidentKind.SneezeWindup: case IncidentKind.Tickled: word = "ah... ah..."; break;
                 case IncidentKind.Melted: word = "drip..."; break;
                 case IncidentKind.StrapSnapped: word = "SNAP!"; break;
+                case IncidentKind.Stuck: word = "CLANK!"; break;
                 case IncidentKind.Scorched: word = "TOASTED"; break;
             }
             if (word == null) return;
@@ -453,7 +671,17 @@ namespace HWC.Gameplay
             replay.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 34), new Vector2(260, 84));
             nextBtn = Ui.Button(p.transform, "next", "NEXT ▶", () => G.NextLevel(), Palette.PostalRed, Palette.Cream, 40);
             nextBtn.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(300, 34), new Vector2(260, 84));
+            var log = Ui.Button(resultsRoot, "log", "DELIVERY LOG", () => G.ShowDeliveryLog(), Palette.Cream, Palette.Ink, 26);
+            log.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(28, 28), new Vector2(240, 60));
+            var menu = Ui.Button(resultsRoot, "menu", "MAIN MENU", () => G.ShowTitle(), Palette.Cream, Palette.Ink, 26);
+            menu.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(280, 28), new Vector2(220, 60));
+            resultsPanel = p.rectTransform;
         }
+
+        RectTransform resultsPanel;
+        readonly List<(Image img, bool got, float delay)> starAnims = new List<(Image, bool, float)>();
+        float resultsT;
+        bool confettiPending;
 
         UiButton nextBtn;
 
@@ -480,14 +708,20 @@ namespace HWC.Gameplay
                 st.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 8), new Vector2(w, 34));
                 st.rectTransform.localRotation = Quaternion.Euler(0, 0, -6);
             }
-            string[] labels = { "DELIVERED", $"UNDER BUDGET ({o.Cost}/{o.Par})", $"HANDLED WITH CARE ({o.WorstCare * 100:0}%)" };
+            starAnims.Clear();
+            resultsT = 0;
+            string[] labels = { "DELIVERED", $"UNDER BUDGET  {o.Cost} / PAR {o.Par}", $"HANDLED WITH CARE  {o.WorstCare * 100:0}% / 50%" };
             bool[] got = { o.Delivered, o.Delivered && o.UnderBudget, o.Delivered && o.Careful };
             for (int i = 0; i < 3; i++)
             {
                 var cell = Ui.Rect("star", resStars);
                 cell.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2((i - 1) * 290, 0), new Vector2(280, 170));
-                var star = Ui.Icon(cell, "s", Ui.Star, got[i] ? Palette.Gold : new Color(0, 0, 0, 0.12f));
+                var back = Ui.Icon(cell, "sb", Ui.Star, new Color(0, 0, 0, 0.12f));
+                back.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -6), new Vector2(110, 110));
+                var star = Ui.Icon(cell, "s", Ui.Star, Palette.Gold);
                 star.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -6), new Vector2(110, 110));
+                star.transform.localScale = Vector3.zero;
+                starAnims.Add((star, got[i], 0.5f + i * 0.35f));
                 var lab = Ui.Text(cell, "l", labels[i], 20, got[i] ? Palette.Ink : new Color(0.3f, 0.25f, 0.2f, 0.5f), Ui.Display);
                 lab.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 4), new Vector2(280, 50));
             }
@@ -496,7 +730,9 @@ namespace HWC.Gameplay
             resCost.text = "";
             nextBtn.SetInteractable(o.Delivered || G.Save.IsDelivered(lv.Number));
             Sfx(o.Delivered ? (o.Stars == 3 ? "fanfare" : "success") : "fail");
-            if (o.Stars == 3) Fx.Confetti(G.Rig.Cam.transform.position + G.Rig.Cam.transform.forward * 2f + Vector3.down * 0.8f, 1f);
+            AudioDirector.I?.Duck(0.6f, 1.6f);
+            confettiPending = o.Stars == 3;
+            G.Post.SetDof(0.85f, 1.2f);
         }
 
         public static string StatusWord(ItemStatus s)
@@ -514,6 +750,7 @@ namespace HWC.Gameplay
                 case ItemStatus.Squished: return "SQUISHED";
                 case ItemStatus.Chilled: return "TOO COLD";
                 case ItemStatus.Burned: return "BURNED";
+                case ItemStatus.Stuck: return "STUCK TOGETHER";
             }
             return s.ToString();
         }
@@ -538,12 +775,19 @@ namespace HWC.Gameplay
             p.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(520, 520));
             var t = Ui.Text(p.transform, "t", "PAUSED", 72, Palette.Ink, Ui.Display);
             t.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -30), new Vector2(480, 90));
-            string[] labels = { "RESUME", "RESTART DELIVERY", "QUIT GAME" };
-            System.Action[] acts = { () => SetPaused(false), () => { SetPaused(false); G.Repack(); }, () => Application.Quit() };
+            p.rectTransform.sizeDelta = new Vector2(520, 680);
+            string[] labels = { "RESUME", "RESTART DELIVERY", "SETTINGS", "DELIVERY LOG", "MAIN MENU" };
+            System.Action[] acts = {
+                () => SetPaused(false),
+                () => { SetPaused(false); G.Repack(); },
+                () => { pauseRoot.gameObject.SetActive(false); G.Menus.ShowSettings(() => { pauseRoot.gameObject.SetActive(true); }); },
+                () => { pauseRoot.gameObject.SetActive(false); G.ShowDeliveryLog(); },
+                () => { SetPaused(false); G.ShowTitle(); },
+            };
             for (int i = 0; i < labels.Length; i++)
             {
-                var b = Ui.Button(p.transform, labels[i], labels[i], acts[i], i == 0 ? Palette.PostalRed : Palette.Ink, Palette.Cream, 36);
-                b.Image.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -150 - i * 100), new Vector2(400, 80));
+                var b = Ui.Button(p.transform, labels[i], labels[i], acts[i], i == 0 ? Palette.PostalRed : Palette.Ink, Palette.Cream, 34);
+                b.Image.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -140 - i * 98), new Vector2(400, 78));
             }
         }
 
@@ -565,11 +809,42 @@ namespace HWC.Gameplay
             var kb = Keyboard.current;
             if (kb != null && kb.escapeKey.wasPressedThisFrame)
             {
-                if (!escConsumed && (G.Phase == Phase.Packing || G.Phase == Phase.Journey)) SetPaused(!Paused);
+                if (!escConsumed && !G.Menus.Open && (G.Phase == Phase.Packing || G.Phase == Phase.Journey)) SetPaused(!Paused);
             }
             escConsumed = false;
 
             float dt = Time.unscaledDeltaTime;
+            UpdateStamps(dt);
+            if (packRoot.gameObject.activeSelf)
+            {
+                packT += dt;
+                float s = packT < 0.25f ? Mathf.Lerp(0.85f, 1f, 1f - Mathf.Pow(1f - packT / 0.25f, 3f)) : 1f;
+                sticky.rectTransform.localScale = Vector3.one * s;
+                if (newBadge.gameObject.activeSelf) newBadge.rectTransform.localScale = Vector3.one * (1f + Mathf.Sin(packT * 6f) * 0.08f);
+            }
+            if (resultsRoot.gameObject.activeSelf)
+            {
+                resultsT += dt;
+                float pk = Mathf.Clamp01(resultsT / 0.3f);
+                resultsPanel.localScale = Vector3.one * (pk < 1f ? Mathf.Lerp(0.8f, 1f, 1f - Mathf.Pow(1f - pk, 3f)) : 1f);
+                for (int i = 0; i < starAnims.Count; i++)
+                {
+                    var (img, got, delay) = starAnims[i];
+                    if (!got) continue;
+                    float k = (resultsT - delay) / 0.25f;
+                    if (k < 0) continue;
+                    if (img.transform.localScale.x == 0f) Sfx("star_" + (i + 1), 0.9f);
+                    float sc = k < 1f ? Mathf.Lerp(2.2f, 1f, 1f - Mathf.Pow(1f - k, 2f)) : 1f;
+                    img.transform.localScale = Vector3.one * Mathf.Max(0.001f, sc);
+                    img.transform.localRotation = Quaternion.Euler(0, 0, k < 1f ? (1f - k) * 30f : 0);
+                }
+                if (confettiPending && resultsT > 1.3f)
+                {
+                    confettiPending = false;
+                    Fx.Confetti(G.Rig.Cam.transform.position + G.Rig.Cam.transform.forward * 2f + Vector3.down * 0.8f, 1f);
+                    Sfx("fanfare_tail", 0.8f);
+                }
+            }
             if (feedbackT > 0)
             {
                 feedbackT -= dt;

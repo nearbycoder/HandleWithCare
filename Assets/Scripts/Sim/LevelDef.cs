@@ -70,6 +70,21 @@ namespace HWC.Sim
             var pk = new Packing(lv.W, lv.H);
             if (rows == null) return pk;
             if (rows.Length != lv.H) throw new ArgumentException($"level {lv.Number}: map has {rows.Length} rows, box is {lv.H}");
+            // '|' marks a divider between two columns; strip it and remember the line
+            var lines = new HashSet<int>();
+            var clean = new string[rows.Length];
+            for (int r = 0; r < rows.Length; r++)
+            {
+                var sb = new System.Text.StringBuilder();
+                foreach (char ch in rows[r])
+                {
+                    if (ch == '|') { lines.Add(sb.Length); continue; }
+                    sb.Append(ch);
+                }
+                clean[r] = sb.ToString();
+            }
+            rows = clean;
+            foreach (int l in lines) if (dividers == null || Array.IndexOf(dividers, l) < 0) pk.Dividers.Add(l);
             var grid = new char[lv.W, lv.H];
             for (int r = 0; r < rows.Length; r++)
             {
@@ -150,11 +165,11 @@ namespace HWC.Sim
         public static RouteEvent ArmTip(float deg, float hold = 0.8f) => new RouteEvent(EventKind.ArmTip, 0, deg, hold, label: "ROBOT ARM");
         public static RouteEvent Chute(float deg = 28f, float slide = 0.9f) => new RouteEvent(EventKind.Chute, 0, deg, slide, label: "CHUTE!");
         public static RouteEvent Stairs(int steps, float stepH = 0.18f, float stepT = 0.5f) => new RouteEvent(EventKind.Stairs, stepT, steps, stepH, label: "STAIRS");
-        public static RouteEvent Toss(float dist, float dh, float spinDeg, float flight = 0.7f) => new RouteEvent(EventKind.Toss, flight, dist, dh, spinDeg, label: "TOSS!");
+        public static RouteEvent Toss(float dist, float dh, float spinDeg, float flight = 0.55f) => new RouteEvent(EventKind.Toss, flight, dist, dh, spinDeg, label: "TOSS!");
         public static RouteEvent Righting(float d = 1.0f) => new RouteEvent(EventKind.Righting, d, label: null);
         public static RouteEvent Rock(float d, float deg, float period = 3f) => new RouteEvent(EventKind.Rock, d, deg, period, label: "ROUGH SEAS");
         public static RouteEvent WaveSlam(float h, float rise = 0.6f) => new RouteEvent(EventKind.WaveSlam, 0.2f, h, rise, label: "BIG WAVE!");
-        public static RouteEvent Turbulence(float d, float amp = 0.05f) => new RouteEvent(EventKind.Turbulence, d, amp, label: "TURBULENCE");
+        public static RouteEvent Turbulence(float d, float amp = 0.022f) => new RouteEvent(EventKind.Turbulence, d, amp, label: "TURBULENCE");
         public static RouteEvent AirPocket(float h) => new RouteEvent(EventKind.AirPocket, 0.2f, h, label: "AIR POCKET!");
         public static RouteEvent Launch(float d, float speed, float deg) => new RouteEvent(EventKind.Launch, d, speed, deg, label: "LAUNCH!");
         public static RouteEvent Flight(float d, float spinDeg) => new RouteEvent(EventKind.Flight, d, 0, 0, spinDeg, label: "WHEEE");

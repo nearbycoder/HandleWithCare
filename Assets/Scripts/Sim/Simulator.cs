@@ -116,6 +116,7 @@ namespace HWC.Sim
                 {
                     Body = b.Index, PieceIndex = b.PieceIndex, Kind = b.Def.Kind,
                     Care = b.PeakJoltRatio, PeakJolt = b.PeakJolt,
+                    PeakTick = b.PeakTick, PeakLeg = b.PeakLeg, PeakEvent = b.PeakEvent,
                     Limit = b.Def.JoltLimit > 0 ? b.Def.JoltLimit : b.Def.WakeLimit,
                 };
                 r.Status = StatusOf(b);
@@ -132,6 +133,7 @@ namespace HWC.Sim
         static ItemStatus StatusOf(Body b)
         {
             var s = b.State;
+            if ((s & BodyState.Stuck) != 0) return ItemStatus.Stuck;
             if ((s & BodyState.Squished) != 0) return ItemStatus.Squished;
             if ((s & BodyState.Broken) != 0) return ItemStatus.Broken;
             if ((s & BodyState.Spilled) != 0) return ItemStatus.Spilled;
