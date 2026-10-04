@@ -34,6 +34,7 @@ namespace HWC.Gameplay
             var ap = g.gameObject.AddComponent<AutoPilot>();
             ap.dir = shots ?? auto ?? menus;
             ap.all = auto != null;
+            g.SkipReveal = ap.all;
             ap.menus = menus != null;
             int.TryParse(Arg(args, "-hwcLevel") ?? "1", out ap.level);
             ap.which = Arg(args, "-hwcWhich") ?? "ref";
@@ -246,9 +247,21 @@ namespace HWC.Gameplay
             {
                 g.Journey.Skip();
             }
+            if (tour)
+            {
+                // the unboxing: arrival, flaps, items rising with their stamps
+                while (g.Phase == Phase.Journey) yield return null;
+                float r0 = Time.unscaledTime;
+                foreach (float at in new[] { 0.6f, 1.6f, 3.0f, 4.6f })
+                {
+                    while (g.Phase == Phase.Reveal && Time.unscaledTime - r0 < at) yield return null;
+                    if (g.Phase != Phase.Reveal) break;
+                    Shot($"L{n:00}_5_reveal_{at:0.0}");
+                }
+            }
             while (g.Phase != Phase.Results) yield return null;
             yield return new WaitForSecondsRealtime(tour ? 1.2f : 0.2f);
-            if (tour) Shot($"L{n:00}_5_results");
+            if (tour) Shot($"L{n:00}_6_results");
 
             var got = g.LastRun;
             bool same = got.Hash == expected.Hash && got.Outcome.Stars == expected.Outcome.Stars;

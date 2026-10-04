@@ -157,7 +157,10 @@ namespace HWC.Gameplay
                 var startPos = show.transform.position;
                 show.transform.SetParent(room.transform, true);
                 var top = room.transform.position + new Vector3(0, boxH + 0.35f, -0.1f);
-                var slot = room.transform.position + new Vector3(-lineup * 0.5f + (i + 0.5f) * lineup / n, Catalog.Get(it.Kind).H * 0.125f + 0.01f, -0.55f);
+                // lineup just in front of the box, close enough to stay in frame while the rest rise
+                var slot = room.transform.position + new Vector3(-lineup * 0.5f + (i + 0.5f) * lineup / n, Catalog.Get(it.Kind).H * 0.125f + 0.01f, -0.4f);
+                float riseScale = it.Status == ItemStatus.Broken ? 2.1f : 1.35f;   // a shard pile needs to be bigger to read
+                float restScale = it.Status == ItemStatus.Broken ? 1.4f : 1f;
                 spot.intensity = 0f;
                 G.Hud.Sfx("lift", 0.8f);
                 // rise
@@ -170,9 +173,9 @@ namespace HWC.Gameplay
                     float e = 1f - Mathf.Pow(1f - u, 3f);
                     show.transform.position = Vector3.Lerp(startPos, top, e) + Vector3.up * Mathf.Sin(u * Mathf.PI) * 0.08f;
                     show.transform.rotation = Quaternion.Slerp(startRot, Quaternion.Euler(0, Mathf.Sin(u * Mathf.PI) * 25f, 0), e);
-                    show.transform.localScale = Vector3.one * Mathf.Lerp(1f, 1.35f, e);
+                    show.transform.localScale = Vector3.one * Mathf.Lerp(1f, riseScale, e);
                     spot.intensity = Mathf.Lerp(0, 6f, e);
-                    rig.LookAt(rig.TargetPos, Vector3.Lerp(center, top, 0.5f * e), 30f);
+                    rig.LookAt(rig.TargetPos, Vector3.Lerp(center, top, 0.32f * e), 30f);
                     yield return null;
                 }
                 show.transform.position = top;
@@ -189,12 +192,12 @@ namespace HWC.Gameplay
                     float u = Mathf.Clamp01(t / 0.4f);
                     float e = u * u * (3 - 2 * u);
                     show.transform.position = Vector3.Lerp(top, slot, e) + Vector3.up * Mathf.Sin(u * Mathf.PI) * 0.12f;
-                    show.transform.localScale = Vector3.one * Mathf.Lerp(1.35f, 1f, e);
+                    show.transform.localScale = Vector3.one * Mathf.Lerp(riseScale, restScale, e);
                     show.transform.rotation = Quaternion.Slerp(show.transform.rotation, Quaternion.Euler(0, -12f, 0), e);
                     yield return null;
                 }
                 show.transform.position = slot;
-                show.transform.localScale = Vector3.one;
+                show.transform.localScale = Vector3.one * restScale;
                 G.Hud.Sfx("place", 0.6f);
                 Fx.Dust(slot - Vector3.up * Catalog.Get(it.Kind).H * 0.125f, 1);
                 spot.intensity = 0f;
@@ -217,7 +220,7 @@ namespace HWC.Gameplay
             while (t < 0.6f)
             {
                 t += Time.deltaTime;
-                flash.intensity = Mathf.Lerp(8f, 0f, t / 0.6f);
+                flash.intensity = Mathf.Lerp(4.5f, 0f, t / 0.6f);
                 yield return null;
             }
             flash.intensity = 0;

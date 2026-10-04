@@ -40,6 +40,7 @@ namespace HWC.Gameplay
         public RevealController Reveal;
         public Phase Phase;
         public bool Autopilot;
+        public bool SkipReveal;     // the 20-delivery self-test skips the unboxing for speed
 
         public LevelDef Level;
         public Packing CurrentPacking;
@@ -228,7 +229,7 @@ namespace HWC.Gameplay
         void OnJourneyDone()
         {
             Save.Record(Level, LastRun.Outcome);
-            if (Autopilot) { ShowResultsNow(); return; }
+            if (SkipReveal) { ShowResultsNow(); return; }
             Phase = Phase.Reveal;
             Hud.ShowReveal();
             StartCoroutine(Reveal.Play(LastRun, Station.Box, ShowResultsNow));
