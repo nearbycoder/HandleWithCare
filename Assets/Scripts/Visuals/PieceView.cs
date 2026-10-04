@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using HWC.Sim;
+using TMPro;
 using UnityEngine;
 
 namespace HWC.Visuals
@@ -33,6 +34,7 @@ namespace HWC.Visuals
         float toppleAngle, toppleTarget;
         float dropT = 1f;
         float hidden;
+        float walkT;
         float popScale = 1f;
         Vector3 baseScale = Vector3.one;
 
@@ -119,6 +121,16 @@ namespace HWC.Visuals
             SetPose(new Vector2(x + w * 0.5f, y + h * 0.5f));
         }
 
+        bool hovered;
+        float hoverAmt;
+
+        /// <summary>Gentle lift and glow when the cursor is over a placed piece.</summary>
+        public void SetHover(bool on)
+        {
+            if (on && !hovered) Kick(0.25f, Vector2.up);
+            hovered = on;
+        }
+
         public void PlayDrop()
         {
             dropT = 0f;
@@ -178,6 +190,7 @@ namespace HWC.Visuals
             if (snap) toppleAngle = toppleTarget;
 
             var changed = f.State ^ State;
+            if ((changed & f.State & BodyState.Hopping) != 0) { squash = 0.3f; squashVel = 0; }
             State = f.State;
             if (changed != 0) ApplyStateLook();
             if (f.Jolt > 1.5f && !snap)
@@ -229,6 +242,7 @@ namespace HWC.Visuals
             }
             else if ((State & (BodyState.Scorched | BodyState.Burned)) != 0) SetTint(Palette.Hex("2A2220"), 0.6f);
             else if ((State & BodyState.Popped) != 0 && Kind == PieceKind.Bubble) SetTint(Palette.Hex("A0A8AC"), 0.4f);
+            if ((State & BodyState.StrapSnapped) != 0 && strapGo != null) strapGo.SetActive(false);
             if ((State & BodyState.Awake) != 0 && Kind == PieceKind.Armadillo) SwapModel("piece_armadillo_awake", null);
             if ((State & BodyState.Spilled) != 0 && spill == null)
             {
@@ -287,9 +301,57 @@ namespace HWC.Visuals
             gameObject.SetActive(true);
         }
 
+        // sleepy z's for sleepers (packing and journey)
+        readonly List<TextMeshPro> zs = new List<TextMeshPro>();
+        float zT;
+
+        void UpdateZs(float dt)
+        {
+            bool asleep = Def.Has(Quirk.Sleeper) && (State & BodyState.Awake) == 0 && !ghost && gameObject.activeInHierarchy;
+            if (asleep && zs.Count == 0)
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    var go = new GameObject("z");
+                    go.transform.SetParent(transform, false);
+                    var t = go.AddComponent<TextMeshPro>();
+                    t.text = "z";
+                    t.font = HWC.UI.Ui.Display;
+                    t.fontSize = 1.2f;
+                    t.color = Palette.Hex("3B4766");
+                    t.alignment = TextAlignmentOptions.Center;
+                    t.rectTransform.sizeDelta = new Vector2(0.2f, 0.2f);
+                    zs.Add(t);
+                }
+            }
+            if (!asleep)
+            {
+                foreach (var z in zs) if (z != null) z.gameObject.SetActive(false);
+                return;
+            }
+            zT += dt;
+            for (int i = 0; i < zs.Count; i++)
+            {
+                var z = zs[i];
+                z.gameObject.SetActive(true);
+                float u = (zT * 0.45f + i / 3f) % 1f;
+                z.transform.localPosition = new Vector3(Cell * 0.25f + u * 0.06f + Mathf.Sin(u * 7f) * 0.012f, Cell * 0.45f + u * 0.16f, -0.12f);
+                z.transform.localScale = Vector3.one * (0.5f + u * 0.9f);
+                z.alpha = Mathf.Sin(u * Mathf.PI) * 0.9f;
+                z.transform.rotation = Quaternion.LookRotation(z.transform.position - (Camera.main != null ? Camera.main.transform.position : z.transform.position - Vector3.forward));
+            }
+        }
+
         void LateUpdate()
         {
             float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f) * Mathf.Max(0.15f, Time.timeScale);
+            UpdateZs(dt);
+            if ((State & BodyState.Walking) != 0 && (State & BodyState.Removed) == 0)
+            {
+                walkT += dt * 9f;
+                model.localPosition = new Vector3(0, Mathf.Abs(Mathf.Sin(walkT)) * 0.012f, 0);
+                model.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(walkT) * 6f);
+            }
             // spring for squash and wobble
             const float k = 260f, damp = 14f;
             squashVel += (-k * squash - damp * squashVel) * dt;
@@ -310,7 +372,8 @@ namespace HWC.Visuals
             }
 
             float s = Mathf.Clamp(squash, -0.4f, 0.4f);
-            var sc = new Vector3(baseScale.x * (1f - s * 0.6f), baseScale.y * (1f + s), baseScale.z * (1f - s * 0.6f)) * popScale;
+            hoverAmt = Mathf.MoveTowards(hoverAmt, hovered ? 1f : 0f, dt * 8f);
+            var sc = new Vector3(baseScale.x * (1f - s * 0.6f), baseScale.y * (1f + s), baseScale.z * (1f - s * 0.6f)) * popScale * (1f + hoverAmt * 0.05f);
             pivot.localScale = sc;
             float rotBase = Rotated ? 90f : 0f;
             pivot.localRotation = Quaternion.Euler(wobble.y * 8f, 0, rotBase + toppleAngle + wobble.x * 8f);

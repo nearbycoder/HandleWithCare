@@ -119,7 +119,18 @@ namespace HWC.Sim
                 float b = x1 == pk.W ? pk.W : x1 - DividerHalf;
                 w.AddStatic(BodyType.Shelf, a, s.Row - ShelfHalf, b, s.Row + ShelfHalf, SimConst.DividerHardness);
             }
-            for (int i = 0; i < pk.Pieces.Count; i++) w.AddPiece(pk.Pieces[i], i);
+            // bodies are created in layout order so the outcome depends only on where things are,
+            // not on the order the player placed them
+            var order = new List<int>(pk.Pieces.Count);
+            for (int i = 0; i < pk.Pieces.Count; i++) order.Add(i);
+            order.Sort((a, b) =>
+            {
+                Placement pa = pk.Pieces[a], pb = pk.Pieces[b];
+                int c = pa.Y.CompareTo(pb.Y);
+                if (c == 0) c = pa.X.CompareTo(pb.X);
+                return c != 0 ? c : a.CompareTo(b);
+            });
+            foreach (int i in order) w.AddPiece(pk.Pieces[i], i);
             w.FinishSetup();
             return w;
         }

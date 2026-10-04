@@ -117,6 +117,9 @@ namespace HWC.Gameplay
         {
             if (!Active) return;
             if (G.Phase != Phase.Packing && index < steps.Count - 1) { Stop(); return; }
+            bool waiting = G.Hud.ShiftCardShowing;
+            note.gameObject.SetActive(!waiting);
+            if (waiting) { arrow.gameObject.SetActive(false); t = 0; return; }
             var st = steps[index];
             if (st.Done())
             {

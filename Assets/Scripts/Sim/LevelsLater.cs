@@ -29,12 +29,13 @@ namespace HWC.Sim
                 ReviewGood = "Magnets apart, teacup intact. Science prevails!",
                 ReviewBad = "The magnets found each other. The teacup was in the way.",
                 W = 5, H = 2, Items = new[] { PieceKind.Magnet, PieceKind.Magnet, PieceKind.Teacup },
-                Materials = M(paper: 5, bubble: 2, divider: 1, strap: 2), Par = 6,
+                Materials = M(paper: 5, bubble: 2, divider: 1, strap: 2), Par = 8,
                 Route = Route(VanShort(), DepotBasic()),
                 Ref = new[] {
-                    "mpcpm",
-                    "ppbpp" },
-                RefMods = "0,1:S;4,1:S",
+                    "....p",
+                    "..mmc" },
+                RefDividers = new[] { 3 },
+                RefMods = "4,0:S",
             };
             yield return new LevelDef
             {
@@ -45,12 +46,13 @@ namespace HWC.Sim
                 ReviewGood = "Still bubbling, still upright. My master is impressed!",
                 ReviewBad = "It spilled. Everything in the box is now slightly floating.",
                 W = 5, H = 3, Items = new[] { PieceKind.Potion, PieceKind.Books, PieceKind.Teacup },
-                Materials = M(paper: 6, bubble: 4, foam: 2, divider: 1), Par = 9,
+                Materials = M(paper: 6, bubble: 4, foam: 2, divider: 1), Par = 5,
                 Route = Route(VanShort(), DepotArm()),
                 Ref = new[] {
-                    "pqbpp",
-                    "pqcbp",
-                    "kkbpp" },
+                    ".....",
+                    "cpq..",
+                    "kkq.." },
+                RefDividers = new[] { 3 },
             };
             yield return new LevelDef
             {
@@ -61,13 +63,12 @@ namespace HWC.Sim
                 ReviewGood = "BEST. PARTY. EVER. The balloon is now my best friend.",
                 ReviewBad = "The cake looks like it sat on itself. Timmy is inconsolable.",
                 W = 4, H = 3, Items = new[] { PieceKind.Cake, PieceKind.Balloon, PieceKind.Books },
-                Materials = M(paper: 6, bubble: 3, shelf: 1), Par = 8,
+                Materials = M(paper: 6, bubble: 3, shelf: 1), Par = 4,
                 Route = Route(VanShort(), DepotBasic()),
                 Ref = new[] {
-                    "kkbl",
-                    "ppbp",
-                    "eepp" },
-                RefShelves = "2@0",
+                    "l.ee",
+                    "..p.",
+                    ".kk." },
             };
             yield return new LevelDef
             {
@@ -78,13 +79,13 @@ namespace HWC.Sim
                 ReviewGood = "Prickly as ever, and the balloon survived. A miracle.",
                 ReviewBad = "BANG. The balloon met the cactus. They did not get along.",
                 W = 5, H = 3, Items = new[] { PieceKind.Cactus, PieceKind.Balloon, PieceKind.Teacup },
-                Materials = M(paper: 6, bubble: 2, foam: 3, divider: 1), Par = 10,
+                Materials = M(paper: 6, bubble: 2, foam: 3, divider: 1), Par = 4,
                 Route = Route(VanShort(), DepotArm()),
                 Ref = new[] {
-                    "pp|lp",
-                    "fx|pp",
-                    "ff|cp" },
-                RefDividers = new[] { 3 },
+                    "..l..",
+                    "c....",
+                    "x...." },
+                RefDividers = new[] { 1 },
             };
             yield return new LevelDef
             {
@@ -94,13 +95,14 @@ namespace HWC.Sim
                 ReviewGood = "All present, all asleep, all in one piece. Remarkable.",
                 ReviewBad = "Snoozles woke up stuck to a magnet. He has opinions.",
                 W = 6, H = 3, Items = new[] { PieceKind.Magnet, PieceKind.Magnet, PieceKind.Armadillo, PieceKind.Vase },
-                Materials = M(paper: 6, bubble: 5, foam: 5, divider: 2, strap: 2), Par = 16,
+                Materials = M(paper: 6, bubble: 5, foam: 5, divider: 2, strap: 2), Par = 10,
                 Route = Route(VanRough(), DepotFull()),
                 Ref = new[] {
-                    "mpvbpm",
-                    "fbvafp",
-                    "ffbffp" },
-                RefMods = "0,2:S;5,2:S",
+                    "......",
+                    "m....v",
+                    "a...mv" },
+                RefDividers = new[] { 1 },
+                RefMods = "0,0:S;5,0:S",
             };
         }
 
@@ -120,9 +122,9 @@ namespace HWC.Sim
                 Materials = M(paper: 6, bubble: 3, divider: 2, strap: 1), Par = 6,
                 Route = Route(DepotBasic(), DoorSteps(4)),
                 Ref = new[] {
-                    "pcp|r.",
-                    "pcp|.." },
-                RefDividers = new[] { 3 },
+                    "c.c.r.",
+                    "b.b.m." },
+                RefMods = "4,1:L",
             };
             yield return new LevelDef
             {
@@ -133,13 +135,13 @@ namespace HWC.Sim
                 ReviewGood = "The swan is magnificent and not even a little damp.",
                 ReviewBad = "We received a lava lamp, a bear, and a very wet box.",
                 W = 6, H = 3, Items = new[] { PieceKind.IceSwan, PieceKind.LavaLamp, PieceKind.Teddy },
-                Materials = M(paper: 6, bubble: 4, foam: 2, divider: 1), Par = 9,
+                Materials = M(paper: 6, bubble: 4, foam: 2, divider: 1), Par = 15,
                 Route = Route(VanShort(), DoorSteps(3)),
                 Ref = new[] {
-                    "pip|hp",
-                    "pip|ht",
-                    "bbb|bb" },
-                RefDividers = new[] { 3 },
+                    "hpi...",
+                    "hpip..",
+                    "bpbbtp" },
+                RefDividers = new[] { 1 },
             };
             yield return new LevelDef
             {
@@ -150,12 +152,13 @@ namespace HWC.Sim
                 ReviewGood = "The ball bounced in, the globe and vase stayed put. Ta-da!",
                 ReviewBad = "The ball bounced. And bounced. And bounced. Through everything.",
                 W = 5, H = 3, Items = new[] { PieceKind.BouncyBall, PieceKind.SnowGlobe, PieceKind.Vase },
-                Materials = M(paper: 6, bubble: 4, foam: 3, divider: 1), Par = 12,
+                Materials = M(paper: 6, bubble: 4, foam: 3, divider: 1), Par = 13,
                 Route = Route(DoorToss()),
                 Ref = new[] {
-                    "pvpfp",
-                    "fvpgf",
-                    "fbnbf" },
+                    "....v",
+                    "..gpv",
+                    ".bfnf" },
+                RefDividers = new[] { 3 },
             };
             yield return new LevelDef
             {
@@ -166,14 +169,13 @@ namespace HWC.Sim
                 ReviewGood = "Frog: proud. Cake: pristine. Teacups: unhopped-on.",
                 ReviewBad = "The frog landed on the cake. Several times. Ribbit.",
                 W = 6, H = 3, Items = new[] { PieceKind.Frog, PieceKind.Cake, PieceKind.Teacup, PieceKind.Teacup },
-                Materials = M(paper: 7, bubble: 6, foam: 3, shelf: 2, divider: 1), Par = 9,
+                Materials = M(paper: 7, bubble: 6, foam: 3, shelf: 2, divider: 1), Par = 11,
                 Route = Route(VanShort(), DoorSteps(3)),
                 Ref = new[] {
-                    "pcpcpp",
-                    "jp|eep",
-                    "pp|ppp" },
-                RefDividers = new[] { 2 },
-                RefShelves = "2@0",
+                    ".....j",
+                    "b...cc",
+                    "p.eebb" },
+                RefDividers = new[] { 4 },
             };
             yield return new LevelDef
             {
@@ -184,14 +186,13 @@ namespace HWC.Sim
                 ReviewGood = "Ember arrived toasty and happy. Nothing else did, oh wait, everything did!",
                 ReviewBad = "Ember sneezed. The box is now 40% smaller and smells of toast.",
                 W = 4, H = 3, Items = new[] { PieceKind.Dragon, PieceKind.Balloon, PieceKind.Books, PieceKind.Teddy },
-                Materials = M(paper: 6, bubble: 3, foam: 4, divider: 1), Par = 12,
+                Materials = M(paper: 6, bubble: 3, foam: 4, divider: 1), Par = 5,
                 Route = Route(VanShort(), DepotBasic(), DoorSteps(3)),
                 Ref = new[] {
-                    "pp|lpp",
-                    "fdd|pp",
-                    "kk|fff" },
-                RefMods = "1,1:L",
-                RefDividers = new[] { 3 },
+                    "lt..",
+                    "kk..",
+                    ".fdd" },
+                RefMods = "2,0:L",
             };
         }
 
@@ -208,12 +209,13 @@ namespace HWC.Sim
                 ReviewGood = "Not a drop spilled, not a snore missed. Yo ho!",
                 ReviewBad = "Rough crossing. The bowling ball won.",
                 W = 6, H = 3, Items = new[] { PieceKind.Potion, PieceKind.BowlingBall, PieceKind.Armadillo },
-                Materials = M(paper: 6, bubble: 4, foam: 3, divider: 2, strap: 1), Par = 14,
+                Materials = M(paper: 6, bubble: 4, foam: 3, divider: 2, strap: 1), Par = 10,
                 Route = Route(VanShort(), Ship(Rest(0.4f), Rock(5.0f, 20f, 2.6f), WaveSlam(0.35f), Rest(0.6f)), DoorSteps(3)),
                 Ref = new[] {
-                    "pqp|bp",
-                    "pqp|af",
-                    "o|pp|ff" },
+                    "....qp",
+                    "....qa",
+                    "o...pf" },
+                RefDividers = new[] { 4 },
             };
             yield return new LevelDef
             {
@@ -224,13 +226,13 @@ namespace HWC.Sim
                 ReviewGood = "Smooth flying, perfect landing. Ten out of ten.",
                 ReviewBad = "The air pocket rearranged the box. Rudely.",
                 W = 6, H = 3, Items = new[] { PieceKind.Balloon, PieceKind.SnowGlobe, PieceKind.Magnet, PieceKind.Magnet },
-                Materials = M(paper: 7, bubble: 4, foam: 3, divider: 1, strap: 2), Par = 14,
+                Materials = M(paper: 7, bubble: 4, foam: 3, divider: 1, strap: 2), Par = 8,
                 Route = Route(Plane(Rest(0.3f), Turbulence(2.5f, 0.024f), AirPocket(0.5f), Rest(0.4f), Turbulence(1.5f, 0.02f), Rest(0.3f)), VanShort()),
                 Ref = new[] {
-                    "lpp|pm",
-                    "fgf|pp",
-                    "mff|pp" },
-                RefMods = "0,0:S;5,2:S",
+                    ".....l",
+                    ".....g",
+                    ".mpm.b" },
+                RefDividers = new[] { 5 },
             };
             yield return new LevelDef
             {
@@ -240,13 +242,15 @@ namespace HWC.Sim
                 ReviewGood = "The vase is perfect. Ember sneezed on my eyebrows. Five stars.",
                 ReviewBad = "Ember is fine. The vase is a puzzle now.",
                 W = 6, H = 4, Items = new[] { PieceKind.Vase, PieceKind.Dragon, PieceKind.Cactus, PieceKind.Teacup },
-                Materials = M(paper: 6, bubble: 6, foam: 6, divider: 2, shelf: 1), Par = 16,
+                Materials = M(paper: 6, bubble: 6, foam: 6, divider: 2, shelf: 1), Par = 18,
                 Route = Route(VanRough(), DepotArm(), DoorSteps(3)),
                 Ref = new[] {
-                    "pvp|pp",
-                    "fvf|cp",
-                    "ddf|bp",
-                    "xff|bb" },
+                    "..p...",
+                    ".bvdd.",
+                    "cpv.px",
+                    "bpf.pp" },
+                RefDividers = new[] { 5 },
+                RefMods = "3,2:L",
             };
             yield return new LevelDef
             {
@@ -256,13 +260,14 @@ namespace HWC.Sim
                 ReviewGood = "The exhibition opened on time, every piece perfect. Bravo!",
                 ReviewBad = "We are now the Museum of Fragments.",
                 W = 7, H = 4, Items = new[] { PieceKind.Vase, PieceKind.SnowGlobe, PieceKind.IceSwan, PieceKind.LavaLamp, PieceKind.Teacup },
-                Materials = M(paper: 8, bubble: 5, foam: 4, divider: 2, shelf: 1), Par = 20,
+                Materials = M(paper: 8, bubble: 5, foam: 4, divider: 2, shelf: 1), Par = 11,
                 Route = Route(Plane(Rest(0.3f), Turbulence(2.0f, 0.022f), Rest(0.3f)), VanShort(), DoorCareful()),
                 Ref = new[] {
-                    "pvpip|p",
-                    "bvbip|h",
-                    "pgpcpbh",
-                    "fffbbff" },
+                    "....pcg",
+                    "....vpp",
+                    "....vih",
+                    "....pih" },
+                RefDividers = new[] { 4, 6 },
             };
             yield return new LevelDef
             {
@@ -272,14 +277,14 @@ namespace HWC.Sim
                 ReviewGood = "It hatched in the box! It sneezed! Everyone cried!",
                 ReviewBad = "The egg did not make it. We are not talking about it.",
                 W = 6, H = 4, Items = new[] { PieceKind.DragonEgg, PieceKind.Dragon, PieceKind.Magnet, PieceKind.Magnet, PieceKind.Balloon },
-                Materials = M(paper: 8, bubble: 4, foam: 5, divider: 2, shelf: 1, strap: 2), Par = 22,
+                Materials = M(paper: 8, bubble: 4, foam: 5, divider: 2, shelf: 1, strap: 2), Par = 9,
                 Route = Route(Catapult(Rest(0.4f), Launch(0.35f, 11f, 50f), Flight(1.4f, 360f), HayLand(0.2f), Rest(0.5f)), DoorSteps(3)),
                 Ref = new[] {
-                    "lpp|ppm",
-                    "fzdd|ff",
-                    "ffff|pp",
-                    "mfff|pp" },
-                RefMods = "0,0:S;6,3:S",
+                    ".l....",
+                    "z.....",
+                    "f.....",
+                    "m.dd.m" },
+                RefMods = "1,3:S",
             };
         }
     }

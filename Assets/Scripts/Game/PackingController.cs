@@ -45,6 +45,7 @@ namespace HWC.Gameplay
         bool painting, erasing;
         Vector2Int lastPaintCell = new Vector2Int(-99, -99);
         int hoverPiece = -1;
+        int lastHover = -1;
         PieceKind? lastHovered;
         Recording lastRun;
         TrailOverlay trails;
@@ -316,6 +317,13 @@ namespace HWC.Gameplay
 
             hoverPiece = -1;
             if (!overUi && inBox) hoverPiece = Pk.PieceAt(Mathf.FloorToInt(cell.x), Mathf.FloorToInt(cell.y));
+            int hl = Tool == Tool.None || Tool == Tool.Strap ? hoverPiece : -1;
+            if (hl != lastHover)
+            {
+                if (lastHover >= 0 && lastHover < views.Count) views[lastHover].SetHover(false);
+                if (hl >= 0 && hl < views.Count) { views[hl].SetHover(true); G.Hud.Sfx("hover", 0.25f); }
+                lastHover = hl;
+            }
             PieceKind? hk = hoverTray != null ? hoverTray.Kind : (hoverPiece >= 0 ? Pk.Pieces[hoverPiece].Kind : (Tool == Tool.Item || Tool == Tool.Padding ? HeldKind : (PieceKind?)null));
             if (hk != lastHovered) { lastHovered = hk; Hovered?.Invoke(hk); }
             for (int i = 0; i < tray.Count; i++)

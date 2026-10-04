@@ -104,6 +104,13 @@ namespace HWC.Gameplay
             InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
             mousePos = new Vector2(UnityEngine.Screen.width * 0.5f, UnityEngine.Screen.height * 0.5f);
             var box = g.Station.Box;
+            if (g.Hud.ShiftCardShowing)
+            {
+                yield return ClickAt(mousePos);
+                float wait = 0;
+                while (g.Hud.ShiftCardShowing && wait < 3f) { wait += Time.unscaledDeltaTime; yield return null; }
+                if (g.Hud.ShiftCardShowing) Debug.Log("[AutoPilot] FAIL input: clicking did not dismiss the shift card");
+            }
             yield return ClickAt(Screen(g.Station.SlotPosition(0) + Vector3.up * 0.1f));
             if (g.Packing.Tool != Tool.Item) Debug.Log("[AutoPilot] FAIL input: clicking the teacup did not pick it up");
             yield return MoveMouse(Screen(box.CellToWorld(1.5f, 0.6f)), 20);

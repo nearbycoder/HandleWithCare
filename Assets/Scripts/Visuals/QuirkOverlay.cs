@@ -64,17 +64,6 @@ namespace HWC.Visuals
                     q.transform.localPosition = new Vector3((p.X + p.W * 0.5f) * C, (p.Y + p.H * 0.5f) * C, zf + 0.002f);
                     q.transform.localScale = new Vector3((p.W + 2f * SimConst.HeatRange) * C, (p.H + 2f * SimConst.HeatRange) * C, 1);
                 }
-                if (d.Has(Quirk.Sleeper))
-                {
-                    for (int k = 0; k < 3; k++)
-                    {
-                        var z = Quad("zzz", ZMat());
-                        var bp = new Vector3((p.X + 0.7f) * C, (p.Y + 0.95f) * C, zf);
-                        z.transform.localPosition = bp;
-                        z.transform.localScale = Vector3.one * 0.05f;
-                        zzz.Add((z.transform, i * 1.3f + k / 3f, bp));
-                    }
-                }
                 if (d.Has(Quirk.Magnet))
                 {
                     for (int j = i + 1; j < pk.Pieces.Count; j++)

@@ -51,6 +51,7 @@ namespace HWC.Gameplay
             BuildResults();
             BuildPause();
             BuildReveal();
+            BuildShiftCard();
             HideAll();
         }
 
@@ -63,6 +64,70 @@ namespace HWC.Gameplay
             resultsRoot.gameObject.SetActive(false);
             pauseRoot.gameObject.SetActive(false);
             revealRoot.gameObject.SetActive(false);
+        }
+
+        // ---- shift (chapter) title cards ----------------------------------------------------
+        RectTransform shiftCard;
+        CanvasGroup shiftGroup;
+        TextMeshProUGUI shiftTitle, shiftLine;
+        float shiftT = -1f;
+        public bool ShiftCardShowing => shiftT >= 0f;
+        static readonly string[] ShiftTitles = { "SHIFT 1  \u00B7  FIRST DAY", "SHIFT 2  \u00B7  THE SORTING DEPOT", "SHIFT 3  \u00B7  LAST MILE", "SHIFT 4  \u00B7  EXPRESS SERVICE" };
+        static readonly string[] ShiftLines =
+        {
+            "Welcome to Mossbury Parcel Post. We ship anything. Carefully.",
+            "The depot has a new robot arm. It has no feelings. Pack accordingly.",
+            "Meet Dash, our fastest courier. He says stairs are \u201Cbasically a ramp\u201D.",
+            "By sea, by air, and by catapult. Yes, catapult. Don't ask.",
+        };
+
+        void BuildShiftCard()
+        {
+            var dim = Ui.Panel(root, "shiftCard", new Color(0.1f, 0.07f, 0.06f, 0.7f), Ui.Rounded(2));
+            shiftCard = dim.rectTransform;
+            shiftCard.Stretch();
+            var b = dim.gameObject.AddComponent<UiButton>();
+            b.Init(dim, () => shiftT = Mathf.Max(shiftT, 2.6f));
+            b.HoverScale = 1f;
+            var band = Ui.Panel(shiftCard, "band", Palette.PostalRed, Ui.Rounded(8));
+            band.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 40), new Vector2(1400, 170));
+            shiftTitle = Ui.Text(band.transform, "t", "", 92, Palette.Cream, Ui.Display);
+            shiftTitle.rectTransform.Stretch(20, 20, 10, 10);
+            var note = Ui.Panel(shiftCard, "note", Palette.Sticky, Ui.Rounded(4));
+            note.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(160, -120), new Vector2(760, 120));
+            note.rectTransform.localRotation = Quaternion.Euler(0, 0, -2f);
+            shiftLine = Ui.Text(note.transform, "l", "", 30, Palette.Ink, Ui.Italic);
+            shiftLine.rectTransform.Stretch(20, 20, 12, 30);
+            var sig = Ui.Text(note.transform, "s", "\u2014 Mabel", 22, Palette.InkSoft, Ui.Bold, TextAlignmentOptions.BottomRight);
+            sig.rectTransform.Stretch(16, 16, 8, 8);
+            shiftGroup = shiftCard.gameObject.AddComponent<CanvasGroup>();
+            shiftCard.gameObject.SetActive(false);
+        }
+
+        void MaybeShowShift(LevelDef lv)
+        {
+            bool first = true;
+            foreach (var l in Levels.All) if (l.Chapter == lv.Chapter && l.Number < lv.Number) first = false;
+            string key = "shift_" + lv.Chapter;
+            if (!first || G.Save.SeenTips.Contains(key) || G.Autopilot) return;
+            G.Save.SeenTips.Add(key);
+            shiftTitle.text = ShiftTitles[Mathf.Clamp(lv.Chapter - 1, 0, 3)];
+            shiftLine.text = ShiftLines[Mathf.Clamp(lv.Chapter - 1, 0, 3)];
+            shiftCard.gameObject.SetActive(true);
+            shiftCard.SetAsLastSibling();
+            shiftT = 0f;
+            Sfx("stamp_good", 0.8f);
+        }
+
+        void UpdateShiftCard(float dt)
+        {
+            if (shiftT < 0f) return;
+            shiftT += dt;
+            float a = shiftT < 3.4f ? 1f : Mathf.Clamp01(1f - (shiftT - 3.4f) / 0.4f);
+            shiftGroup.alpha = a;
+            float s = shiftT < 0.2f ? Mathf.Lerp(1.6f, 1f, shiftT / 0.2f) : 1f;
+            shiftTitle.transform.parent.localScale = Vector3.one * s;
+            if (a <= 0f) { shiftCard.gameObject.SetActive(false); shiftT = -1f; }
         }
 
         public void HideAllScreens()
@@ -276,6 +341,7 @@ namespace HWC.Gameplay
         }
 
         RectTransform lastTrip, orderCard;
+        bool wasReady;
         TextMeshProUGUI routeText;
 
         static string RouteSummary(LevelDef lv)
@@ -404,6 +470,7 @@ namespace HWC.Gameplay
             newBadge.gameObject.SetActive(isNew);
             if (isNew) { G.Save.SeenTips.Add("new_" + lv.NewThing); }
             packT = 0;
+            MaybeShowShift(lv);
             orderNum.text = $"DELIVERY {lv.Number}";
             orderTitle.text = lv.Title.ToUpperInvariant();
             orderCustomer.text = "To: " + lv.Customer;
@@ -424,6 +491,7 @@ namespace HWC.Gameplay
             foreach (var s in slots) if (s.btn.gameObject.activeSelf) s.btn.Image.rectTransform.anchoredPosition = new Vector2(12 + vis++ * 136, 0);
             var bar = slots[0].btn.transform.parent as RectTransform;
             bar.sizeDelta = new Vector2(Mathf.Max(1, vis) * 136 + 16, 150);
+            wasReady = true;
             G.Packing.Changed -= RefreshPacking;
             G.Packing.Changed += RefreshPacking;
             G.Packing.Hovered -= ShowItemCard;
@@ -482,6 +550,8 @@ namespace HWC.Gameplay
             int remaining = pc.RemainingItems().Count;
             bool ready = pc.ReadyToSeal && pc.Tool == Tool.None;
             sealBtn.SetInteractable(pc.ReadyToSeal);
+            if (pc.ReadyToSeal && !wasReady) { sealBtn.Pulse(); Sfx("stamp_ok", 0.5f); }
+            wasReady = pc.ReadyToSeal;
             sealHint.text = remaining > 0 ? $"Pack {remaining} more item{(remaining > 1 ? "s" : "")}" : (ready ? "Space to seal" : "");
         }
 
@@ -866,6 +936,7 @@ namespace HWC.Gameplay
 
             float dt = Time.unscaledDeltaTime;
             UpdateStamps(dt);
+            UpdateShiftCard(dt);
             if (packRoot.gameObject.activeSelf)
             {
                 packT += dt;

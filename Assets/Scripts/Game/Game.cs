@@ -186,14 +186,38 @@ namespace HWC.Gameplay
             Packing.End();
             Hud.ShowSealing();
             Save.SetPacking(Level, CurrentPacking);
-            var rec = Simulator.Run(Level, CurrentPacking);
+            // simulate on a worker thread while the flaps close and the tape goes on
+            var lvl = Level;
+            var pk = CurrentPacking.Clone();
+            _ = lvl.Kinematics;
+            var task = System.Threading.Tasks.Task.Run(() => Simulator.Run(lvl, pk));
             var box = Station.Box;
             box.ShowGrid(false);
             box.SetTapeStyle(Save.Tape);
             box.SetFlaps(1f, false);
             yield return new WaitForSeconds(0.8f);
+            // the tape gun sweeps across the top as the tape goes down
+            var gun = ModelLibrary.Spawn("tapegun", box.transform);
             box.SetTape(1f, false);
-            yield return new WaitForSeconds(0.9f);
+            float t = 0;
+            while (t < 0.95f)
+            {
+                t += Time.deltaTime;
+                if (gun != null)
+                {
+                    var pos = box.TapeEndWorld + Vector3.up * 0.004f;   // rides the end of the tape
+                    if (t > 0.75f) pos += Vector3.up * (t - 0.75f) * 1.6f;
+                    gun.transform.position = pos;
+                    gun.transform.rotation = Quaternion.Euler(0, 0, -18f + Mathf.Sin(t * 30f) * 2f);
+                    gun.transform.localScale = Vector3.one * Mathf.Clamp01(t * 6f);
+                }
+                yield return null;
+            }
+            if (gun != null) Destroy(gun);
+            Rig.AddTrauma(0.15f);
+            while (!task.IsCompleted) yield return null;
+            if (task.IsFaulted) { Debug.LogException(task.Exception); EnterPacking(); yield break; }
+            var rec = task.Result;
             LastRun = rec;
             Phase = Phase.Journey;
             Hud.ShowJourney(Level, rec);

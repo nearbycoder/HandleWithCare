@@ -127,6 +127,28 @@ def itemshelf(cols, rows):
     return [m.build()]
 
 
-ALL = {"station": station}
+def tapegun():
+    """Handheld tape dispenser. Origin at the point where tape leaves the roller (touches the box)."""
+    m = Model("tapegun")
+    red, dark, steel, tapec = shiny("D9483B"), col("2A2628"), metal("C9CED4"), tex("tape_kraft")
+    # roll of tape
+    m.add(cyl((-0.02, 0.11, 0), 0.075, 0.07, axis="z", segments=28), tapec, uv_scale=(6, 14))
+    m.add(cyl((-0.02, 0.11, 0), 0.038, 0.074, axis="z", segments=20), col("B98A55"))
+    # frame plate (far side only, so the roll reads from the camera)
+    for z in (0.04,):
+        m.add(hull([(-0.1, 0.03, z - 0.004), (0.06, 0.0, z - 0.004), (0.07, 0.19, z - 0.004), (-0.1, 0.2, z - 0.004),
+                    (-0.1, 0.03, z + 0.004), (0.06, 0.0, z + 0.004), (0.07, 0.19, z + 0.004), (-0.1, 0.2, z + 0.004)], bevel=0.006), red)
+    # roller and serrated cutter at the front-bottom
+    m.add(cyl((0.05, 0.015, 0), 0.016, 0.085, axis="z", segments=14), dark)
+    m.add(box((0.07, -0.005, -0.045), (0.085, 0.03, 0.045), bevel=0.003), steel)
+    # pistol grip
+    m.add(hull([(-0.06, 0.18, -0.025), (-0.01, 0.18, -0.025), (-0.04, 0.33, -0.025), (-0.1, 0.32, -0.025),
+                (-0.06, 0.18, 0.025), (-0.01, 0.18, 0.025), (-0.04, 0.33, 0.025), (-0.1, 0.32, 0.025)], bevel=0.012), dark)
+    # tape strip leaving the roll
+    m.add(box((0.0, 0.0, -0.034), (0.06, 0.004, 0.034)), tapec, uv_scale=(12, 14))
+    return [m.build()]
+
+
+ALL = {"station": station, "tapegun": tapegun}
 for _c, _r in ((1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3)):
     ALL[f"itemshelf_{_c}x{_r}"] = (lambda c=_c, r=_r: itemshelf(c, r))

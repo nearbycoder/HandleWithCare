@@ -73,11 +73,11 @@ namespace HWC.Sim
                 ReviewGood = "Volumes A to M, perfect. The mug too. Shh!",
                 ReviewBad = "Books: fine. Mug: overdue for a funeral.",
                 W = 5, H = 2, Items = new[] { PieceKind.Teacup, PieceKind.Books, PieceKind.Books },
-                Materials = M(paper: 8), Par = 5,
+                Materials = M(paper: 8), Par = 4,
                 Route = Route(Van(Depart(0.7f, 8f), Cruise(0.6f), Pothole(0.045f), Cruise(0.8f), Bump(0.045f), Cruise(0.6f), Brake(0.55f), Rest(0.5f))),
                 Ref = new[] {
-                    "cpppp",
-                    "kkkkp" },
+                    "kkkk.",
+                    ".p.cp" },
             });
 
             L.Add(new LevelDef
@@ -92,9 +92,9 @@ namespace HWC.Sim
                 Materials = M(paper: 4, bubble: 4), Par = 6,
                 Route = Route(Van(Depart(0.9f, 8f), Cruise(0.6f), Bump(0.07f), Cruise(0.5f), Pothole(0.07f), Cruise(0.6f), Brake(0.5f), Rest(0.5f))),
                 Ref = new[] {
-                    "....",
-                    "vtpp",
-                    "vbpp" },
+                    "t...",
+                    "vp..",
+                    "vppp" },
             });
 
             L.Add(new LevelDef
@@ -106,12 +106,12 @@ namespace HWC.Sim
                 ReviewGood = "A perfect game! Ball and cups both pristine.",
                 ReviewBad = "The ball arrived. It brought the cups along as gravel.",
                 W = 5, H = 2, Items = new[] { PieceKind.BowlingBall, PieceKind.Teacup, PieceKind.Teacup },
-                Materials = M(paper: 6, bubble: 2, divider: 2), Par = 8,
+                Materials = M(paper: 6, bubble: 2, divider: 2), Par = 4,
                 Route = Route(Van(Depart(0.8f, 6f), Cruise(0.5f), Brake(0.5f, 1f, "STOP AND GO"), Speed(0.6f, 6f), Cruise(0.4f), Brake(0.45f, 0.5f, "STOP AND GO"), Speed(0.6f, 7f), Cruise(0.5f), Bump(0.06f), Cruise(0.4f), Brake(0.5f), Rest(0.5f))),
                 Ref = new[] {
-                    "pppp.",
-                    "pcpco" },
-                RefDividers = new[] { 4 },
+                    "c....",
+                    "c...o" },
+                RefDividers = new[] { 1 },
             });
 
             L.Add(new LevelDef
@@ -123,12 +123,13 @@ namespace HWC.Sim
                 ReviewGood = "Still snoring when we opened the box. Bless him.",
                 ReviewBad = "Snoozles is awake and furious. He has eaten the packing slip.",
                 W = 5, H = 3, Items = new[] { PieceKind.Armadillo, PieceKind.Vase },
-                Materials = M(paper: 4, bubble: 3, foam: 3, divider: 1), Par = 15,
+                Materials = M(paper: 4, bubble: 3, foam: 3, divider: 1), Par = 5,
                 Route = Route(Van(Depart(0.9f, 6f), Cruise(0.4f), Cobbles(1.6f, 0.0012f), Cruise(0.4f), SpeedBump(0.055f), Cruise(0.5f), SpeedBump(0.055f), Cruise(0.5f), Brake(0.55f), Rest(0.6f))),
                 Ref = new[] {
                     ".....",
-                    "babpv",
-                    "fffpv" },
+                    "...av",
+                    "...pv" },
+                RefDividers = new[] { 3 },
             });
         }
 
