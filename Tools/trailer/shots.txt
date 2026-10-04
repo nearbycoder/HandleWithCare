@@ -1,0 +1,51 @@
+# Trailer and screenshot shot list for the -hwcTrailer capture mode (Assets/Scripts/Game/TrailerDirector.cs).
+# name kind key=value...   Packings: pack=ref | naive | rows top-first joined by '/', with div=, shelf=, mods=
+# (same notation as Tools/simcheck.sh map). packmode: instant | quick (pieces drop in one by one) | hand (real input).
+# Every packing here was checked with Tools/simcheck.sh map; the comment says what it does on the trip.
+
+# cold open: the trailer moment from docs/BRIEF.md. The vase survives, Ember sneezes five times.
+cold18    level level=18 pack=ref packmode=quick delay=0.12 hold=1.2 resultshold=1.5
+title     title dur=6
+titleplain title ui=0 dur=8
+
+# the core loop, played with the mouse: hover, pick, drop, paint paper and bubble wrap, seal, ship, unbox
+loop3     level level=3 pack=t.../vb../vppp packmode=hand hold=0.6 resultshold=3
+# items only: the vase topples at the hard brake and shatters; then a close-up replay and the repack trails
+fail3     level level=3 pack=naive packmode=quick delay=0.2 hold=0.6 resultshold=2.5 after=replay,repack replaycam=1 repackhold=4
+# a shelf keeps the books off the cake (quick pack so the shelf goes in first)
+shelf8    level level=8 pack=l.../kk../ee.. shelf=1@0 packmode=quick delay=0.3 hold=0.8 reveal=0 afterjourney=0
+# a fuller order packed by hand: divider, bubble wrap, foam, paper, the dragon turned to face the wall
+pack18    level level=18 pack=ref packmode=hand hold=0.8 seal=0
+
+# quirks, one journey each (director camera, slow motion on incidents)
+mag6      level level=6 pack=c..../m...m cam=1 reveal=0 afterjourney=0 hold=0.5
+# magnets snap together (CLANK) at 0.5 s, the cup breaks at the brake
+sleep5    level level=5 pack=naive reveal=0 afterjourney=0 hold=0.5
+# vase breaks and Snoozles wakes up at the brake
+potion7   level level=7 pack=...../cpq../kkq.. reveal=0 afterjourney=0 hold=0.5
+# potion tips at the brake and spills; the cup breaks when the robot arm tips the box
+cake8     level level=8 pack=naive reveal=0 afterjourney=0 hold=0.5
+# the books squash the cake at the brake (SPLAT)
+cactus9   level level=9 pack=.xl../.p.../.p..c cam=1 reveal=0 afterjourney=0 hold=0.5
+# the balloon drifts into the cactus (BANG)
+robot11   level level=11 pack=c...../r..m.c reveal=0 afterjourney=0 hold=0.5
+# Clank marches into a teacup when the depot drops the box
+swan12    level level=12 pack=naive reveal=0 afterjourney=0 hold=0.5
+# the ice swan melts next to the lava lamp; the lamp spills at the brake
+boing13   level level=13 pack=naive reveal=0 afterjourney=0 hold=0.5
+# Dash tosses the box; the vase and snow globe break
+frog14    level level=14 pack=....../.....c/j.eepc reveal=0 afterjourney=0 hold=0.5
+# the frog hops at the brake and lands on the cake (SPLAT)
+fire15    level level=15 pack=naive hold=0.5 resultshold=2
+# Ember sneezes at the brake and sets the box on fire
+
+# journeys (reference packings, everything arrives)
+depot10   level level=10 pack=ref packmode=quick delay=0.22 hold=0.6 reveal=0 afterjourney=0
+door13    level level=13 pack=ref reveal=0 afterjourney=0 hold=0.4
+seas16    level level=16 pack=ref reveal=0 afterjourney=0 hold=0.4
+air17     level level=17 pack=ref reveal=0 afterjourney=0 hold=0.4
+egg20     level level=20 pack=ref packmode=quick delay=0.15 hold=0.6 resultshold=3
+
+# progression and UI
+log       log dur=5
+shift4    shift level=16 dur=4.2

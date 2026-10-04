@@ -27,14 +27,25 @@ crashlytics-build.properties
 .vs/
 .vscode/
 .idea/
-.DS_Store
 
-# Tools
+# Tools, captures and scratch output
 __pycache__/
+.venv/
+venv/
+node_modules/
 Tools/.libs/
 Tools/SimCheck/bin/
 Tools/SimCheck/obj/
 ArtSource/_renders/
-ArtSource/*.blend1
+*.blend1
+*.blend@
 /Assets/Screenshots/
 /Assets/Screenshots.meta
+*.log
+
+# OS and editor junk
+Thumbs.db
+desktop.ini
+*.swp
+*~
+.DS_Store
