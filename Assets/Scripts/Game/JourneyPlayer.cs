@@ -210,6 +210,7 @@ namespace HWC.Gameplay
                 for (int i = 0; i < stages.Count; i++) stages[i].gameObject.SetActive(i == leg);
                 CurrentLeg = leg;
                 snap = true;
+                stages[leg].ApplyLighting(G.Sun, G.Rig.Cam);
                 LegChanged?.Invoke(leg);
             }
             var st = stages[leg];
@@ -221,7 +222,10 @@ namespace HWC.Gameplay
             Box.transform.position = boxPos;
             Box.transform.rotation = Quaternion.Euler(0, 0, angDeg);
             kin.Velocity(k, out double vx, out double vy);
-            st.FollowBox(boxPos, angDeg, (float)vx);
+            int ev = kin.EventOf[k];
+            float evT = 0f;
+            foreach (var sp in kin.Spans) if (sp.Leg == leg && sp.Index == ev) { evT = (k - sp.StartTick) * SimConst.Dt; break; }
+            st.Animate(boxPos, angDeg, (float)vx, ev, evT);
 
             // pieces
             float fF = T / (SimConst.FrameEvery * SimConst.Dt);

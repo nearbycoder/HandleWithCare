@@ -73,6 +73,18 @@ namespace HWC.Visuals
             return m;
         }
 
+        /// <summary>Transparent textured lit material (printed stamps, decals).</summary>
+        public static Material Decal(string key, Texture2D tex)
+        {
+            if (cache.TryGetValue("decal_" + key, out var m)) return m;
+            m = new Material(Template(ref litTransparent, "HWC_LitTransparent")) { name = "decal_" + key };
+            m.SetTexture("_BaseMap", tex);
+            m.SetColor("_BaseColor", Color.white);
+            m.SetFloat("_Smoothness", 0.15f);
+            cache["decal_" + key] = m;
+            return m;
+        }
+
         public static Material Unlit(Color c, bool transparent = false)
         {
             string key = $"unlit{ColorUtility.ToHtmlStringRGBA(c)}_{transparent}";

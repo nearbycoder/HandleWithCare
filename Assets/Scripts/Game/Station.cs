@@ -38,12 +38,12 @@ namespace HWC.Gameplay
             }
             var lampGo = new GameObject("lamp");
             lampGo.transform.SetParent(transform, false);
-            lampGo.transform.localPosition = new Vector3(-0.9f, 1.9f, -0.6f);
+            lampGo.transform.localPosition = new Vector3(-1.5f, 0.65f, 0.25f);
             lamp = lampGo.AddComponent<Light>();
             lamp.type = LightType.Point;
             lamp.color = Palette.Hex("FFD3A0");
-            lamp.intensity = 2.2f;
-            lamp.range = 5f;
+            lamp.intensity = 1.6f;
+            lamp.range = 3.5f;
             lamp.shadows = LightShadows.None;
 
             ItemShelf = new GameObject("itemShelf").transform;
@@ -52,6 +52,7 @@ namespace HWC.Gameplay
 
         public void SetupFor(LevelDef lv)
         {
+            LightingPreset.For(null).Apply(Game.I.Sun, Game.I.Rig.Cam);
             if (Box == null || Box.W != lv.W || Box.H != lv.H)
             {
                 if (Box != null) Destroy(Box.gameObject);
@@ -68,6 +69,8 @@ namespace HWC.Gameplay
             Frame(lv, true);
         }
 
+        const float Slot = 0.62f;
+
         void BuildShelf(LevelDef lv)
         {
             foreach (Transform c in ItemShelf) Destroy(c.gameObject);
@@ -76,27 +79,18 @@ namespace HWC.Gameplay
             int n = lv.Items.Length;
             int cols = n > 3 ? 2 : 1;
             int rows = (n + cols - 1) / cols;
-            float slotW = 0.62f, slotH = 0.62f;
-            float x0 = boxRight + 0.32f;
-            ItemShelf.localPosition = new Vector3(x0, 0, 0.05f);
-            // wooden shelf boards
-            var wood = Mat.Lit(Palette.Wood, 0.3f);
-            for (int r = 0; r <= rows; r++)
+            ItemShelf.localPosition = new Vector3(boxRight + 0.3f, 0.035f, 0.05f);
+            var model = ModelLibrary.Spawn($"itemshelf_{cols}x{rows}", ItemShelf);
+            if (model == null)
             {
-                MeshGen.Make("board", MeshGen.RoundedBox(new Vector3(cols * slotW + 0.06f, 0.035f, 0.42f), 0.01f), wood, ItemShelf,
-                    new Vector3(cols * slotW * 0.5f - 0.03f, r * slotH - 0.0175f, 0));
+                var wood = Mat.Lit(Palette.Wood, 0.3f);
+                for (int r = 0; r <= rows; r++)
+                    MeshGen.Make("board", MeshGen.RoundedBox(new Vector3(cols * Slot + 0.06f, 0.035f, 0.42f), 0.01f), wood, ItemShelf, new Vector3(cols * Slot * 0.5f, r * Slot - 0.0175f, 0));
             }
-            for (int c = 0; c <= cols; c++)
-            {
-                MeshGen.Make("side", MeshGen.RoundedBox(new Vector3(0.035f, rows * slotH, 0.42f), 0.01f), wood, ItemShelf,
-                    new Vector3(c * slotW - 0.03f, rows * slotH * 0.5f, 0));
-            }
-            MeshGen.Make("back", MeshGen.RoundedBox(new Vector3(cols * slotW, rows * slotH, 0.02f), 0.005f), Mat.Lit(Palette.WoodDark, 0.2f), ItemShelf,
-                new Vector3(cols * slotW * 0.5f - 0.03f, rows * slotH * 0.5f, 0.2f));
             for (int i = 0; i < n; i++)
             {
                 int r = rows - 1 - i / cols, c = i % cols;
-                ShelfSlots.Add(ItemShelf.TransformPoint(new Vector3(c * slotW + slotW * 0.5f - 0.03f, r * slotH, -0.02f)));
+                ShelfSlots.Add(ItemShelf.TransformPoint(new Vector3(c * Slot + Slot * 0.5f, r * Slot, -0.03f)));
             }
         }
 
@@ -108,9 +102,9 @@ namespace HWC.Gameplay
             int n = lv.Items.Length;
             int cols = n > 3 ? 2 : 1;
             int rows = (n + cols - 1) / cols;
-            float shelfW = cols * 0.62f + 0.32f;
+            float shelfW = cols * Slot + 0.36f;
             float left = -boxW * 0.5f - 0.15f, right = boxW * 0.5f + shelfW + 0.12f;
-            float top = Mathf.Max(boxH + 0.25f, rows * 0.62f + 0.1f), bottom = -0.32f;
+            float top = Mathf.Max(boxH + 0.3f, rows * Slot + 0.12f), bottom = -0.42f;
             float cx = (left + right) * 0.5f, cy = (top + bottom) * 0.5f;
             float width = right - left, height = top - bottom;
             float fov = 24f;
@@ -119,7 +113,7 @@ namespace HWC.Gameplay
             float distW = width * 0.5f / (Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad) * aspect);
             float dist = Mathf.Max(distH, distW) * 1.18f + 0.3f;
             var target = new Vector3(cx, cy + 0.05f, 0);
-            var pos = target + new Quaternion(0, 0, 0, 1) * new Vector3(0, dist * 0.16f, -dist);
+            var pos = target + new Vector3(0, dist * 0.2f, -dist);
             rig.LookAt(pos, target, fov);
             rig.PosSharpness = 5f;
             if (snap) rig.Snap();

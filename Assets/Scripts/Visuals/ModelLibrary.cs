@@ -36,6 +36,17 @@ namespace HWC.Visuals
             return go;
         }
 
+        public static Transform FindDeep(Transform root, string name)
+        {
+            if (root.name == name) return root;
+            foreach (Transform c in root)
+            {
+                var f = FindDeep(c, name);
+                if (f != null) return f;
+            }
+            return null;
+        }
+
         public static void ResolveMaterials(GameObject go)
         {
             foreach (var r in go.GetComponentsInChildren<Renderer>(true))
@@ -59,6 +70,7 @@ namespace HWC.Visuals
             int us = name.IndexOf('_');
             string kind = us > 0 ? name.Substring(0, us) : name;
             string arg = us > 0 ? name.Substring(us + 1) : "";
+            if (kind != "tex" && kind != "decal" && arg.Length > 6) arg = arg.Substring(0, 6);
             Color c = Color.magenta;
             if (arg.Length >= 6) c = Palette.Hex(arg.Substring(0, 6));
             switch (kind)
@@ -69,6 +81,7 @@ namespace HWC.Visuals
                 case "matte": m = Mat.Lit(c, 0.1f, 0f); break;
                 case "glow": m = Mat.Emissive(c, c * 2.2f); break;
                 case "tex": m = TextureLibrary.MaterialFor(arg); break;
+                case "decal": m = Mat.Decal(arg, TextureLibrary.Get("decal_" + arg)); break;
                 default: m = Mat.Lit(c, 0.3f, 0f); break;
             }
             resolved[name] = m;

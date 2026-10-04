@@ -53,11 +53,12 @@ namespace HWC.Visuals
             var shellModel = ModelLibrary.Spawn($"box_{w}x{h}", Shell);
             if (shellModel != null)
             {
-                flapL = shellModel.transform.Find("FlapL");
-                flapR = shellModel.transform.Find("FlapR");
-                flapB = shellModel.transform.Find("FlapB");
-                var t = shellModel.transform.Find("Tape");
-                if (t != null) tape = t.gameObject;
+                var r = shellModel.transform;
+                flapL = ModelLibrary.FindDeep(r, "FlapL");
+                flapR = ModelLibrary.FindDeep(r, "FlapR");
+                flapB = ModelLibrary.FindDeep(r, "FlapB");
+                var t = ModelLibrary.FindDeep(r, "Tape");
+                if (t != null) { tape = t.gameObject; tapeFromModel = true; }
             }
             else BuildPlaceholderShell(iw, ih);
 
@@ -137,15 +138,36 @@ namespace HWC.Visuals
             if (flapB != null) flapB.localRotation = Quaternion.Euler(-150f * Mathf.Clamp01(open * 1.4f), 0, 0);
         }
 
+        bool tapeFromModel;
+
         void ApplyTape()
         {
             if (tape == null) return;
             tape.SetActive(tapeT > 0.001f);
-            var s = tape.transform.localScale;
             tape.transform.localScale = new Vector3(Mathf.Max(0.001f, tapeT), 1, 1);
-            var p = tape.transform.localPosition;
-            tape.transform.localPosition = new Vector3(-(InteriorWidth + 2 * Wall) * 0.5f * (1f - tapeT), p.y, p.z);
+            if (!tapeFromModel)
+            {
+                var p = tape.transform.localPosition;
+                tape.transform.localPosition = new Vector3(-(InteriorWidth + 2 * Wall) * 0.5f * (1f - tapeT), p.y, p.z);
+            }
         }
+
+        /// <summary>Swaps the tape texture (cosmetic unlocks).</summary>
+        public void SetTapeStyle(string style)
+        {
+            if (tape == null) return;
+            var mat = TextureLibrary.MaterialFor("tape_" + style);
+            foreach (var r in tape.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++) mats[i] = mat;
+                r.sharedMaterials = mats;
+            }
+        }
+
+        public Vector3 TapeStartWorld => tape != null ? tape.transform.position : transform.position;
+        public Vector3 TapeEndWorld => tape != null ? tape.transform.TransformPoint(new Vector3(InteriorWidth + 2 * Wall + 0.008f, 0, 0)) : transform.position;
+        public float TapeProgress => tapeT;
 
         void Update()
         {
