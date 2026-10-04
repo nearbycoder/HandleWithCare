@@ -74,8 +74,11 @@ static class Search
             var rnd = new Random(r * 104729 + n);
             Packing refPk = null;
             try { refPk = lv.ReferencePacking(); if (refPk.Validate(lv) != null) refPk = null; } catch { refPk = null; }
-            Packing cur = r % 3 == 0 && refPk != null ? refPk : RandomFull(lv, rnd);
-            if (cur != null && r % 3 == 2) cur = FillAll(cur, lv, rnd);
+            Packing cur;
+            if (r % 4 == 0 && refPk != null) cur = refPk;
+            else if (r % 4 == 1) cur = FloorFirst(lv, rnd);
+            else cur = RandomFull(lv, rnd);
+            if (cur != null && r % 4 == 2) cur = FillAll(cur, lv, rnd);
             for (int tries = 0; cur == null && tries < 50; tries++) cur = RandomFull(lv, rnd);
             if (cur == null) return;
             var rec = Simulator.Run(lv, cur, false);
@@ -149,6 +152,24 @@ static class Search
                 if (pk.CanPlace(p)) pk.Pieces.Add(p);
             }
         return pk;
+    }
+
+    /// <summary>Soft floor first (foam, then bubble), items on top, then the gaps filled.</summary>
+    static Packing FloorFirst(LevelDef lv, Random rnd)
+    {
+        var pk = new Packing(lv.W, lv.H);
+        for (int x = 0; x < lv.W; x++)
+        {
+            var used = pk.UsedMaterials();
+            PieceKind? k = null;
+            foreach (var cand in new[] { PieceKind.Foam, PieceKind.Bubble })
+                if (used.Get(Slot(cand)) < lv.Materials.Get(Slot(cand))) { k = cand; break; }
+            if (k == null) break;
+            pk.Pieces.Add(new Placement(k.Value, x, 0));
+        }
+        foreach (var k in lv.Items.OrderBy(_ => rnd.Next()))
+            if (!PlaceRandom(pk, lv, new Placement(k, 0, 0), rnd)) return RandomFull(lv, rnd);
+        return FillAll(pk, lv, rnd);
     }
 
     static Packing RandomFull(LevelDef lv, Random rnd)

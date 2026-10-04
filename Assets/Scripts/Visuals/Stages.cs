@@ -396,16 +396,28 @@ namespace HWC.Visuals
             CameraOffset = new Vector3(0.7f, 0.5f, -1f);
         }
 
+        Transform catapultBucket;
+        Vector3 catapultPivot;
+        const float ArmLen = 2.5f;
+        const float RestAngle = 205f;
+
         void BuildCatapult(float minX, float maxX)
         {
-            float groundY = -1.3f;
-            Scenery(minX, maxX + 20f, groundY, 37, houses: false);
-            var cat = Spawn("catapult", new Vector3(-2.5f, groundY, 0.3f));
-            if (cat != null) catapultArm = ModelLibrary.FindDeep(cat.transform, "Arm");
             float landX = 0, landY = 0;
             foreach (var sp in spans) if (sp.Kind == EventKind.HayLand) { landX = (float)sp.X1; landY = (float)sp.Y1; }
-            Spawn("prop_haystack", new Vector3(landX, landY - 0.45f, 0.2f), 0, Vector3.one * 1.3f);
-            Spawn("prop_tower", new Vector3(landX + 5f, landY - 0.8f, 6f));
+            // bucket under the box at rest: pivot sits up and forward of it along the rest angle
+            var restDir = new Vector3(Mathf.Cos(RestAngle * Mathf.Deg2Rad), Mathf.Sin(RestAngle * Mathf.Deg2Rad), 0);
+            catapultPivot = new Vector3(0, -0.02f, 0) - restDir * ArmLen;
+            float groundY = catapultPivot.y - 1.3f;
+            Scenery(minX, maxX + 20f, Mathf.Min(groundY, landY - 1.6f), 37, houses: false);
+            var cat = Spawn("catapult", new Vector3(catapultPivot.x, groundY, 0.3f));
+            if (cat != null)
+            {
+                catapultArm = ModelLibrary.FindDeep(cat.transform, "Arm");
+                catapultBucket = ModelLibrary.FindDeep(cat.transform, "Bucket");
+            }
+            var hay = Spawn("prop_haystack", new Vector3(landX, landY - 1.45f, 0.2f), 0, Vector3.one * 1.3f);
+            Spawn("prop_tower", new Vector3(landX + 5f, landY - 1.9f, 6f));
             CameraOffset = new Vector3(0.8f, 0.6f, -1f);
         }
 
@@ -435,10 +447,22 @@ namespace HWC.Visuals
             if (armBase != null) AnimateArm(boxPos, angleDeg, cur, eventT);
             if (catapultArm != null)
             {
-                float a = 0;
-                if (cur.HasValue && cur.Value.Kind == EventKind.Launch) a = Mathf.SmoothStep(0, 1, eventT / Mathf.Max(0.01f, cur.Value.Def.Duration)) * 75f;
-                else if (cur.HasValue && (cur.Value.Kind == EventKind.Flight || cur.Value.Kind == EventKind.HayLand)) a = 75f;
-                catapultArm.localRotation = Quaternion.Euler(0, 0, 15f + a);
+                // the arm points at the box while it is being thrown, then follows through
+                float angle = RestAngle;
+                var local = transform.InverseTransformPoint(boxPos) - new Vector3(0, BoxHalfH, 0);
+                var toBox = local - catapultPivot;
+                if (cur.HasValue && cur.Value.Kind == EventKind.Launch)
+                    angle = Mathf.Atan2(toBox.y, toBox.x) * Mathf.Rad2Deg;
+                else if (cur.HasValue && cur.Value.Kind != EventKind.Rest)
+                    angle = 90f;
+                else if (cur.HasValue && cur.Value.Kind == EventKind.Rest && cur.Value.Index > 0)
+                    angle = 90f;
+                if (angle < 0) angle += 360f;
+                float curA = catapultArm.localEulerAngles.z;
+                bool follow = angle == 90f;
+                float a2 = follow ? Mathf.MoveTowardsAngle(curA, angle, Time.unscaledDeltaTime * 600f) : angle;
+                catapultArm.localRotation = Quaternion.Euler(0, 0, a2);
+                if (catapultBucket != null) catapultBucket.localRotation = Quaternion.Euler(0, 0, -a2);
             }
             lastBoxPos = boxPos;
         }

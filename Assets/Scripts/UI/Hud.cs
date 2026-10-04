@@ -91,7 +91,8 @@ namespace HWC.Gameplay
             r.ItemRevealed += (it, world) =>
             {
                 var box = Ui.Panel(revealRoot, "stamp", new Color(0, 0, 0, 0), Ui.Rounded(10, 0));
-                var txt = Ui.Text(box.transform, "t", StatusWord(it.Status), 58, it.Failed ? Palette.Bad : (it.Status == ItemStatus.Perfect ? Palette.Good : Palette.Teal), Ui.Display);
+                string word = it.Body < 0 && it.Kind == PieceKind.DragonEgg ? "IT HATCHED!" : (it.Kind == PieceKind.Dragon && it.Status == ItemStatus.Scorched ? "BOX ON FIRE" : StatusWord(it.Status));
+                var txt = Ui.Text(box.transform, "t", word, 58, it.Failed ? Palette.Bad : (it.Status == ItemStatus.Perfect ? Palette.Good : Palette.Teal), Ui.Display);
                 txt.rectTransform.Stretch();
                 txt.outlineWidth = 0.18f;
                 txt.outlineColor = Palette.Cream;
@@ -169,6 +170,9 @@ namespace HWC.Gameplay
             orderCustomer.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -112), new Vector2(480, 30));
             orderText = Ui.Text(card.transform, "text", "", 21, Palette.InkSoft, Ui.Italic, TextAlignmentOptions.TopLeft);
             orderText.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -144), new Vector2(480, 70));
+            routeText = Ui.Text(card.transform, "route", "", 18, Palette.Ink, Ui.Body, TextAlignmentOptions.TopLeft);
+            routeText.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -212), new Vector2(480, 60));
+            orderCard = card.rectTransform;
 
             // budget (top-right)
             var bud = Ui.Panel(packRoot, "budget", Palette.Cream, Ui.Rounded(14, 3));
@@ -271,7 +275,45 @@ namespace HWC.Gameplay
             feedbackText.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(2, -2);
         }
 
-        RectTransform lastTrip;
+        RectTransform lastTrip, orderCard;
+        TextMeshProUGUI routeText;
+
+        static string RouteSummary(LevelDef lv)
+        {
+            var parts = new List<string>();
+            foreach (var leg in lv.Route.Legs)
+            {
+                var evs = new List<string>();
+                foreach (var e in leg.Events)
+                {
+                    string n = null;
+                    switch (e.Kind)
+                    {
+                        case EventKind.Brake: n = "hard brake"; break;
+                        case EventKind.Pothole: n = "pothole"; break;
+                        case EventKind.SpeedBump: n = "speed bump"; break;
+                        case EventKind.Bump: n = "bumps"; break;
+                        case EventKind.Cobbles: n = "cobbles"; break;
+                        case EventKind.Drop: n = e.Label == "SET DOWN" ? null : "belt drop"; break;
+                        case EventKind.ArmTip: n = "robot arm"; break;
+                        case EventKind.Chute: n = "chute"; break;
+                        case EventKind.Stairs: n = "stairs"; break;
+                        case EventKind.Toss: n = "toss"; break;
+                        case EventKind.Rock: n = "rocking"; break;
+                        case EventKind.WaveSlam: n = "big wave"; break;
+                        case EventKind.Turbulence: n = "turbulence"; break;
+                        case EventKind.AirPocket: n = "air pocket"; break;
+                        case EventKind.Launch: n = "launch"; break;
+                        case EventKind.HayLand: n = "landing"; break;
+                    }
+                    if (n != null && !evs.Contains(n)) evs.Add(n);
+                }
+                string legName = leg.Kind == LegKind.Van ? "Van" : leg.Kind == LegKind.Depot ? "Depot" : leg.Kind == LegKind.Doorstep ? "Doorstep" :
+                                 leg.Kind == LegKind.Ship ? "Ferry" : leg.Kind == LegKind.Plane ? "Air mail" : "Catapult";
+                parts.Add($"<b>{legName}</b> <color=#6A5A4A>({string.Join(", ", evs)})</color>");
+            }
+            return "<b>ROUTE</b>  " + string.Join("  \u2192  ", parts);
+        }
         TextMeshProUGUI lastTripText;
         Image newBadge;
         float packT;
@@ -348,6 +390,7 @@ namespace HWC.Gameplay
                 case IncidentKind.Scorched: return "GOT SCORCHED";
                 case IncidentKind.Chilled: return "GOT COLD";
                 case IncidentKind.Stuck: return "STUCK";
+                case IncidentKind.BoxScorched: return "SET THE BOX ON FIRE";
             }
             return k.ToString().ToUpperInvariant();
         }
@@ -364,7 +407,10 @@ namespace HWC.Gameplay
             orderNum.text = $"DELIVERY {lv.Number}";
             orderTitle.text = lv.Title.ToUpperInvariant();
             orderCustomer.text = "To: " + lv.Customer;
-            orderText.text = "“" + lv.Order + "”";
+            orderText.text = "\u201C" + lv.Order + "\u201D";
+            routeText.text = RouteSummary(lv);
+            orderCard.sizeDelta = new Vector2(520, 282);
+            lastTrip.anchoredPosition = new Vector2(28, -322);
             mabelText.text = lv.Mabel;
             for (int i = 0; i < slots.Count; i++)
             {
@@ -547,13 +593,17 @@ namespace HWC.Gameplay
             }
             var done = Ui.Button(replayBar, "done", "DONE", () => G.Journey.Skip(), Palette.PostalRed, Palette.Cream, 28);
             done.Image.rectTransform.Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), Vector2.zero, new Vector2(150, 52));
+            camBtn = Ui.Button(replayBar, "cam", "CAM: DIRECTOR", null, Palette.Teal, Palette.Cream, 22);
+            camBtn.OnClick = () => { G.Journey.CameraMode = (G.Journey.CameraMode + 1) % 3; camBtn.Label.text = "CAM: " + JourneyPlayer.CameraModeNames[G.Journey.CameraMode]; };
+            camBtn.Image.rectTransform.Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-160, 0), new Vector2(190, 52));
             var hint = Ui.Text(replayBar, "hint", "Click the timeline to jump  ·  red marks = trouble", 20, Palette.Cream, Ui.Bold, TextAlignmentOptions.Center);
-            hint.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(110, 0), new Vector2(520, 40));
+            hint.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(40, 0), new Vector2(420, 40));
+            hint.enableAutoSizing = true; hint.fontSizeMax = 20; hint.fontSizeMin = 14;
             hint.gameObject.AddComponent<Shadow>();
         }
 
         RectTransform replayBar;
-        UiButton skipBtn;
+        UiButton skipBtn, camBtn;
 
         public void ShowJourney(LevelDef lv, Recording rec, bool replay = false)
         {
@@ -628,6 +678,7 @@ namespace HWC.Gameplay
                 case IncidentKind.Melted: word = "drip..."; break;
                 case IncidentKind.StrapSnapped: word = "SNAP!"; break;
                 case IncidentKind.Stuck: word = "CLANK!"; break;
+                case IncidentKind.BoxScorched: word = "BOX ON FIRE!"; break;
                 case IncidentKind.Scorched: word = "TOASTED"; break;
             }
             if (word == null) return;
@@ -704,13 +755,13 @@ namespace HWC.Gameplay
                 cell.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2((i - (n - 1) * 0.5f) * w, 0), new Vector2(w - 10, 150));
                 var icon = Ui.Icon(cell, "icon", IconStudio.Piece(it.Kind), Color.white);
                 icon.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, 0), new Vector2(100, 100));
-                var st = Ui.Text(cell, "status", StatusWord(it.Status), 24, it.Failed ? Palette.Bad : Palette.Good, Ui.Display);
+                var st = Ui.Text(cell, "status", it.Kind == PieceKind.Dragon && it.Status == ItemStatus.Scorched ? "BOX ON FIRE" : StatusWord(it.Status), 24, it.Failed ? Palette.Bad : Palette.Good, Ui.Display);
                 st.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 8), new Vector2(w, 34));
                 st.rectTransform.localRotation = Quaternion.Euler(0, 0, -6);
             }
             starAnims.Clear();
             resultsT = 0;
-            string[] labels = { "DELIVERED", $"UNDER BUDGET  {o.Cost} / PAR {o.Par}", $"HANDLED WITH CARE  {o.WorstCare * 100:0}% / 50%" };
+            string[] labels = { "DELIVERED", $"UNDER BUDGET  {o.Cost} / PAR {o.Par}", $"HANDLED WITH CARE  {o.WorstCare * 100:0}% / {SimConst.CareFraction * 100:0}%" };
             bool[] got = { o.Delivered, o.Delivered && o.UnderBudget, o.Delivered && o.Careful };
             for (int i = 0; i < 3; i++)
             {

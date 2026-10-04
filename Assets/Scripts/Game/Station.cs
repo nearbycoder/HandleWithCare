@@ -62,6 +62,7 @@ namespace HWC.Gameplay
             Box.transform.localPosition = new Vector3(0, Box.OuterHalfHeight, 0);
             Box.transform.localRotation = Quaternion.identity;
             Box.gameObject.SetActive(true);
+            Box.ShowFront(false);
             Box.SetFlaps(0f, true);
             Box.SetTape(0f, true);
             Box.ShowGrid(Game.I.Save.ShowGrid);
@@ -135,6 +136,7 @@ namespace HWC.Gameplay
             Box.transform.localPosition = new Vector3(0.55f, Box.OuterHalfHeight, -0.05f);
             Box.transform.localRotation = Quaternion.Euler(0, -18f, 0);
             Box.ShowGrid(false);
+            Box.ShowFront(true);
             Box.SetFlaps(1f, true);
             Box.SetTapeStyle(Game.I.Save.Tape);
             Box.SetTape(1f, true);

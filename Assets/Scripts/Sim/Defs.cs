@@ -90,7 +90,8 @@ namespace HWC.Sim
         public const float MeltTime = 2.0f;
         public const float WarmFraction = 0.6f;
         public const float FlameLength = 3f;
-        public const float CareFraction = 0.5f;          // "handled with care" threshold
+        public const float SneezePeriod = 3.4f;          // Ember has a cold
+        public const float CareFraction = 0.65f;         // "handled with care" threshold
         public const int DividerCost = 2;
         public const int ShelfCost = 2;
         public const int StrapCost = 3;
@@ -257,9 +258,9 @@ namespace HWC.Sim
             Add(new PieceDef
             {
                 Kind = PieceKind.Dragon, Id = "dragon", Name = "Ember the Tiny Dragon",
-                Blurb = "Sneezes fire when jolted, 3 cells ahead. Warm.",
+                Blurb = "Has a cold: sneezes fire 3 cells ahead every few seconds. Cardboard burns!",
                 W = 2, H = 1, Mass = 1.5f, Friction = 0.55f, Restitution = 0.1f, Hardness = 0.8f,
-                SneezeLimit = 5.5f, Quirks = Quirk.Sneezer | Quirk.Hot | Quirk.Facing | Quirk.Fireproof,
+                SneezeLimit = 4.5f, Quirks = Quirk.Sneezer | Quirk.Hot | Quirk.Facing | Quirk.Fireproof,
             });
             Add(new PieceDef
             {

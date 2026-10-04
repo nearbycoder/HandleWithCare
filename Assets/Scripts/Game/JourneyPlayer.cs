@@ -156,6 +156,7 @@ namespace HWC.Gameplay
                 if (kb.digit2Key.wasPressedThisFrame) Speed = 0.5f;
                 if (kb.digit3Key.wasPressedThisFrame) Speed = 1f;
                 if (kb.digit4Key.wasPressedThisFrame) Speed = 2f;
+                if (kb.cKey.wasPressedThisFrame) CameraMode = (CameraMode + 1) % 3;
             }
 
             SlowMo = DirectorScale(out bool focusing);
@@ -354,18 +355,28 @@ namespace HWC.Gameplay
         float anchorY;
         int lastSoundFrame = -1;
 
+        public int CameraMode;          // 0 director, 1 close, 2 wide
+        float legStartT;
+        public static readonly string[] CameraModeNames = { "DIRECTOR", "CLOSE-UP", "WIDE" };
+
         void Camera(StageSet st, Vector3 boxPos, float angDeg, bool snap)
         {
             var rig = G.Rig;
+            if (snap) legStartT = T;
             // follow the box exactly along the road; smooth vertically so bumps read as motion
             if (snap) anchorY = boxPos.y;
             anchorY = Mathf.Lerp(anchorY, boxPos.y, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 2.5f));
             rig.Anchor = new Vector3(boxPos.x, anchorY, boxPos.z);
             float size = Mathf.Max(Box.InteriorWidth, Box.InteriorHeight * 1.4f);
             float dist = 1.6f + size * 1.9f;
+            // establishing shot at the start of each leg, easing into the follow shot
+            float legT = Mathf.Abs(T - legStartT);
+            float wide = CameraMode == 2 ? 1f : (CameraMode == 1 ? 0f : 1f - Mathf.SmoothStep(0f, 1f, (legT - 0.5f) / 1.3f));
+            if (CameraMode == 1) dist *= 0.72f;
+            dist *= Mathf.Lerp(1f, 2.1f, wide);
             var off = st.CameraOffset;
-            var look = boxPos + new Vector3(0.15f, 0.05f, 0);
-            var pos = look + new Vector3(off.x * dist * 0.35f, off.y * dist * 0.45f, -dist);
+            var look = boxPos + new Vector3(0.15f + wide * 0.4f, 0.05f + wide * 0.25f, 0);
+            var pos = look + new Vector3(off.x * dist * (0.35f + wide * 0.15f), off.y * dist * (0.45f + wide * 0.1f), -dist);
             if (focusWeight > 0.01f)
             {
                 var fp = Box.CellToWorld(focusPoint.x, focusPoint.y);

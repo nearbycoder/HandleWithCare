@@ -10,9 +10,10 @@ namespace HWC.Sim
         static Leg VanShort() => Van(Depart(0.8f, 7f), Cruise(0.6f), Bump(0.06f), Cruise(0.5f), Brake(0.55f), Rest(0.3f));
         static Leg VanRough() => Van(Depart(0.8f, 7f), Cruise(0.4f), Pothole(0.07f), Cruise(0.5f), SpeedBump(0.09f), Cruise(0.4f), Brake(0.55f), Rest(0.3f));
         static Leg DepotBasic() => Depot(Rest(0.3f), Conveyor(1.4f), Drop(0.45f), Rest(0.4f), Conveyor(0.8f), Rest(0.3f));
-        static Leg DepotFull() => Depot(Rest(0.3f), Conveyor(1.2f), Drop(0.45f), Rest(0.3f), ArmTip(90f, 0.8f), Rest(0.3f), Chute(26f, 0.8f), Rest(0.3f));
+        static Leg DepotFull() => Depot(Rest(0.3f), Conveyor(1.2f), Drop(0.35f), Rest(0.3f), ArmTip(90f, 0.8f), Rest(0.3f), Chute(24f, 0.8f), Rest(0.3f));
         static Leg DepotArm() => Depot(Rest(0.3f), Conveyor(1.0f), ArmTip(90f, 0.9f), Rest(0.3f), Chute(26f, 0.8f), Rest(0.3f));
         static Leg DoorSteps(int steps = 4) => Doorstep(Rest(0.3f), Stairs(steps), Rest(0.2f), Toss(1.0f, 0.18f, 0f), Rest(0.4f));
+        static Leg DoorCareful() => Doorstep(Rest(0.3f), Stairs(3), Rest(0.2f), Drop(0.12f, "SET DOWN"), Rest(0.4f));
         static Leg DoorToss() => Doorstep(Rest(0.3f), Stairs(3), Toss(1.1f, 0.2f, 90f), Rest(0.5f), Righting(1.0f), Rest(0.3f));
 
         // Chapter 2: The Sorting Depot -------------------------------------------------------------
@@ -93,7 +94,7 @@ namespace HWC.Sim
                 ReviewGood = "All present, all asleep, all in one piece. Remarkable.",
                 ReviewBad = "Snoozles woke up stuck to a magnet. He has opinions.",
                 W = 6, H = 3, Items = new[] { PieceKind.Magnet, PieceKind.Magnet, PieceKind.Armadillo, PieceKind.Vase },
-                Materials = M(paper: 6, bubble: 4, foam: 3, divider: 2, strap: 2), Par = 16,
+                Materials = M(paper: 6, bubble: 5, foam: 5, divider: 2, strap: 2), Par = 16,
                 Route = Route(VanRough(), DepotFull()),
                 Ref = new[] {
                     "mpvbpm",
@@ -165,7 +166,7 @@ namespace HWC.Sim
                 ReviewGood = "Frog: proud. Cake: pristine. Teacups: unhopped-on.",
                 ReviewBad = "The frog landed on the cake. Several times. Ribbit.",
                 W = 6, H = 3, Items = new[] { PieceKind.Frog, PieceKind.Cake, PieceKind.Teacup, PieceKind.Teacup },
-                Materials = M(paper: 7, bubble: 3, shelf: 2, divider: 1), Par = 9,
+                Materials = M(paper: 7, bubble: 6, foam: 3, shelf: 2, divider: 1), Par = 9,
                 Route = Route(VanShort(), DoorSteps(3)),
                 Ref = new[] {
                     "pcpcpp",
@@ -182,7 +183,7 @@ namespace HWC.Sim
                 NewThing = "fire",
                 ReviewGood = "Ember arrived toasty and happy. Nothing else did, oh wait, everything did!",
                 ReviewBad = "Ember sneezed. The box is now 40% smaller and smells of toast.",
-                W = 5, H = 3, Items = new[] { PieceKind.Dragon, PieceKind.Balloon, PieceKind.Books, PieceKind.Teddy },
+                W = 4, H = 3, Items = new[] { PieceKind.Dragon, PieceKind.Balloon, PieceKind.Books, PieceKind.Teddy },
                 Materials = M(paper: 6, bubble: 3, foam: 4, divider: 1), Par = 12,
                 Route = Route(VanShort(), DepotBasic(), DoorSteps(3)),
                 Ref = new[] {
@@ -239,7 +240,7 @@ namespace HWC.Sim
                 ReviewGood = "The vase is perfect. Ember sneezed on my eyebrows. Five stars.",
                 ReviewBad = "Ember is fine. The vase is a puzzle now.",
                 W = 6, H = 4, Items = new[] { PieceKind.Vase, PieceKind.Dragon, PieceKind.Cactus, PieceKind.Teacup },
-                Materials = M(paper: 6, bubble: 4, foam: 4, divider: 2, shelf: 1), Par = 16,
+                Materials = M(paper: 6, bubble: 6, foam: 6, divider: 2, shelf: 1), Par = 16,
                 Route = Route(VanRough(), DepotArm(), DoorSteps(3)),
                 Ref = new[] {
                     "pvp|pp",
@@ -256,7 +257,7 @@ namespace HWC.Sim
                 ReviewBad = "We are now the Museum of Fragments.",
                 W = 7, H = 4, Items = new[] { PieceKind.Vase, PieceKind.SnowGlobe, PieceKind.IceSwan, PieceKind.LavaLamp, PieceKind.Teacup },
                 Materials = M(paper: 8, bubble: 5, foam: 4, divider: 2, shelf: 1), Par = 20,
-                Route = Route(Plane(Rest(0.3f), Turbulence(2.0f, 0.022f), Rest(0.3f)), VanShort(), DoorSteps(3)),
+                Route = Route(Plane(Rest(0.3f), Turbulence(2.0f, 0.022f), Rest(0.3f)), VanShort(), DoorCareful()),
                 Ref = new[] {
                     "pvpip|p",
                     "bvbip|h",

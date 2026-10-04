@@ -37,6 +37,7 @@ namespace HWC.Sim
                 b.Vel = V2.Zero;
                 b.PeakJolt = 0; b.PeakCrush = 0; b.PeakJoltRatio = 0;
                 b.Timer = 0; b.Timer2 = 0;
+                if (b.Has(Quirk.Sneezer)) b.Timer = 1.2f;   // first sneeze about 2 s into the trip
             }
             world.RouteStartTick = world.Tick;
             world.DamageEnabled = true;

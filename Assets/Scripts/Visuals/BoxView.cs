@@ -59,6 +59,8 @@ namespace HWC.Visuals
                 flapB = ModelLibrary.FindDeep(r, "FlapB");
                 var t = ModelLibrary.FindDeep(r, "Tape");
                 if (t != null) { tape = t.gameObject; tapeFromModel = true; }
+                var f = ModelLibrary.FindDeep(r, "Front");
+                if (f != null) { front = f.gameObject; front.SetActive(false); }
             }
             else BuildPlaceholderShell(iw, ih);
 
@@ -184,7 +186,12 @@ namespace HWC.Visuals
             }
         }
 
+        GameObject front;
+
         public void ShowGrid(bool on) { if (grid != null) grid.SetActive(on); }
+
+        /// <summary>Closes the cutaway front (title screen parcel).</summary>
+        public void ShowFront(bool on) { if (front != null) front.SetActive(on); }
 
         // ---- Content helpers ------------------------------------------------------------------
 

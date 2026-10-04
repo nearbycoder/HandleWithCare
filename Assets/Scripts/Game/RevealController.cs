@@ -177,6 +177,7 @@ namespace HWC.Gameplay
                 ItemRevealed?.Invoke(it, top);
                 StampFx(it, top);
                 if (it.Kind == PieceKind.Dragon && !it.Failed) StartCoroutine(RevealSneeze(show.transform));
+                if (it.Kind == PieceKind.DragonEgg && !it.Failed && rec.Outcome.Delivered) yield return Hatch(show, top);
                 yield return Wait(it.Failed ? 1.1f : 0.85f);
                 // settle into the lineup
                 t = 0;
@@ -232,6 +233,44 @@ namespace HWC.Gameplay
                 G.Hud.Sfx(it.Status == ItemStatus.Perfect ? "stamp_good" : "stamp_ok");
                 Fx.Sparkle(pos, it.Status == ItemStatus.Perfect ? Palette.Gold : Color.white, 0.18f);
             }
+        }
+
+        /// <summary>The finale: the egg wobbles, cracks and a hatchling pops out (and sneezes).</summary>
+        IEnumerator Hatch(GameObject egg, Vector3 at)
+        {
+            float t = 0;
+            while (t < 0.9f)
+            {
+                t += Time.deltaTime;
+                egg.transform.rotation = Quaternion.Euler(0, 0, Mathf.Sin(t * 30f) * 12f * t);
+                yield return null;
+            }
+            G.Hud.Sfx("crack", 1f);
+            Fx.Shards(at, Palette.ItemColor(PieceKind.DragonEgg), 0.6f);
+            Fx.Sparkle(at, Palette.Gold, 0.3f);
+            egg.SetActive(false);
+            var baby = new GameObject("hatchling");
+            baby.transform.SetParent(room.transform, true);
+            baby.transform.position = at;
+            var bv = PieceView.Create(PieceKind.Dragon, baby.transform);
+            bv.transform.localScale = Vector3.one * 0.6f;
+            spawned.Add(baby);
+            t = 0;
+            while (t < 0.35f)
+            {
+                t += Time.deltaTime;
+                float u = Mathf.Clamp01(t / 0.35f);
+                baby.transform.localScale = Vector3.one * (u < 0.7f ? Mathf.Lerp(0.2f, 1.2f, u / 0.7f) : Mathf.Lerp(1.2f, 1f, (u - 0.7f) / 0.3f));
+                yield return null;
+            }
+            G.Hud.Sfx("fanfare", 0.8f);
+            Fx.Confetti(at + Vector3.down * 0.2f, 0.6f);
+            ItemRevealed?.Invoke(new ItemResult { Kind = PieceKind.DragonEgg, Status = ItemStatus.Perfect, Body = -1 }, at + Vector3.up * 0.25f);
+            yield return RevealSneeze(baby.transform);
+            yield return Wait(0.6f);
+            egg.SetActive(true);
+            egg.transform.localScale = Vector3.zero;
+            baby.transform.SetParent(egg.transform.parent, true);
         }
 
         IEnumerator RevealSneeze(Transform dragon)

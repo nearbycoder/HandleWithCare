@@ -74,6 +74,9 @@ namespace HWC.Gameplay
             RebuildTray();
             if (trails == null) trails = new GameObject("Trails").AddComponent<TrailOverlay>();
             trails.Show(Box, last);
+            if (quirks == null) quirks = new GameObject("Quirks").AddComponent<QuirkOverlay>();
+            Changed -= RefreshQuirks;
+            Changed += RefreshQuirks;
             Changed?.Invoke();
         }
 
@@ -84,10 +87,17 @@ namespace HWC.Gameplay
             foreach (var t in tray) if (t.View != null) Destroy(t.View.gameObject);
             tray.Clear();
             if (trails != null) trails.Hide();
+            if (quirks != null) quirks.Clear();
             Hovered?.Invoke(null);
         }
 
         public IReadOnlyList<PieceView> Views => views;
+        QuirkOverlay quirks;
+
+        void RefreshQuirks()
+        {
+            if (quirks != null && Active) quirks.Rebuild(Box, Pk);
+        }
 
         void RebuildViews(bool instant)
         {
@@ -269,6 +279,7 @@ namespace HWC.Gameplay
 
         void Update()
         {
+            if (quirks != null && Active) quirks.Tick();
             if (!Active || G.Phase != Phase.Packing || G.Hud.Paused) return;
             var mouse = Mouse.current;
             var kb = Keyboard.current;

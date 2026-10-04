@@ -504,8 +504,7 @@ def plane_hold():
     m.add(box((-3.2, -0.08, -1.0), (3.2, 0.0, 1.3)), floor)
     for k in range(7):
         x = -3.0 + k * 1.0
-        m.add(torus((x, 0.8, 0.2), 1.25, 0.04, axis="x", arc=0.55, start=-0.05, segments=24, ring_segments=6, scale=(1, 1, 1)), rib,
-              transform=rotate_about((x, 0.8, 0.2), "X", 0))
+        m.add(torus((x, 0.8, 0.2), 1.25, 0.04, axis="x", arc=0.5, start=0.25, segments=24, ring_segments=6), rib)
     # far wall with porthole frames
     m.add(box((-3.2, 0.0, 1.3), (3.2, 1.9, 1.38)), metal_c)
     for k in range(5):
@@ -535,12 +534,19 @@ def catapult():
             base.add(cyl((x, 0.0, z), 0.3, 0.12, axis="z", segments=20, bevel=0.03), wood)
     b = base.build()
     arm = Model("Arm")
-    arm.add(box((-0.08, -0.08, -0.12), (2.6, 0.08, 0.12), bevel=0.02), wood, uv_scale=1.2)
-    arm.add(shell([(0.38, 0.0), (0.45, 0.25)], thickness=0.05), wood, transform=Matrix.Translation((2.5, 0.08, 0)))
+    arm.add(box((-0.08, -0.08, -0.12), (2.5, 0.08, 0.12), bevel=0.02), wood, uv_scale=1.2)
     arm.add(box((-0.9, -0.3, -0.35), (-0.1, 0.25, 0.35), bevel=0.04), col("6B6466"))
     for k in range(4):
         arm.add(torus((0.3 + k * 0.4, 0.0, 0.0), 0.1, 0.02, axis="x", segments=12, ring_segments=6), rope)
-    arm.build(origin=(0.0, 1.3, 0), parent=b)
+    a = arm.build(origin=(0.0, 1.3, 0), parent=b)
+    # the bucket hangs from the arm tip and is kept level in Unity
+    bucket = Model("Bucket")
+    bucket.add(box((-0.62, -0.06, -0.3), (0.62, 0.0, 0.3), bevel=0.02), wood, uv_scale=1.2)
+    for sx in (-1, 1):
+        bucket.add(box((sx * 0.62 - 0.04, -0.06, -0.3), (sx * 0.62 + 0.04, 0.22, 0.3), bevel=0.02), wood, uv_scale=1.2)
+    bucket.add(box((-0.62, -0.06, 0.26), (0.62, 0.22, 0.3), bevel=0.02), wood, uv_scale=1.2)
+    bucket.add(rod((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), 0.01), rope)
+    bucket.build(origin=(2.5, 1.3, 0), parent=a, parent_origin=(0.0, 1.3, 0))
     return [b]
 
 

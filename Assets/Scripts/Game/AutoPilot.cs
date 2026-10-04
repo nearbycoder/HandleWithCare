@@ -4,6 +4,8 @@ using System.IO;
 using System.Text;
 using HWC.Sim;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 
 namespace HWC.Gameplay
 {
@@ -46,6 +48,88 @@ namespace HWC.Gameplay
 
         bool menus;
 
+        // ---- real input events (exercise the same path as a player's mouse) -------------------
+
+        Vector2 mousePos;
+
+        IEnumerator MoveMouse(Vector2 to, int frames = 12)
+        {
+            var from = mousePos;
+            for (int i = 1; i <= frames; i++)
+            {
+                float u = i / (float)frames;
+                u = u * u * (3 - 2 * u);
+                mousePos = Vector2.Lerp(from, to, u);
+                var st = new MouseState { position = mousePos };
+                if (buttonDown) st = st.WithButton(MouseButton.Left, true);
+                InputSystem.QueueStateEvent(Mouse.current, st);
+                yield return null;
+            }
+        }
+
+        bool buttonDown;
+
+        IEnumerator Press(bool down)
+        {
+            buttonDown = down;
+            var st = new MouseState { position = mousePos };
+            if (down) st = st.WithButton(MouseButton.Left, true);
+            InputSystem.QueueStateEvent(Mouse.current, st);
+            yield return null;
+            yield return null;
+        }
+
+        IEnumerator ClickAt(Vector2 at)
+        {
+            yield return MoveMouse(at);
+            yield return Press(true);
+            yield return Press(false);
+        }
+
+        IEnumerator Key(Key key)
+        {
+            InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState(key));
+            yield return null;
+            yield return null;
+            InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState());
+            yield return null;
+        }
+
+        static Vector2 Screen(Vector3 world) => Game.I.Rig.Cam.WorldToScreenPoint(world);
+
+        /// <summary>Plays delivery 1 the way a person would: click, drop, pick paper, paint, seal.</summary>
+        IEnumerator PlayFirstDeliveryByHand(bool shots)
+        {
+            var g = Game.I;
+            InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+            mousePos = new Vector2(UnityEngine.Screen.width * 0.5f, UnityEngine.Screen.height * 0.5f);
+            var box = g.Station.Box;
+            yield return ClickAt(Screen(g.Station.SlotPosition(0) + Vector3.up * 0.1f));
+            if (g.Packing.Tool != Tool.Item) Debug.Log("[AutoPilot] FAIL input: clicking the teacup did not pick it up");
+            yield return MoveMouse(Screen(box.CellToWorld(1.5f, 0.6f)), 20);
+            if (shots) { Shot("H1_holding"); yield return AfterShot(); }
+            yield return Press(true);
+            yield return Press(false);
+            if (g.Packing.RemainingItems().Count != 0) Debug.Log("[AutoPilot] FAIL input: the teacup was not placed");
+            yield return Key(UnityEngine.InputSystem.Key.Digit1);
+            if (g.Packing.Tool != Tool.Padding) Debug.Log("[AutoPilot] FAIL input: key 1 did not select paper");
+            // paint: drag across the bottom row and back along the top
+            yield return MoveMouse(Screen(box.CellToWorld(0.5f, 0.5f)), 10);
+            yield return Press(true);
+            yield return MoveMouse(Screen(box.CellToWorld(0.5f, 1.5f)), 10);
+            yield return MoveMouse(Screen(box.CellToWorld(1.5f, 1.5f)), 10);
+            yield return MoveMouse(Screen(box.CellToWorld(2.5f, 1.5f)), 10);
+            yield return MoveMouse(Screen(box.CellToWorld(2.5f, 0.5f)), 10);
+            yield return Press(false);
+            if (shots) { Shot("H2_painted"); yield return AfterShot(); }
+            int paper = g.Packing.Pk.UsedMaterials().Paper;
+            Debug.Log($"[AutoPilot] {(paper >= 4 ? "PASS" : "FAIL")} input: painted {paper} paper by dragging");
+            yield return Key(UnityEngine.InputSystem.Key.Escape);
+            yield return Key(UnityEngine.InputSystem.Key.Space);
+            if (g.Phase == Phase.Packing) Debug.Log("[AutoPilot] FAIL input: space did not seal");
+            else Debug.Log("[AutoPilot] PASS input: sealed with the space bar");
+        }
+
         IEnumerator MenuTour()
         {
             var g = Game.I;
@@ -69,11 +153,8 @@ namespace HWC.Gameplay
             g.StartLevel(1);
             yield return new WaitForSecondsRealtime(1.2f);
             Shot("M4_tutorial");
-            var lv = Levels.Get(1);
-            foreach (var p in lv.ReferencePacking().Pieces) g.Packing.DebugPlace(p);
-            yield return new WaitForSecondsRealtime(0.6f);
-            Shot("M5_tutorial_seal");
-            g.SealAndShip();
+            yield return AfterShot();
+            yield return PlayFirstDeliveryByHand(true);
             while (g.Phase != Phase.Reveal) yield return null;
             yield return new WaitForSecondsRealtime(2.9f);
             Shot("M6_reveal");

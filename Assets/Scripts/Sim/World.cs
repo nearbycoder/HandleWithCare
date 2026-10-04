@@ -679,11 +679,14 @@ namespace HWC.Sim
                 if (d.Has(Quirk.Sleeper) && !b.Is(BodyState.Awake) && b.LastJolt > d.WakeLimit)
                     Wake(b, -1, b.LastJolt);
 
-                // sneezers
+                // sneezers: a cold makes them sneeze every few seconds, jolts and tickles set them off too
+                if (d.Has(Quirk.Sneezer)) b.Timer += SimConst.Dt;
                 if (d.Has(Quirk.Sneezer) && b.SneezeAt < 0 && b.Cooldown <= 0)
                 {
                     bool tickle = Tickled(b);
-                    if (b.LastJolt > d.SneezeLimit || tickle)
+                    bool cold = b.Timer >= SimConst.SneezePeriod;
+                    if (cold) b.Timer = 0;
+                    if (b.LastJolt > d.SneezeLimit || tickle || cold)
                     {
                         b.SneezeAt = Time + 0.45f;
                         b.State |= BodyState.Windup;
@@ -909,7 +912,17 @@ namespace HWC.Sim
             foreach (var o in hits)
             {
                 float dist = d.Facing > 0 ? o.MinX - x0 : x0 - o.MaxX;
-                if (!o.IsPiece) { reach = Math.Max(0, dist); break; }
+                if (!o.IsPiece)
+                {
+                    // cardboard walls, dividers and shelves catch fire: the box is ruined
+                    reach = Math.Max(0, dist);
+                    if (!d.Is(BodyState.Scorched))
+                    {
+                        d.State |= BodyState.Scorched;
+                        AddIncident(d, IncidentKind.BoxScorched, dist, SimConst.FlameLength, o.Index, true);
+                    }
+                    break;
+                }
                 var k = o.Def.Kind;
                 if (k == PieceKind.Paper || k == PieceKind.Bubble)
                 {

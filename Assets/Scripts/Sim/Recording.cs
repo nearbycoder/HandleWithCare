@@ -5,7 +5,7 @@ namespace HWC.Sim
     public enum IncidentKind
     {
         Broke, Woke, Toppled, Spilled, Popped, Burned, Melted, Squished,
-        SneezeWindup, Sneezed, StrapSnapped, Scorched, Chilled, Tickled, Stuck,
+        SneezeWindup, Sneezed, StrapSnapped, Scorched, Chilled, Tickled, Stuck, BoxScorched,
     }
 
     /// <summary>Something noteworthy that happened during the journey.</summary>

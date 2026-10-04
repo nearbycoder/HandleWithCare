@@ -64,6 +64,13 @@ def build_box(W, H):
     tp.add(box((lx0 - 0.0025, ytop - 0.07, zc - tw / 2), (lx0, ytop + 0.0025, zc + tw / 2)), tex("tape_kraft"), uv_scale=(1 / (tw * 8), 1 / tw))
     tp.add(box((lx1, ytop - 0.07, zc - tw / 2), (lx1 + 0.0025, ytop + 0.0025, zc + tw / 2)), tex("tape_kraft"), uv_scale=(1 / (tw * 8), 1 / tw))
     tape = tp.build(origin=(lx0, ytop, zc), parent=shell)
+    # optional front panel (hidden in play; the title screen shows a closed parcel)
+    fp = Model("Front")
+    fp.add(box((x0 - t, yb - t, zf - t), (x1 + t, yt, zf), bevel=0.003), kraft, uv_scale=2.0)
+    ds2 = min(0.3, ih * 0.75, iw * 0.5)
+    fp.add(box((-ds2 / 2, -ds2 / 2, zf - t - 0.0008), (ds2 / 2, ds2 / 2, zf - t)), decal("logo"), uv_scale=1.0 / ds2, uv_offset=(0.5, 0.5))
+    fp.add(box((x1 - 0.25, yb + 0.02, zf - t - 0.0009), (x1 - 0.03, yb + 0.02 + 0.092, zf - t)), decal("fragile"), uv_scale=(1 / 0.22, 1 / 0.092), uv_offset=(-(x1 - 0.25) / 0.22, -(yb + 0.02) / 0.092))
+    fp.build(parent=shell)
     return [shell]
 
 
