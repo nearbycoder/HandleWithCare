@@ -963,6 +963,13 @@ namespace HWC.Sim
         void Break(Body b, float value, float limit)
         {
             b.State |= BodyState.Broken;
+            // what's left is a low pile of shards at the bottom of where it stood; it settles from there
+            if (b.Def.Kind != PieceKind.Cake && !b.Fixed)
+            {
+                float bottom = b.MinY;
+                b.Half = new V2(Math.Min(b.Half.x, SimConst.ShardHalfW), SimConst.ShardHalfH);
+                b.Pos = new V2(b.Pos.x, bottom + SimConst.ShardHalfH);
+            }
             AddIncident(b, IncidentKind.Broke, value, limit, LastOther(b), true);
         }
 

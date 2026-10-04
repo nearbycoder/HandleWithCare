@@ -210,7 +210,7 @@ namespace HWC.Gameplay
                     if (t > 0.75f) pos += Vector3.up * (t - 0.75f) * 1.6f;
                     gun.transform.position = pos;
                     gun.transform.rotation = Quaternion.Euler(0, 0, -18f + Mathf.Sin(t * 30f) * 2f);
-                    gun.transform.localScale = Vector3.one * Mathf.Clamp01(t * 6f);
+                    gun.transform.localScale = Vector3.one * (1.7f * Mathf.Clamp01(t * 6f));   // hand-sized next to the box
                 }
                 yield return null;
             }

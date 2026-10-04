@@ -189,6 +189,7 @@ namespace HWC.Visuals
             // toppled: lying AABB (half swapped relative to the def's upright shape)
             bool toppled = (f.State & BodyState.Toppled) != 0;
             toppleTarget = toppled && Def.H > Def.W ? -90f * (f.ToppleDir == 0 ? 1 : f.ToppleDir) : 0f;
+            if ((f.State & BodyState.Broken) != 0 && Kind != PieceKind.Cake) toppleTarget = toppleAngle = 0f;   // shards lie flat
             if (snap) toppleAngle = toppleTarget;
 
             var changed = f.State ^ State;
@@ -236,6 +237,9 @@ namespace HWC.Visuals
             {
                 SwapModel("piece_shards", Palette.ItemColor(Kind));
                 rollT.localRotation = Quaternion.identity;
+                // the sim collapses a shattered item into a low pile (SimConst.ShardHalfH); sit the
+                // one-cell shard model's base (modelled at -Cell/2) on the pile's bottom
+                model.localPosition = new Vector3(0, Cell * 0.5f - SimConst.ShardHalfH * Cell - 0.0075f, 0);
             }
             else if ((State & BodyState.Squished) != 0)
             {

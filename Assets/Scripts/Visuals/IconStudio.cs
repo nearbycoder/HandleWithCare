@@ -63,7 +63,7 @@ namespace HWC.Visuals
 
         public static Sprite Object3D(string id, GameObject root)
         {
-            if (cache.TryGetValue(id, out var s) && s != null) { if (root != null) Object.Destroy(root); return s; }
+            if (cache.TryGetValue(id, out var s) && s != null) { if (root != null) { root.SetActive(false); Object.Destroy(root); } return s; }
             Setup();
             root.transform.position = Origin;
             return Capture(root, id, -20f);
@@ -97,6 +97,9 @@ namespace HWC.Visuals
             tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
             tex.Apply();
             RenderTexture.active = prev;
+            // Destroy() is deferred to the end of the frame; hide it now so the next icon captured
+            // this frame doesn't render on top of this model
+            root.SetActive(false);
             Object.Destroy(root);
             var sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
             cache[id] = sprite;

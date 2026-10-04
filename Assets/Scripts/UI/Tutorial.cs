@@ -150,6 +150,8 @@ namespace HWC.Gameplay
                 var np = p + new Vector2(0, 230);
                 np.x = Mathf.Clamp(np.x, -760, 760);
                 np.y = Mathf.Clamp(np.y, -380, 440);
+                // stay clear of the order card in the top-left corner (it ends ~412 px left of centre)
+                if (np.y > 200f) np.x = Mathf.Max(np.x, -412f + note.sizeDelta.x * 0.5f + 16f);
                 note.anchoredPosition = Vector2.Lerp(note.anchoredPosition, np, t < 0.05f ? 1f : 1f - Mathf.Exp(-Time.unscaledDeltaTime * 8f));
             }
             else arrow.gameObject.SetActive(false);

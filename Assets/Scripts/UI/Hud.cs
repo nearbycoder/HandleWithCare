@@ -231,6 +231,8 @@ namespace HWC.Gameplay
             orderNum.rectTransform.Stretch();
             orderTitle = Ui.Text(card.transform, "title", "", 50, Palette.Ink, Ui.Display, TextAlignmentOptions.TopLeft);
             orderTitle.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -56), new Vector2(480, 56));
+            orderTitle.textWrappingMode = TextWrappingModes.NoWrap;            // long titles shrink to one line
+            orderTitle.enableAutoSizing = true; orderTitle.fontSizeMin = 28; orderTitle.fontSizeMax = 50;
             orderCustomer = Ui.Text(card.transform, "cust", "", 22, Palette.InkSoft, Ui.Bold, TextAlignmentOptions.TopLeft);
             orderCustomer.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -112), new Vector2(480, 30));
             orderText = Ui.Text(card.transform, "text", "", 21, Palette.InkSoft, Ui.Italic, TextAlignmentOptions.TopLeft);
@@ -831,7 +833,7 @@ namespace HWC.Gameplay
             }
             starAnims.Clear();
             resultsT = 0;
-            string[] labels = { "DELIVERED", $"UNDER BUDGET  {o.Cost} / PAR {o.Par}", $"HANDLED WITH CARE  {o.WorstCare * 100:0}% / {SimConst.CareFraction * 100:0}%" };
+            string[] labels = { "DELIVERED", $"UNDER BUDGET  {o.Cost} / PAR {o.Par}", o.WorstCare >= 1f ? "HANDLED WITH CARE  (OVER THE LIMIT)" : $"HANDLED WITH CARE  {o.WorstCare * 100:0}% / {SimConst.CareFraction * 100:0}%" };
             bool[] got = { o.Delivered, o.Delivered && o.UnderBudget, o.Delivered && o.Careful };
             for (int i = 0; i < 3; i++)
             {

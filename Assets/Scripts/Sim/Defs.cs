@@ -92,6 +92,7 @@ namespace HWC.Sim
         public const float FlameLength = 3f;
         public const float SneezePeriod = 3.4f;          // Ember has a cold
         public const float CareFraction = 0.65f;         // "handled with care" threshold
+        public const float ShardHalfW = 0.45f, ShardHalfH = 0.14f;   // a shattered item collapses to this pile
         public const int DividerCost = 2;
         public const int ShelfCost = 2;
         public const int StrapCost = 3;

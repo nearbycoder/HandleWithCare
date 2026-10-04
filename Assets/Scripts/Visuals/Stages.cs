@@ -512,9 +512,9 @@ namespace HWC.Visuals
                 {
                     tossed = true;
                 }
-                // stays where the throw started, arms up
-                if (courierArmL != null) courierArmL.localRotation = Quaternion.Slerp(courierArmL.localRotation, Quaternion.Euler(-160, 0, 0), Time.deltaTime * 10f);
-                if (courierArmR != null) courierArmR.localRotation = Quaternion.Slerp(courierArmR.localRotation, Quaternion.Euler(-160, 0, 0), Time.deltaTime * 10f);
+                // stays where the throw started, arms following through forward and up
+                if (courierArmL != null) courierArmL.localRotation = Quaternion.Slerp(courierArmL.localRotation, Quaternion.Euler(125, 0, -10), Time.deltaTime * 10f);
+                if (courierArmR != null) courierArmR.localRotation = Quaternion.Slerp(courierArmR.localRotation, Quaternion.Euler(125, 0, 10), Time.deltaTime * 10f);
                 return;
             }
             float moved = (boxPos - lastBoxPos).magnitude;
@@ -525,9 +525,10 @@ namespace HWC.Visuals
             float swing = Mathf.Sin(walkPhase) * (moved > 0.0005f ? 28f : 0f);
             if (courierLegL != null) courierLegL.localRotation = Quaternion.Euler(swing, 0, 0);
             if (courierLegR != null) courierLegR.localRotation = Quaternion.Euler(-swing, 0, 0);
-            // arms reach forward around the box
-            if (courierArmL != null) courierArmL.localRotation = Quaternion.Euler(-70, 0, -12);
-            if (courierArmR != null) courierArmR.localRotation = Quaternion.Euler(-70, 0, 12);
+            // arms reach forward and down to cradle the box from underneath (the box is in front of him, toward -z)
+            float bob = Mathf.Sin(walkPhase * 2f) * (moved > 0.0005f ? 3f : 0f);
+            if (courierArmL != null) courierArmL.localRotation = Quaternion.Euler(52 + bob, 0, 8);
+            if (courierArmR != null) courierArmR.localRotation = Quaternion.Euler(52 - bob, 0, -8);
             if (courierHead != null) courierHead.localRotation = Quaternion.Euler(Mathf.Sin(walkPhase * 0.5f) * 3f, 0, 0);
         }
 
