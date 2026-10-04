@@ -79,8 +79,10 @@ namespace HWC.Visuals
             {
                 if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds);
             }
-            float radius = b.extents.magnitude;
-            float dist = radius / Mathf.Sin(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) * 1.02f;
+            // frame the silhouette the camera actually sees (width and height), not a bounding sphere
+            var e = b.extents;
+            float radius = Mathf.Max(e.x, e.y * 1.05f) * 1.12f;
+            float dist = radius / Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) + e.z;
             var dir = Quaternion.Euler(14f, 0, 0) * Vector3.back;
             cam.transform.position = b.center + dir * dist;
             cam.transform.LookAt(b.center);

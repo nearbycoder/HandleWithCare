@@ -155,6 +155,7 @@ Tools/simcheck.sh explore 7    # random item-only packings for a level (should n
 Tools/simcheck.sh solve 7      # parallel local search for cheap / three-star packings
 Tools/autopilot.sh             # the built player plays all 20 references and checks outcomes
 Tools/tour.sh                  # screenshots of menus + a delivery played with real input events
+Tools/play.sh -hwcShots /tmp/s -hwcLevel 3 -hwcFps   # one delivery; logs fps and frame-time split per phase
 ```
 
 The simulation runs at 240 Hz on axis-aligned bodies with sequential impulses, so a journey of
@@ -168,6 +169,10 @@ same recording.
   close they look more like well-made models than real foliage. The courier is a simple jointed
   figure animated procedurally.
 - The synthesized audio has been checked only by measurement (levels, spectrum), not by ear.
+- Frame rate is unmeasured: on the shared machine it was built on, other programs kept the GPU
+  ~97% busy, so the player ran at ~11 fps regardless of settings. The game's own main thread
+  takes about 9 ms per frame during a journey (`-hwcFps` logs this). Settings has a "High quality
+  graphics" switch that drops MSAA, render scale, shadow range and SSAO for slower GPUs.
 - A few early deliveries are cheap to solve (for example A Prickly Situation can be done with one
   divider), so their under-budget star is easy.
 

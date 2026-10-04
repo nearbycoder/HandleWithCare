@@ -824,9 +824,9 @@ namespace HWC.Gameplay
                 float w = Mathf.Min(170, 900f / n);
                 cell.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2((i - (n - 1) * 0.5f) * w, 0), new Vector2(w - 10, 150));
                 var icon = Ui.Icon(cell, "icon", IconStudio.Piece(it.Kind), Color.white);
-                icon.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, 0), new Vector2(100, 100));
+                icon.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, 4), new Vector2(122, 122));
                 var st = Ui.Text(cell, "status", it.Kind == PieceKind.Dragon && it.Status == ItemStatus.Scorched ? "BOX ON FIRE" : StatusWord(it.Status), 24, it.Failed ? Palette.Bad : Palette.Good, Ui.Display);
-                st.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 8), new Vector2(w, 34));
+                st.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, -2), new Vector2(w, 34));
                 st.rectTransform.localRotation = Quaternion.Euler(0, 0, -6);
             }
             starAnims.Clear();
