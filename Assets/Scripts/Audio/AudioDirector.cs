@@ -11,6 +11,7 @@ namespace HWC.Audio
     {
         public static AudioDirector I;
         public float Master = 0.9f, Music = 0.7f, Sfx = 0.9f;
+        public static event System.Action<string, float> Played;   // trailer capture logs sound cues
 
         readonly Dictionary<string, AudioClip[]> clips = new Dictionary<string, AudioClip[]>();
         readonly Dictionary<string, float> lastPlayed = new Dictionary<string, float>();
@@ -70,7 +71,7 @@ namespace HWC.Audio
         {
             var set = Get(name);
             if (set.Length == 0) return;
-            float now = Time.unscaledTime;
+            float now = Clock.UnscaledTime;
             if (lastPlayed.TryGetValue(name, out float t) && now - t < minGap) return;
             lastPlayed[name] = now;
             var src = Free();
@@ -79,6 +80,7 @@ namespace HWC.Audio
             src.volume = Mathf.Clamp01(intensity) * Sfx * Master;
             src.pitch = pitch * Random.Range(0.94f, 1.06f) * (Time.timeScale < 0.9f ? Mathf.Lerp(0.7f, 1f, Time.timeScale) : 1f);
             src.Play();
+            Played?.Invoke(name, src.volume);
         }
 
         AudioSource Free()
@@ -124,7 +126,7 @@ namespace HWC.Audio
 
         void Update()
         {
-            float dt = Time.unscaledDeltaTime;
+            float dt = Clock.UnscaledDelta;
             if (duckHold > 0) duckHold -= dt; else duckTarget = 1f;
             duck = Mathf.MoveTowards(duck, duckTarget, dt * (duckTarget < duck ? 6f : 1.2f));
             musicFade = Mathf.Min(1f, musicFade + dt / fadeTime);

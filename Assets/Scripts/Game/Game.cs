@@ -119,6 +119,7 @@ namespace HWC.Gameplay
 
         void Start()
         {
+            if (TrailerDirector.TryStart(this)) return;
             if (AutoPilot.TryStart(this))
             {
                 Save = new SaveData { SeenTips = new System.Collections.Generic.List<string> { "basics" } };
@@ -264,6 +265,9 @@ namespace HWC.Gameplay
         {
             if (LastRun == null) return;
             Reveal.Hide();
+            // the unboxing left the flaps open and the tape cut: the trip itself was sealed
+            Station.Box.SetFlaps(1f, true);
+            Station.Box.SetTape(1f, true);
             Post.SetDof(0f, 2f);
             Phase = Phase.Journey;
             Hud.ShowJourney(Level, LastRun, true);

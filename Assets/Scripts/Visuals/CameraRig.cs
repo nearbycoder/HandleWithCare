@@ -65,13 +65,13 @@ namespace HWC.Visuals
 
         void LateUpdate()
         {
-            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            float dt = Mathf.Min(Clock.UnscaledDelta, 0.05f);
             baseRel = Vector3.Lerp(baseRel, TargetPos - Anchor, 1f - Mathf.Exp(-dt * PosSharpness));
             basePos = Anchor + baseRel;
             baseRot = Quaternion.Slerp(baseRot, TargetRot, 1f - Mathf.Exp(-dt * RotSharpness));
             Cam.fieldOfView = Mathf.Lerp(Cam.fieldOfView, TargetFov, 1f - Mathf.Exp(-dt * FovSharpness));
             Trauma = Mathf.Max(0f, Trauma - dt * 1.4f);
-            Apply(Time.unscaledTime);
+            Apply(Clock.UnscaledTime);
         }
 
         void Apply(float t)

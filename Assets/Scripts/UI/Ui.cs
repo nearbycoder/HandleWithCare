@@ -280,8 +280,8 @@ namespace HWC.UI
         void Update()
         {
             float target = !Interactable ? 1f : (down ? 0.92f : (hover ? HoverScale : 1f));
-            scale = Mathf.Lerp(scale, target, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 18f));
-            if (flash > 0) flash = Mathf.Max(0, flash - Time.unscaledDeltaTime * 1.5f);
+            scale = Mathf.Lerp(scale, target, 1f - Mathf.Exp(-Clock.UnscaledDelta * 18f));
+            if (flash > 0) flash = Mathf.Max(0, flash - Clock.UnscaledDelta * 1.5f);
             float pulse = flash > 0 ? 1f + Mathf.Sin(flash * Mathf.PI * 3f) * 0.06f * flash : 1f;
             transform.localScale = Vector3.one * scale * pulse;
         }

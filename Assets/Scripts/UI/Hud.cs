@@ -14,6 +14,7 @@ namespace HWC.Gameplay
     public sealed class Hud : MonoBehaviour
     {
         public bool Paused;
+        public bool Cinematic;      // trailer capture: no skip buttons or timeline
         RectTransform root, packRoot, journeyRoot, resultsRoot, pauseRoot;
         Game G => Game.I;
 
@@ -149,7 +150,10 @@ namespace HWC.Gameplay
             revealRoot = Ui.Rect("Reveal", root).Stretch();
             var skip = Ui.Button(revealRoot, "skip", "SKIP  ▶▶", () => G.Reveal.Skip(), Palette.Cream, Palette.Ink, 28);
             skip.Image.rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 22), new Vector2(170, 56));
+            revealSkip = skip;
         }
+
+        UiButton revealSkip;
 
         public void HookReveal(RevealController r)
         {
@@ -172,6 +176,7 @@ namespace HWC.Gameplay
             foreach (var st in stamps) if (st.rt != null) Destroy(st.rt.gameObject);
             stamps.Clear();
             revealRoot.gameObject.SetActive(true);
+            revealSkip.gameObject.SetActive(!Cinematic);
             AudioDirector.I?.Loop(null, 0);
             AudioDirector.I?.PlayMusic("reveal", 0.8f);
         }
@@ -320,6 +325,8 @@ namespace HWC.Gameplay
             cardBlurb.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(18, -122), new Vector2(344, 80));
             cardStats = Ui.Text(itemCard, "stats", "", 20, Palette.PostalRedDark, Ui.Bold, TextAlignmentOptions.TopLeft);
             cardStats.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(18, -204), new Vector2(344, 40));
+            // the card overlaps the left column of wide boxes: let clicks through to the box
+            foreach (var gr in itemCard.GetComponentsInChildren<Graphic>(true)) gr.raycastTarget = false;
             itemCard.gameObject.SetActive(false);
 
             // last trip report (under the order card)
@@ -687,7 +694,9 @@ namespace HWC.Gameplay
             HideAll();
             journeyRoot.gameObject.SetActive(true);
             replayBar.gameObject.SetActive(replay);
-            skipBtn.gameObject.SetActive(!replay);
+            skipBtn.gameObject.SetActive(!replay && !Cinematic);
+            timeline.gameObject.SetActive(replay || !Cinematic);
+            timeText.gameObject.SetActive(replay || !Cinematic);
             foreach (var m in markers) Destroy(m);
             markers.Clear();
             foreach (var inc in rec.Incidents)
@@ -947,7 +956,7 @@ namespace HWC.Gameplay
             }
             escConsumed = false;
 
-            float dt = Time.unscaledDeltaTime;
+            float dt = Clock.UnscaledDelta;
             UpdateStamps(dt);
             UpdateShiftCard(dt);
             if (packRoot.gameObject.activeSelf)

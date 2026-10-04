@@ -17,7 +17,8 @@ namespace HWC.EditorTools
                 scenes = new[] { ProjectSetup.ScenePath },
                 locationPathName = path,
                 target = target,
-                options = BuildOptions.None,
+                // the baked texture maps are BC7 already; LZ4HC packs the data files to roughly half
+                options = BuildOptions.CompressWithLz4HC,
             });
             var s = report.summary;
             Debug.Log($"[HWC] {target} build {s.result}: {s.totalSize / (1024 * 1024)} MB, {s.totalErrors} errors -> {path}");

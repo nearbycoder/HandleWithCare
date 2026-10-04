@@ -350,7 +350,7 @@ namespace HWC.Visuals
 
         void LateUpdate()
         {
-            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f) * Mathf.Max(0.15f, Time.timeScale);
+            float dt = Mathf.Min(Clock.UnscaledDelta, 0.05f) * Mathf.Max(0.15f, Time.timeScale);
             UpdateZs(dt);
             if ((State & BodyState.Walking) != 0 && (State & BodyState.Removed) == 0)
             {

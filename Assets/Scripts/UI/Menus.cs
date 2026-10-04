@@ -370,12 +370,12 @@ namespace HWC.Gameplay
         void Update()
         {
             if (title == null || !title.gameObject.activeSelf) return;
-            titleT += Time.unscaledDeltaTime;
+            titleT += Clock.UnscaledDelta;
             // stamp-slam entrance for the logo, then a gentle breathe
             float s = titleT < 0.25f ? Mathf.Lerp(2.2f, 0.94f, titleT / 0.25f) : (titleT < 0.4f ? Mathf.Lerp(0.94f, 1f, (titleT - 0.25f) / 0.15f) : 1f + Mathf.Sin(titleT * 1.6f) * 0.006f);
             titleLogo.localScale = Vector3.one * (s * LogoScale);
             titleLogo.localRotation = Quaternion.Euler(0, 0, -3f);
-            if (titleT > 0.2f && titleT - Time.unscaledDeltaTime <= 0.2f) { G.Hud.Sfx("stamp_good"); G.Rig.AddTrauma(0.35f); }
+            if (titleT > 0.2f && titleT - Clock.UnscaledDelta <= 0.2f) { G.Hud.Sfx("stamp_good"); G.Rig.AddTrauma(0.35f); }
             for (int i = 0; i < titleButtons.Count; i++)
             {
                 float k = Mathf.Clamp01((titleT - 0.45f - i * 0.07f) / 0.25f);

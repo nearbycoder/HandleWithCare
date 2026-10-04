@@ -85,7 +85,7 @@ namespace HWC.Visuals
 
         void Update()
         {
-            float dt = Time.unscaledDeltaTime;
+            float dt = Clock.UnscaledDelta;
             chromaKick = Mathf.MoveTowards(chromaKick, 0f, dt * 2.5f);
             vignetteKick = Mathf.MoveTowards(vignetteKick, 0f, dt * 2f);
             chroma.intensity.Override(Mathf.Clamp01(chromaKick * 0.8f));

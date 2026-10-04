@@ -17,6 +17,8 @@ namespace HWC.Gameplay
         GameObject room;
         Light spot, flash;
         readonly List<GameObject> spawned = new List<GameObject>();
+        // the box's own piece views are lifted into the room; put them back afterwards so a replay can use them
+        readonly List<(Transform t, Transform parent, Vector3 pos, Quaternion rot, Vector3 scale, bool active)> moved = new List<(Transform, Transform, Vector3, Quaternion, Vector3, bool)>();
         public bool Running;
         bool skip;
         Game G => Game.I;
@@ -58,6 +60,17 @@ namespace HWC.Gameplay
             Running = false;
             foreach (var g in spawned) if (g != null) Destroy(g);
             spawned.Clear();
+            foreach (var m in moved)
+            {
+                if (m.t == null) continue;
+                if (m.parent == null) { Destroy(m.t.gameObject); continue; }
+                m.t.SetParent(m.parent, false);
+                m.t.localPosition = m.pos;
+                m.t.localRotation = m.rot;
+                m.t.localScale = m.scale;
+                m.t.gameObject.SetActive(m.active);
+            }
+            moved.Clear();
             if (room != null) room.SetActive(false);
         }
 
@@ -140,6 +153,8 @@ namespace HWC.Gameplay
                 if (view != null && view.gameObject.activeInHierarchy && (rec.Frames[rec.Frames.Count - 1][it.Body].State & BodyState.Removed) == 0)
                 {
                     show = view.gameObject;
+                    var vt = show.transform;
+                    moved.Add((vt, vt.parent, vt.localPosition, vt.localRotation, vt.localScale, show.activeSelf));
                 }
                 else
                 {

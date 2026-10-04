@@ -134,7 +134,7 @@ namespace HWC.Gameplay
                 Show();
                 st = steps[index];
             }
-            t += Time.unscaledDeltaTime;
+            t += Clock.UnscaledDelta;
             var target = st.Target();
             float pop = t < 0.2f ? Mathf.Lerp(0.6f, 1f, t / 0.2f) : 1f;
             note.localScale = Vector3.one * pop;
@@ -152,7 +152,7 @@ namespace HWC.Gameplay
                 np.y = Mathf.Clamp(np.y, -380, 440);
                 // stay clear of the order card in the top-left corner (it ends ~412 px left of centre)
                 if (np.y > 200f) np.x = Mathf.Max(np.x, -412f + note.sizeDelta.x * 0.5f + 16f);
-                note.anchoredPosition = Vector2.Lerp(note.anchoredPosition, np, t < 0.05f ? 1f : 1f - Mathf.Exp(-Time.unscaledDeltaTime * 8f));
+                note.anchoredPosition = Vector2.Lerp(note.anchoredPosition, np, t < 0.05f ? 1f : 1f - Mathf.Exp(-Clock.UnscaledDelta * 8f));
             }
             else arrow.gameObject.SetActive(false);
         }

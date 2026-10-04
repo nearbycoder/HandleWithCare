@@ -496,7 +496,7 @@ namespace HWC.Visuals
                 if (angle < 0) angle += 360f;
                 float curA = catapultArm.localEulerAngles.z;
                 bool follow = angle == 90f;
-                float a2 = follow ? Mathf.MoveTowardsAngle(curA, angle, Time.unscaledDeltaTime * 600f) : angle;
+                float a2 = follow ? Mathf.MoveTowardsAngle(curA, angle, Clock.UnscaledDelta * 600f) : angle;
                 catapultArm.localRotation = Quaternion.Euler(0, 0, a2);
                 if (catapultBucket != null) catapultBucket.localRotation = Quaternion.Euler(0, 0, -a2);
             }

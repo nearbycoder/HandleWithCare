@@ -149,8 +149,8 @@ namespace HWC.Gameplay
                 if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) Skip();
                 if (IsReplay || UserPaused)
                 {
-                    if (kb.leftArrowKey.isPressed) T = Mathf.Max(0, T - Time.unscaledDeltaTime * 2f);
-                    if (kb.rightArrowKey.isPressed) T = Mathf.Min(Duration, T + Time.unscaledDeltaTime * 2f);
+                    if (kb.leftArrowKey.isPressed) T = Mathf.Max(0, T - Clock.UnscaledDelta * 2f);
+                    if (kb.rightArrowKey.isPressed) T = Mathf.Min(Duration, T + Clock.UnscaledDelta * 2f);
                 }
                 if (kb.digit1Key.wasPressedThisFrame) Speed = 0.25f;
                 if (kb.digit2Key.wasPressedThisFrame) Speed = 0.5f;
@@ -160,8 +160,8 @@ namespace HWC.Gameplay
             }
 
             SlowMo = DirectorScale(out bool focusing);
-            focusWeight = Mathf.MoveTowards(focusWeight, focusing ? 1f : 0f, Time.unscaledDeltaTime * 3f);
-            if (!UserPaused) T += Time.unscaledDeltaTime * Speed * SlowMo;
+            focusWeight = Mathf.MoveTowards(focusWeight, focusing ? 1f : 0f, Clock.UnscaledDelta * 3f);
+            if (!UserPaused) T += Clock.UnscaledDelta * Speed * SlowMo;
             Time.timeScale = UserPaused ? 0.0001f : Mathf.Clamp(Speed * SlowMo, 0.05f, 4f);
             if (T >= Duration)
             {
@@ -366,7 +366,7 @@ namespace HWC.Gameplay
             if (snap) legStartT = T;
             // follow the box exactly along the road; smooth vertically so bumps read as motion
             if (snap) anchorY = boxPos.y;
-            anchorY = Mathf.Lerp(anchorY, boxPos.y, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 2.5f));
+            anchorY = Mathf.Lerp(anchorY, boxPos.y, 1f - Mathf.Exp(-Clock.UnscaledDelta * 2.5f));
             rig.Anchor = new Vector3(boxPos.x, anchorY, boxPos.z);
             float size = Mathf.Max(Box.InteriorWidth, Box.InteriorHeight * 1.4f);
             float dist = 1.6f + size * 1.9f;
