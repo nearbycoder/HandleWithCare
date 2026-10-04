@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="docs/media/trailer.mp4"><img src="docs/media/trailer-poster.jpg" alt="Watch the trailer (1:39)" width="85%"></a>
-  <br><sub>▶ Click the poster to watch the 1:39 feature trailer (MP4, 35 MB).</sub>
+  <br><sub>▶ 1:39 feature trailer (MP4, 35 MB): click the poster, or <a href="docs/media/trailer.mp4?raw=true">download the video</a>.</sub>
 </p>
 
 ---
