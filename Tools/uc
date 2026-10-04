@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Shorthand for driving this project's resident editor: Tools/uc <command> [-- params...]
+PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cmd="$1"; shift
+exec unity command "$cmd" --project-path "$PROJECT" --no-pager "$@"

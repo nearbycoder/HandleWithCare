@@ -36,3 +36,5 @@ Tools/SimCheck/bin/
 Tools/SimCheck/obj/
 ArtSource/_renders/
 ArtSource/*.blend1
+/Assets/Screenshots/
+/Assets/Screenshots.meta

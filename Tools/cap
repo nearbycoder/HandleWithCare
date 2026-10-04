@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Capture the running editor's main camera: Tools/cap NAME [W H]  -> Screenshots/NAME.png
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+name="$1"; w="${2:-1600}"; h="${3:-900}"
+"$ROOT/Tools/uc" capture_game_view -- --source camera --width "$w" --height "$h" --save_path "Screenshots/$name.png" > /dev/null 2>&1
+mkdir -p "$ROOT/Screenshots"
+mv -f "$ROOT/Assets/Screenshots/$name.png" "$ROOT/Screenshots/$name.png" 2>/dev/null && echo "Screenshots/$name.png"
+rm -f "$ROOT/Assets/Screenshots/$name.png.meta"

@@ -40,6 +40,7 @@ namespace HWC.Sim
         public V2 Half;
         public BodyState State;
         public sbyte Facing;
+        public sbyte ToppleDir;
         public float Roll;
         public float Jolt;          // jolt this frame (max over the frame's ticks), for juice
     }

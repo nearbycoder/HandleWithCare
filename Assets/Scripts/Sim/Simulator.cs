@@ -96,7 +96,7 @@ namespace HWC.Sim
                 var b = w.Bodies[i];
                 f[i] = new BodyFrame
                 {
-                    Pos = b.Pos, Half = b.Half, State = b.State, Facing = (sbyte)b.Facing,
+                    Pos = b.Pos, Half = b.Half, State = b.State, Facing = (sbyte)b.Facing, ToppleDir = (sbyte)b.ToppleDir,
                     Roll = b.RollAngle, Jolt = jolt[i],
                 };
             }
