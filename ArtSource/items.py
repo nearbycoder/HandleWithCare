@@ -833,26 +833,29 @@ def _hex_points(u0, u1, v0, v1, step):
 
 
 def bubble():
-    """Folded bundle of bubble wrap held with a band of brown packing tape."""
+    """A small roll of bubble wrap seen end-on: spiral layers on the face, bubbles all round, taped."""
     m = Model("piece_bubble")
     b = y0()
-    film, bub = glass("D8ECF7"), glass("E9F5FD")
-    m.add(box((-0.104, b, -0.098), (0.104, b + 0.206, 0.098), bevel=0.028, segments=5), film)
-    m.add(box((-0.1055, b + 0.09, -0.0995), (0.1055, b + 0.13, 0.0995), bevel=0.028, segments=5), P("plastic", "C69A5E"))
-    r, hgt, step = 0.0095, 0.006, 0.024
-
-    def ok(y):
-        return not (b + 0.084 < y < b + 0.136)
-
-    for u, v in _hex_points(-0.08, 0.08, b + 0.024, b + 0.184, step):
-        if ok(v):
-            m.add(ellipsoid((u, v, -0.098), (r, r, hgt), segments=14, rings=7), bub)
-    for u, v in _hex_points(-0.08, 0.08, -0.074, 0.074, step):
-        m.add(ellipsoid((u, b + 0.206, v), (r, hgt, r), segments=14, rings=7), bub)
-    for s in (-1, 1):
-        for u, v in _hex_points(-0.074, 0.074, b + 0.024, b + 0.184, step):
-            if ok(v):
-                m.add(ellipsoid((s * 0.104, v, u), (hgt, r, r), segments=14, rings=7), bub)
+    film = glass("D6EAF4")
+    cy, R, hz = b + 0.102, 0.1, 0.094
+    m.add(cyl((0, cy, 0), R - 0.006, 2 * hz, axis="z", segments=48), film)
+    # spiral: concentric layers stepping out from the core, each ending in a small lip
+    for k, r in enumerate((0.034, 0.047, 0.06, 0.073, 0.086)):
+        m.add(torus((0, cy, -hz), r, 0.0035, axis="z", segments=48, ring_segments=6), film)
+        a = k * 1.3
+        m.add(sphere((math.cos(a) * (r + 0.006), cy + math.sin(a) * (r + 0.006), -hz - 0.001), 0.006, segments=10, rings=6), film)
+    m.add(cyl((0, cy, 0), 0.024, 2 * hz + 0.004, axis="z", segments=28), P("cardboard", "B98A55"))     # core
+    m.add(cyl((0, cy, 0), 0.018, 2 * hz + 0.006, axis="z", segments=24), P("matte", "4A3A2A"))
+    # bubbles on the rolling surface
+    rows, ring = 8, 30
+    for i in range(rows):
+        z = -hz + 0.012 + i * (2 * hz - 0.024) / (rows - 1)
+        for j in range(ring):
+            a = (j + 0.5 * (i % 2)) / ring * 2 * math.pi
+            m.add(sphere((math.cos(a) * (R - 0.004), cy + math.sin(a) * (R - 0.004), z), 0.0085, segments=10, rings=7), film)
+    # band of brown tape around the middle and a loose film tail
+    m.add(cyl((0, cy, 0.02), R + 0.0065, 0.04, axis="z", segments=48), P("plastic", "C69A5E"))
+    m.add(box((-0.1, b, -hz), (-0.04, b + 0.003, hz), bevel=0.001), film)
     return [m.build()]
 
 

@@ -82,6 +82,16 @@ courier, ferry deck, cargo-plane hold, catapult and haystack), an unboxing scene
 log, settings, pause, replay with a director camera, tutorial, shift title cards and six tape
 designs.
 
+## Art
+
+Everything is modelled in Blender by script and aims for a tactile, "real objects on a real
+bench" look. Each prop is built from bevelled primitives and voxel-fused organic shapes, given
+procedural physically based materials (glazed ceramic, plush, chrome, car paint, timber, foliage,
+burlap, gingham...), then baked in Cycles to albedo, normal and mask maps with ambient occlusion,
+which Unity's URP Lit shader reads directly. Big surfaces (road, grass, concrete, brick, shingles,
+the sea) use tileable PBR texture sets instead. A realtime reflection probe re-captures each
+scene, so glaze, glass and metal reflect the room they are in.
+
 ## Project layout
 
 ```
@@ -151,6 +161,15 @@ The simulation runs at 240 Hz on axis-aligned bodies with sequential impulses, s
 20-30 seconds simulates in a few tens of milliseconds when you seal the box. The journey,
 replays, the director camera, the reveal, the review and the last-trip trails all play back the
 same recording.
+
+## Known limitations
+
+- Trees and bushes are solid sculpted canopies with baked leaf detail, not individual leaves; up
+  close they look more like well-made models than real foliage. The courier is a simple jointed
+  figure animated procedurally.
+- The synthesized audio has been checked only by measurement (levels, spectrum), not by ear.
+- A few early deliveries are cheap to solve (for example A Prickly Situation can be done with one
+  divider), so their under-budget star is easy.
 
 ## Credits
 
