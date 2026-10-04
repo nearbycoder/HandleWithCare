@@ -37,6 +37,25 @@ namespace HWC.EditorTools
             var m = Ensure("HWC_Lit", lit);
             m.SetFloat("_Smoothness", 0.35f);
             m.EnableKeyword("_NORMALMAP");
+            // Lit with baked PBR maps from Blender (albedo, normal, metallic/smoothness, occlusion)
+            m = Ensure("HWC_LitBaked", lit);
+            m.SetFloat("_Smoothness", 1f);
+            m.SetFloat("_OcclusionStrength", 1f);
+            m.EnableKeyword("_NORMALMAP");
+            m.EnableKeyword("_METALLICSPECGLOSSMAP");
+            m.EnableKeyword("_OCCLUSIONMAP");
+            // Glass: premultiplied so reflections stay bright while the body stays see-through
+            m = Ensure("HWC_Glass", lit);
+            m.SetFloat("_Surface", 1f);
+            m.SetFloat("_Blend", 1f);
+            m.SetFloat("_ZWrite", 0f);
+            m.SetFloat("_SrcBlend", (float)BlendMode.One);
+            m.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            m.SetOverrideTag("RenderType", "Transparent");
+            m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            m.EnableKeyword("_ALPHAPREMULTIPLY_ON");
+            m.renderQueue = (int)RenderQueue.Transparent;
+            m.SetFloat("_Smoothness", 0.96f);
             // Lit with emission (fire, lava lamp, glows)
             m = Ensure("HWC_LitEmissive", lit);
             m.EnableKeyword("_EMISSION");

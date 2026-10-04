@@ -73,6 +73,9 @@ def get_material(name):
     mat = bpy.data.materials.get(name)
     if mat:
         return mat
+    if name.startswith("p_"):
+        import pbr
+        return pbr.build_material(name)
     mat = bpy.data.materials.new(name)
     kind, arg = name.split("_", 1)
     hexstr = TEXTURE_PREVIEW_COLORS.get(arg.split("_")[0], "B0B0B0") if kind in ("tex", "decal") else arg
@@ -89,8 +92,9 @@ def get_material(name):
             bsdf.inputs["Emission Color"].default_value = (*rgb, 1.0)
             bsdf.inputs["Emission Strength"].default_value = 2.5
         if kind == "glass":
-            bsdf.inputs["Transmission Weight"].default_value = 0.85
-            bsdf.inputs["Alpha"].default_value = 0.55
+            bsdf.inputs["Transmission Weight"].default_value = 1.0
+            bsdf.inputs["Roughness"].default_value = 0.02
+            bsdf.inputs["IOR"].default_value = 1.45
             mat.blend_method = "BLEND" if hasattr(mat, "blend_method") else None
             mat.surface_render_method = "BLENDED"
         if kind == "shiny":
@@ -311,6 +315,27 @@ def bezier(p0, p1, p2, p3, steps=16):
     return out
 
 
+def spline(points, per_segment=6, closed=False):
+    """Catmull-Rom through 2D/3D points: turns a rough profile into a smooth one."""
+    pts = [V(*p) if len(p) == 3 else V(p[0], p[1], 0) for p in points]
+    dim3 = len(points[0]) == 3
+    n = len(pts)
+    out = []
+    segs = n if closed else n - 1
+    for i in range(segs):
+        p0 = pts[(i - 1) % n] if closed or i > 0 else pts[0]
+        p1, p2 = pts[i], pts[(i + 1) % n]
+        p3 = pts[(i + 2) % n] if closed or i + 2 < n else pts[-1]
+        for k in range(per_segment):
+            t = k / per_segment
+            t2, t3 = t * t, t * t * t
+            q = 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
+            out.append(q)
+    if not closed:
+        out.append(pts[-1])
+    return [tuple(q) if dim3 else (q.x, q.y) for q in out]
+
+
 def arc_points(center, radius, start_deg, end_deg, plane="xy", steps=12):
     c = V(center)
     out = []
@@ -395,6 +420,38 @@ def displace(prim, amount, freq=8.0, seed=0, flat=False):
         v.co += v.normal * n * amount
     bm.normal_update()
     return bm, (False if flat else smooth)
+
+
+def boolean(prim, cutters, op="DIFFERENCE"):
+    """Exact mesh boolean of a primitive with a list of cutter primitives."""
+    def as_obj(p, name):
+        me = bpy.data.meshes.new(name)
+        p[0].to_mesh(me)
+        p[0].free()
+        ob = bpy.data.objects.new(name, me)
+        bpy.context.scene.collection.objects.link(ob)
+        return ob
+    base = as_obj(prim, "_bool_base")
+    cut_objs = []
+    for i, c in enumerate(cutters):
+        co = as_obj(c, f"_bool_cut{i}")
+        co.hide_render = True
+        mod = base.modifiers.new(f"b{i}", "BOOLEAN")
+        mod.operation = op
+        mod.solver = "EXACT"
+        mod.object = co
+        cut_objs.append(co)
+    dg = bpy.context.evaluated_depsgraph_get()
+    ev = base.evaluated_get(dg)
+    out = bmesh.new()
+    out.from_mesh(ev.to_mesh())
+    ev.to_mesh_clear()
+    for o in cut_objs + [base]:
+        me = o.data
+        bpy.data.objects.remove(o)
+        bpy.data.meshes.remove(me)
+    out.normal_update()
+    return out, prim[1]
 
 
 def bumps_on_face(center, size, normal_axis, rows, cols, radius, height, segments=10):
@@ -484,6 +541,68 @@ class Model:
             self.add(p, material, **kw)
         return self
 
+    def add_fused(self, parts, voxel=0.002, smooth_iters=6, smooth_factor=0.6, max_faces=30000, transform=None):
+        """Union overlapping primitives into one watertight, softly filleted mesh (voxel remesh +
+        smoothing), like a sculpt. Each face takes the material of the nearest source part."""
+        from mathutils.bvhtree import BVHTree
+        union = bmesh.new()
+        trees, mats = [], []
+        for prim, material in parts:
+            bm = prim[0]
+            if transform is not None:
+                bm.transform(transform)
+            bm.normal_update()
+            trees.append(BVHTree.FromBMesh(bm))
+            mats.append(material)
+            tmp = bpy.data.meshes.new("_t")
+            bm.to_mesh(tmp)
+            bm.free()
+            union.from_mesh(tmp)
+            bpy.data.meshes.remove(tmp)
+        me = bpy.data.meshes.new("_fuse")
+        union.to_mesh(me)
+        union.free()
+        ob = bpy.data.objects.new("_fuse", me)
+        bpy.context.scene.collection.objects.link(ob)
+        r = ob.modifiers.new("remesh", "REMESH")
+        r.mode = "VOXEL"
+        r.voxel_size = voxel
+        r.adaptivity = 0.0
+        s = ob.modifiers.new("smooth", "SMOOTH")
+        s.factor = smooth_factor
+        s.iterations = smooth_iters
+        dg = bpy.context.evaluated_depsgraph_get()
+        faces = len(ob.evaluated_get(dg).data.polygons)
+        if faces > max_faces:
+            d = ob.modifiers.new("decimate", "DECIMATE")
+            d.ratio = max_faces / faces
+            dg = bpy.context.evaluated_depsgraph_get()
+        ev = ob.evaluated_get(dg)
+        res = bmesh.new()
+        res.from_mesh(ev.to_mesh())
+        ev.to_mesh_clear()
+        bpy.data.objects.remove(ob)
+        bpy.data.meshes.remove(me)
+        for m in mats:
+            if m not in self.materials:
+                self.materials.append(m)
+        for f in res.faces:
+            c = f.calc_center_median()
+            best, bd = 0, 1e9
+            for i, t in enumerate(trees):
+                hit = t.find_nearest(c)
+                if hit[0] is not None and hit[3] < bd:
+                    best, bd = i, hit[3]
+            f.material_index = self.materials.index(mats[best])
+            f.smooth = True
+        res.loops.layers.uv.verify()
+        mesh = bpy.data.meshes.new("_part")
+        res.to_mesh(mesh)
+        res.free()
+        self.bm.from_mesh(mesh)
+        bpy.data.meshes.remove(mesh)
+        return self
+
     def build(self, origin=(0, 0, 0), parent=None, parent_origin=(0, 0, 0)):
         """Create the Blender object. Vertices are made relative to `origin` (Unity space)."""
         bm = self.bm
@@ -535,22 +654,43 @@ def export_fbx(path, objects):
 # ----------------------------------------------------------------------------- preview rendering
 
 def setup_preview_scene(resolution=512):
+    import os
     scene = bpy.context.scene
-    eng = "BLENDER_EEVEE_NEXT" if "BLENDER_EEVEE_NEXT" in [e.identifier for e in bpy.types.RenderSettings.bl_rna.properties["engine"].enum_items] else "BLENDER_EEVEE"
-    scene.render.engine = eng
+    scene.render.engine = "CYCLES"
+    scene.cycles.device = "CPU"
+    scene.cycles.samples = 48
+    scene.cycles.use_denoising = True
     scene.render.resolution_x = resolution
     scene.render.resolution_y = resolution
     scene.render.film_transparent = False
     scene.view_settings.view_transform = "AgX" if "AgX" in [i.identifier for i in scene.view_settings.bl_rna.properties["view_transform"].enum_items] else "Filmic"
     world = bpy.data.worlds.new("w")
     world.use_nodes = True
-    bg = world.node_tree.nodes.get("Background")
-    bg.inputs[0].default_value = (0.62, 0.56, 0.5, 1)
-    bg.inputs[1].default_value = 0.9
+    nt = world.node_tree
+    bg = nt.nodes.get("Background")
+    hdri = os.path.join(os.path.dirname(bpy.app.binary_path), "4.5", "datafiles", "studiolights", "world", "interior.exr")
+    if os.path.exists(hdri):
+        env = nt.nodes.new("ShaderNodeTexEnvironment")
+        env.image = bpy.data.images.load(hdri, check_existing=True)
+        nt.links.new(env.outputs["Color"], bg.inputs["Color"])
+        bg.inputs[1].default_value = 0.8
+    else:
+        bg.inputs[0].default_value = (0.62, 0.56, 0.5, 1)
+        bg.inputs[1].default_value = 0.9
     scene.world = world
+    # tabletop to catch contact shadows (placed under the model in frame_and_render)
+    pm = bpy.data.meshes.new("table")
+    import bmesh as _bm
+    b = _bm.new()
+    _bm.ops.create_grid(b, x_segments=1, y_segments=1, size=4.0)
+    b.to_mesh(pm)
+    b.free()
+    pm.materials.append(get_material("p_varnish_9C6B43"))
+    table = bpy.data.objects.new("__table", pm)
+    scene.collection.objects.link(table)
     # key + fill lights (Blender space: z up)
-    for name, loc, energy, color in (("key", (-1.5, -2.0, 2.5), 400, (1, 0.93, 0.85)), ("fill", (2.0, -1.0, 1.0), 120, (0.8, 0.88, 1.0)),
-                                     ("rim", (0.5, 2.0, 1.8), 200, (1, 1, 1))):
+    for name, loc, energy, color in (("key", (-1.5, -2.0, 2.5), 250, (1, 0.93, 0.85)), ("fill", (2.0, -1.0, 1.0), 60, (0.8, 0.88, 1.0)),
+                                     ("rim", (0.5, 2.0, 1.8), 120, (1, 1, 1))):
         ld = bpy.data.lights.new(name, "AREA")
         ld.energy = energy
         ld.size = 1.5
@@ -574,12 +714,15 @@ def frame_and_render(cam, objects, path, yaw_deg=-25, pitch_deg=14, margin=1.15)
     pts = []
     for o in objects:
         for c in [o] + list(o.children_recursive):
-            if c.type == "MESH":
+            if c.type == "MESH" and c.name != "__table":
                 pts += [c.matrix_world @ v.co for v in c.data.vertices]
     if not pts:
         return
     mn = V(min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts))
     mx = V(max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts))
+    table = bpy.data.objects.get("__table")
+    if table:
+        table.location = (0, 0, mn.z - 0.0005)
     center = (mn + mx) / 2
     radius = (mx - mn).length / 2
     # Unity front (-z) is Blender +y; camera sits at -? : Unity camera at -z looking +z => Blender (0, +y?)

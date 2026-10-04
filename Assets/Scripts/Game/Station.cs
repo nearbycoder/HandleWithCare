@@ -68,6 +68,7 @@ namespace HWC.Gameplay
             Box.ShowGrid(Game.I.Save.ShowGrid);
             BuildShelf(lv);
             Frame(lv, true);
+            Reflections.Capture(transform.position + new Vector3(0, 0.5f, 0), new Vector3(8f, 4f, 4f));
         }
 
         const float Slot = 0.62f;

@@ -21,11 +21,16 @@ BLEND = os.path.join(ROOT, "ArtSource", "blend")
 
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    groups, only, preview, export = [], None, None, True
+    groups, only, preview, export, bake, res = [], None, None, True, True, 1024
     i = 0
     while i < len(argv):
         a = argv[i]
-        if a == "--only":
+        if a == "--no-bake":
+            bake = False
+        elif a == "--res":
+            res = int(argv[i + 1])
+            i += 1
+        elif a == "--only":
             only = set(argv[i + 1].split(","))
             i += 1
         elif a == "--preview":
@@ -36,7 +41,7 @@ def parse_args():
         else:
             groups.append(a)
         i += 1
-    return groups or ["items", "boxes", "station", "stages"], only, preview, export
+    return groups or ["items", "boxes", "station", "stages"], only, preview, export, bake, res
 
 
 def builders_for(group):
@@ -83,7 +88,7 @@ def contact_sheet(paths, labels, out_path, cols=6, cell=256):
 
 
 def main():
-    groups, only, preview, export = parse_args()
+    groups, only, preview, export, bake, res = parse_args()
     os.makedirs(OUT, exist_ok=True)
     os.makedirs(BLEND, exist_ok=True)
     for group in groups:
@@ -95,13 +100,19 @@ def main():
                 continue
             L.reset_scene()
             objs = fn()
+            if bake:
+                import pbr
+                for o in objs:
+                    for c in [o] + list(o.children_recursive):
+                        if c.type == "MESH" and any(s.material and s.material.name.startswith("p_") for s in c.material_slots):
+                            pbr.bake(c, res=res)
             if export:
                 fname = objs[0].name
                 L.export_fbx(os.path.join(OUT, fname + ".fbx"), objs)
                 print(f"[build] {group}/{name} -> {fname}.fbx")
             if preview:
                 os.makedirs(preview, exist_ok=True)
-                cam = L.setup_preview_scene(384)
+                cam = L.setup_preview_scene(512)
                 path = os.path.join(preview, f"{group}_{name}.png")
                 L.frame_and_render(cam, objs, path)
                 rendered.append(path)

@@ -212,6 +212,7 @@ namespace HWC.Gameplay
                 CurrentLeg = leg;
                 snap = true;
                 stages[leg].ApplyLighting(G.Sun, G.Rig.Cam);
+                Reflections.Capture(new Vector3((float)kin.X[k], (float)kin.Y[k] + 1f, 0f), new Vector3(30f, 16f, 30f));
                 LegChanged?.Invoke(leg);
             }
             var st = stages[leg];

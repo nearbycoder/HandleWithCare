@@ -70,12 +70,18 @@ namespace HWC.Visuals
             int us = name.IndexOf('_');
             string kind = us > 0 ? name.Substring(0, us) : name;
             string arg = us > 0 ? name.Substring(us + 1) : "";
+            if (kind == "bake")
+            {
+                m = TextureLibrary.BakedMaterial(arg);
+                resolved[name] = m;
+                return m;
+            }
             if (kind != "tex" && kind != "decal" && arg.Length > 6) arg = arg.Substring(0, 6);
             Color c = Color.magenta;
             if (arg.Length >= 6) c = Palette.Hex(arg.Substring(0, 6));
             switch (kind)
             {
-                case "glass": c.a = 0.45f; m = Mat.Glass(c); break;
+                case "glass": c.a = 0.3f; m = Mat.ClearGlass(c); break;
                 case "metal": m = Mat.Lit(c, 0.75f, 0.9f); break;
                 case "shiny": m = Mat.Lit(c, 0.8f, 0f); break;
                 case "matte": m = Mat.Lit(c, 0.1f, 0f); break;

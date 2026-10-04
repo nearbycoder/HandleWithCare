@@ -84,6 +84,7 @@ namespace HWC.Gameplay
             box.transform.localPosition = new Vector3(0, box.OuterHalfHeight + 0.6f, 0);
             box.SetFlaps(1f, true);
             box.SetTape(1f, true);
+            Reflections.Capture(box.transform.position + Vector3.up * 0.4f, new Vector3(6f, 4f, 6f));
             float boxH = box.OuterHalfHeight * 2f;
             float size = Mathf.Max(box.InteriorWidth, boxH * 1.3f);
             var rig = G.Rig;

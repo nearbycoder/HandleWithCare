@@ -171,7 +171,9 @@ namespace HWC.Visuals
                     Color baseC = src.HasProperty("_BaseColor") ? src.GetColor("_BaseColor") : Color.white;
                     var mixed = Color.Lerp(baseC, c, amount);
                     mixed.a = baseC.a;
-                    mats[j] = baseC.a < 0.99f ? Mat.Glass(mixed) : Mat.Lit(mixed, 0.25f);
+                    bool textured = src.HasProperty("_BaseMap") && src.GetTexture("_BaseMap") != null;
+                    if (textured && baseC.a >= 0.99f) mats[j] = Mat.Tinted(src, Color.Lerp(Color.white, c, amount));
+                    else mats[j] = baseC.a < 0.99f ? Mat.Glass(mixed) : Mat.Lit(mixed, 0.25f);
                 }
                 renderers[i].sharedMaterials = mats;
             }

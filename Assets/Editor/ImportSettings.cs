@@ -44,8 +44,9 @@ namespace HWC.EditorTools
             else
             {
                 t.textureType = TextureImporterType.Default;
-                t.sRGBTexture = true;
+                t.sRGBTexture = !file.EndsWith("_mask");
             }
+            if (assetPath.Contains("/Textures/Baked/")) t.maxTextureSize = 1024;
             bool clamp = file.StartsWith("decal_") || file == "label";
             t.wrapMode = clamp ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
             t.alphaIsTransparency = file.StartsWith("decal_");

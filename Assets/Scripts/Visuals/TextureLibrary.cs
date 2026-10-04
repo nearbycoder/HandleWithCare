@@ -26,6 +26,18 @@ namespace HWC.Visuals
             return Mat.Textured("tex_" + name, tex, Color.white, smooth, nrm, 0.8f);
         }
 
+        /// <summary>Material for "bake_model": Textures/Baked/model(.png, _n, _mask) from ArtSource/pbr.py.</summary>
+        public static Material BakedMaterial(string model)
+        {
+            var alb = Get("Baked/" + model);
+            if (alb == null)
+            {
+                Debug.LogWarning("[TextureLibrary] missing baked textures for " + model);
+                return Mat.Lit(Color.gray, 0.3f);
+            }
+            return Mat.Baked("bake_" + model, alb, Get("Baked/" + model + "_n"), Get("Baked/" + model + "_mask"));
+        }
+
         /// <summary>Soft round dot used by particles.</summary>
         public static Texture2D SoftDot
         {

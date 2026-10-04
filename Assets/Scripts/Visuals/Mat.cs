@@ -7,7 +7,53 @@ namespace HWC.Visuals
     public static class Mat
     {
         static readonly Dictionary<string, Material> cache = new Dictionary<string, Material>();
-        static Material lit, litEmissive, litTransparent, unlit, unlitTransparent, particleAlpha, particleAdd;
+        static Material lit, litEmissive, litTransparent, unlit, unlitTransparent, particleAlpha, particleAdd, litBaked, glassClear;
+
+        /// <summary>URP Lit driven by maps baked in Blender (mask: R metallic, G occlusion, A smoothness).</summary>
+        public static Material Baked(string key, Texture2D albedo, Texture2D normal, Texture2D mask)
+        {
+            if (cache.TryGetValue(key, out var m)) return m;
+            m = new Material(Template(ref litBaked, "HWC_LitBaked")) { name = key };
+            m.SetTexture("_BaseMap", albedo);
+            m.SetColor("_BaseColor", Color.white);
+            m.SetFloat("_Smoothness", 1f);
+            m.SetFloat("_Metallic", 1f);
+            if (normal != null) { m.SetTexture("_BumpMap", normal); m.SetFloat("_BumpScale", 1f); m.EnableKeyword("_NORMALMAP"); }
+            else m.DisableKeyword("_NORMALMAP");
+            if (mask != null)
+            {
+                m.SetTexture("_MetallicGlossMap", mask);
+                m.SetTexture("_OcclusionMap", mask);
+                m.SetFloat("_OcclusionStrength", 1f);
+                m.EnableKeyword("_METALLICSPECGLOSSMAP");
+                m.EnableKeyword("_OCCLUSIONMAP");
+            }
+            cache[key] = m;
+            return m;
+        }
+
+        /// <summary>A copy of a textured material with its base colour multiplied by `tint`.</summary>
+        public static Material Tinted(Material src, Color tint)
+        {
+            string key = $"{src.name}_tint{ColorUtility.ToHtmlStringRGBA(tint)}";
+            if (cache.TryGetValue(key, out var m)) return m;
+            m = new Material(src) { name = key };
+            m.SetColor("_BaseColor", tint);
+            cache[key] = m;
+            return m;
+        }
+
+        /// <summary>Clear glass: premultiplied transparency so highlights and reflections stay bright.</summary>
+        public static Material ClearGlass(Color c, float smooth = 0.96f)
+        {
+            string key = $"cglass{ColorUtility.ToHtmlStringRGBA(c)}_{smooth:0.00}";
+            if (cache.TryGetValue(key, out var m)) return m;
+            m = new Material(Template(ref glassClear, "HWC_Glass")) { name = key };
+            m.SetColor("_BaseColor", c);
+            m.SetFloat("_Smoothness", smooth);
+            cache[key] = m;
+            return m;
+        }
 
         static Material Template(ref Material field, string name)
         {
