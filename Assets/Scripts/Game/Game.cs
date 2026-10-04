@@ -111,6 +111,7 @@ namespace HWC.Gameplay
         {
             Rig.ShakeEnabled = Save.ScreenShake;
             Fx.Reduced = Save.ReducedMotion;
+            GraphicsQuality.Apply(Save.HighQuality);
             Menus.ApplyAudio();
             if (!Application.isEditor) Screen.fullScreenMode = Save.Fullscreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
         }

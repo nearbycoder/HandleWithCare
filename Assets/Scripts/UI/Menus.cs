@@ -211,7 +211,7 @@ namespace HWC.Gameplay
             var dim = Ui.Panel(settings, "dim", new Color(0.08f, 0.05f, 0.04f, 0.55f), Ui.Rounded(2));
             dim.rectTransform.Stretch();
             var p = Ui.Panel(settings, "panel", Palette.Cream, Ui.Rounded(18, 4));
-            p.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900, 900));
+            p.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900, 970));
             Ui.Shadow(p, 10);
             var h = Ui.Text(p.transform, "h", "SETTINGS", 64, Palette.Ink, Ui.Display);
             h.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -20), new Vector2(800, 80));
@@ -222,10 +222,11 @@ namespace HWC.Gameplay
             ToggleRow(p.transform, "REDUCED MOTION (no slow-mo, fewer particles)", -435, "motion");
             ToggleRow(p.transform, "SHOW PACKING GRID", -500, "grid");
             ToggleRow(p.transform, "FULLSCREEN", -565, "full");
+            ToggleRow(p.transform, "HIGH QUALITY GRAPHICS (turn off on slower computers)", -630, "gfx");
             var tl = Ui.Text(p.transform, "tapeLabel", "TAPE DESIGN", 30, Palette.Ink, Ui.Display, TextAlignmentOptions.Left);
-            tl.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -620), new Vector2(400, 40));
+            tl.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -690), new Vector2(400, 40));
             tapeRow = Ui.Rect("tapes", p.transform);
-            tapeRow.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -670), new Vector2(780, 110));
+            tapeRow.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -740), new Vector2(780, 110));
             var back = Ui.Button(p.transform, "back", "DONE", () => { G.Save.Write(); settingsBack?.Invoke(); }, Palette.PostalRed, Palette.Cream, 38);
             back.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 30), new Vector2(260, 76));
         }
@@ -275,6 +276,7 @@ namespace HWC.Gameplay
                     case "motion": G.Save.ReducedMotion = on; Fx.Reduced = on; break;
                     case "grid": G.Save.ShowGrid = on; if (G.Station.Box != null) G.Station.Box.ShowGrid(on); break;
                     case "full": G.Save.Fullscreen = on; Screen.fullScreenMode = on ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed; break;
+                    case "gfx": G.Save.HighQuality = on; GraphicsQuality.Apply(on); break;
                 }
                 G.Hud.Sfx("click", 0.6f);
             });
@@ -291,7 +293,8 @@ namespace HWC.Gameplay
             sfx.SetValueWithoutNotify(G.Save.SfxVolume);
             foreach (var (t, key) in toggles)
             {
-                bool v = key == "shake" ? G.Save.ScreenShake : key == "motion" ? G.Save.ReducedMotion : key == "grid" ? G.Save.ShowGrid : G.Save.Fullscreen;
+                bool v = key == "shake" ? G.Save.ScreenShake : key == "motion" ? G.Save.ReducedMotion : key == "grid" ? G.Save.ShowGrid
+                    : key == "gfx" ? G.Save.HighQuality : G.Save.Fullscreen;
                 t.isOn = !v;
                 t.isOn = v;
             }
@@ -312,7 +315,7 @@ namespace HWC.Gameplay
                 var sw = Ui.Icon(b.transform, "swatch", Ui.FromTexture(TextureLibrary.Get("tape_" + id)), open ? Color.white : new Color(1, 1, 1, 0.25f));
                 sw.preserveAspect = false;
                 sw.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -10), new Vector2(104, 34));
-                var lab = Ui.Text(b.transform, "n", open ? name.ToUpperInvariant() : $"{req} ★", 17, Palette.Ink, Ui.Display);
+                var lab = Ui.Text(b.transform, "n", open ? name.ToUpperInvariant() : $"{req} STARS", 17, Palette.Ink, Ui.Display);
                 lab.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 8), new Vector2(118, 50));
             }
         }

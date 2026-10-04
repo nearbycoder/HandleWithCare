@@ -653,7 +653,7 @@ namespace HWC.Gameplay
                 float frac = Mathf.Clamp01((lp.x + timeline.rect.width * 0.5f) / timeline.rect.width);
                 G.Journey.Seek(frac * G.Journey.Duration);
             };
-            string[] spd = { "❚❚", "¼×", "½×", "1×", "2×" };
+            string[] spd = { "II", "¼×", "½×", "1×", "2×" };
             float[] speeds = { -1, 0.25f, 0.5f, 1f, 2f };
             for (int i = 0; i < spd.Length; i++)
             {

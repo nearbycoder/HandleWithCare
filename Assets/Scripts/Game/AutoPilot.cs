@@ -27,6 +27,7 @@ namespace HWC.Gameplay
         public static bool TryStart(Game g)
         {
             var args = Environment.GetCommandLineArgs();
+            if (Array.IndexOf(args, "-hwcFps") >= 0) g.gameObject.AddComponent<FrameProbe>();
             string shots = Arg(args, "-hwcShots"), auto = Arg(args, "-hwcAutopilot"), menus = Arg(args, "-hwcMenus");
             if (shots == null && auto == null && menus == null) return false;
             SaveData.Disabled = true;
@@ -288,6 +289,38 @@ namespace HWC.Gameplay
                     }
             }
             return pk;
+        }
+    }
+
+    /// <summary>-hwcFps: logs average and worst frame time for each game phase ("[Perf] ..." lines).</summary>
+    public sealed class FrameProbe : MonoBehaviour
+    {
+        Phase phase = Phase.Boot;
+        int frames, timed;
+        float total, worst;
+        double cpuMain, gpu;
+        readonly FrameTiming[] timing = new FrameTiming[1];
+
+        void Update()
+        {
+            var g = Game.I;
+            if (g == null) return;
+            if (g.Phase != phase) { Flush(); phase = g.Phase; }
+            float dt = Time.unscaledDeltaTime;
+            if (frames > 3) { total += dt; worst = Mathf.Max(worst, dt); }   // skip the hitch of a phase change
+            frames++;
+            FrameTimingManager.CaptureFrameTimings();
+            if (FrameTimingManager.GetLatestTimings(1, timing) > 0) { cpuMain += timing[0].cpuMainThreadFrameTime; gpu += timing[0].gpuFrameTime; timed++; }
+        }
+
+        void OnDestroy() => Flush();
+
+        void Flush()
+        {
+            int n = frames - 4;
+            if (n > 10) Debug.Log($"[Perf] {phase}: {n / total:0} fps avg, worst frame {worst * 1000:0.0} ms over {n} frames"
+                                  + (timed > 0 ? $"; main thread {cpuMain / timed:0.0} ms, GPU {gpu / timed:0.0} ms" : ""));
+            frames = 0; total = 0; worst = 0; timed = 0; cpuMain = 0; gpu = 0;
         }
     }
 }

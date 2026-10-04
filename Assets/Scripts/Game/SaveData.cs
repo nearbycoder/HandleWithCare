@@ -34,6 +34,7 @@ namespace HWC.Gameplay
         public bool ReducedMotion;
         public bool Fullscreen = true;
         public bool ShowGrid = true;
+        public bool HighQuality = true;
         public string Tape = "kraft";
         public List<string> SeenTips = new List<string>();
         public List<LevelRecord> Records = new List<LevelRecord>();
