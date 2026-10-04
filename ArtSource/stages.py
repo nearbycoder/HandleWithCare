@@ -12,8 +12,8 @@ import random
 import bmesh
 from mathutils import Matrix
 
-from hwc_lib import (Model, V, bezier, box, cbox, cyl, decal, displace, ellipsoid, empty, extrude_outline,
-                     glass, glow, hull, ico, lathe, matte, prism, rod, rotate_about, sphere, sweep, tex, torus)
+from hwc_lib import (Model, V, bezier, box, card, cbox, cyl, decal, displace, ellipsoid, empty, extrude_outline,
+                     glass, glow, hull, ico, lathe, leaf, matte, prism, rod, rotate_about, sphere, sweep, tex, torus)
 from pbr import P
 
 RED = "C7362B"
@@ -80,6 +80,31 @@ def canopy(m, center, radius, seed, color=None, blobs=11, voxel=0.045, squash=0.
         r = radius * rnd.uniform(0.3, 0.5)
         parts.append((displace(sphere(p, r, segments=20, rings=14), r * 0.22, 3.0 / r, k + seed), mat))
     m.add_fused(parts, voxel=voxel, smooth_iters=4, smooth_factor=0.5, max_faces=12000)
+
+
+def leaf_cards(parent, name, center, radius, count, size, seed, squash=0.8, texture="foliage_broadleaf", up_bias=0.25, clusters=None):
+    """Child object of alpha-tested leaf-cluster cards scattered over a crown's surface.
+    clusters: optional [(center, radius, count)] to build an irregular crown from several lobes."""
+    rnd = random.Random(seed)
+    m = Model(name)
+    for c, radius, count in (clusters or [(center, radius, count)]):
+        _scatter_cards(m, rnd, V(c), radius, count, size, squash, texture, up_bias)
+    o = m.build(parent=parent)
+    o["bake_hide"] = True
+    return o
+
+
+def _scatter_cards(m, rnd, c, radius, count, size, squash, texture, up_bias):
+    for k in range(count):
+        # roughly even points on an ellipsoid shell, a little inside and outside it
+        z = rnd.uniform(-1, 1)
+        a = rnd.uniform(0, 2 * math.pi)
+        d = V((math.sqrt(1 - z * z) * math.cos(a), z * squash, math.sqrt(1 - z * z) * math.sin(a)))
+        p = c + d * radius * rnd.uniform(0.75, 1.02)
+        if p.y < size * 0.35:
+            p.y = size * 0.35 + rnd.uniform(0, 0.05)
+        nrm = (d + V((rnd.uniform(-0.6, 0.6), rnd.uniform(-0.3, 0.6) + up_bias, rnd.uniform(-0.6, 0.6)))).normalized()
+        m.add(card(p, size * rnd.uniform(0.75, 1.2), nrm, rnd.uniform(0, 2 * math.pi)), leaf(texture))
 
 
 # ============================================================================ truck
@@ -253,51 +278,63 @@ def tree_round():
     rnd = random.Random(1)
     trunk = sweep(bezier(V(0, 0, 0), V(0.05, 0.5, 0), V(-0.05, 0.9, 0.02), V(0.02, 1.4, 0), 10), 0.13, radius_end=0.07)
     m.add(trunk, BARK)
-    for k in range(3):  # limbs into the crown
-        a = k / 3 * 2 * math.pi + 0.4
-        tip = V(math.cos(a) * 0.45, 1.75 + rnd.uniform(0, 0.2), math.sin(a) * 0.35)
-        m.add(sweep(bezier(V(0, 1.1, 0), V(0, 1.35, 0), tip * 0.7 + V(0, 0.3, 0), tip, 6), 0.06, radius_end=0.025), BARK)
+    for k in range(5):  # limbs into the crown
+        a = k / 5 * 2 * math.pi + 0.4
+        tip = V(math.cos(a) * 0.65, 1.8 + rnd.uniform(0, 0.35), math.sin(a) * 0.5)
+        m.add(sweep(bezier(V(0, 1.05 + k * 0.06, 0), V(0, 1.35, 0), tip * 0.7 + V(0, 0.3, 0), tip, 6), 0.055, radius_end=0.018), BARK)
     m.add(cyl((0, 0.02, 0), 0.2, 0.06, axis="y", radius2=0.14, segments=20), BARK)                 # root flare
-    canopy(m, (0, 1.85, 0), 1.0, seed=11, blobs=18)
-    return [m.build()]
+    lobes = [((0.0, 2.05, 0.0), 0.72, 70), ((-0.55, 1.8, 0.1), 0.55, 45), ((0.55, 1.85, -0.1), 0.58, 45),
+             ((0.1, 2.45, 0.15), 0.5, 35), ((-0.2, 1.75, -0.45), 0.45, 25)]
+    for i, (c, r, _) in enumerate(lobes):                                                          # shaded inner crown
+        canopy(m, c, r * 0.75, seed=11 + i, color=P("foliage", "2E4A1E"), blobs=6)
+    root = m.build()
+    leaf_cards(root, "leaves", None, 0, 0, 0.58, seed=12, clusters=lobes)
+    return [root]
 
 
 def tree_pine():
     m = Model("tree_pine")
-    m.add(cyl((0, 1.1, 0), 0.11, 2.2, axis="y", radius2=0.03, segments=16), BARK)
+    m.add(cyl((0, 1.25, 0), 0.11, 2.5, axis="y", radius2=0.03, segments=16), BARK)
+    m.add(lathe([(0.0, 0.0), (0.5, 0.0), (0.0, 2.4)], segments=20), P("needles", "1F3A22"), transform=Matrix.Translation((0, 0.55, 0)))   # dark core
     rnd = random.Random(4)
-    parts = []
-    needles = P("needles", "2F5A34")
-    layers = 10
-    parts.append((lathe([(0.0, 0.0), (0.5, 0.0), (0.0, 2.6)], segments=16), needles))     # dense core
-    parts[-1][0][0].transform(Matrix.Translation((0, 0.5, 0)))
-    for k in range(layers):
-        y = 0.45 + k * 0.24
-        r = 0.95 * (1 - k / (layers + 0.6))
+    for k in range(9):  # branches under the needle cards
+        y = 0.5 + k * 0.25
+        r = 0.95 * (1 - k / 9.6)
+        for j in range(5):
+            a = j / 5 * 2 * math.pi + k * 0.7
+            m.add(rod((0, y + 0.05, 0), (math.cos(a) * r * 0.9, y - r * 0.2, math.sin(a) * r * 0.9), 0.018), BARK)
+    root = m.build()
+    c = Model("needles")
+    for k in range(10):
+        y = 0.5 + k * 0.24
+        r = 0.95 * (1 - k / 10.6)
         n = 12 - k // 2
         for j in range(n):
-            a = j / n * 2 * math.pi + rnd.uniform(-0.2, 0.2) + k * 0.4
-            # one drooping bough: an elongated lump pointing outward and down
-            reach = r * rnd.uniform(0.85, 1.05)
-            mid = V(math.cos(a) * reach * 0.5, y - reach * 0.18, math.sin(a) * reach * 0.5)
-            bough = ellipsoid((0, 0, 0), (reach * 0.55, 0.09 + 0.06 * r, 0.12 + 0.06 * r), segments=12, rings=8)
-            t = Matrix.Translation(mid) @ Matrix.Rotation(-a, 4, "Y") @ Matrix.Rotation(math.radians(-20), 4, "Z")
-            bough[0].transform(t)
-            parts.append((displace(bough, 0.05, 9, k * 10 + j), needles))
-    parts.append((lathe([(0.0, 0.0), (0.14, 0.0), (0.0, 0.55)], segments=12), needles))
-    parts[-1][0][0].transform(Matrix.Translation((0, 0.45 + layers * 0.24 - 0.15, 0)))
-    m.add_fused(parts, voxel=0.03, smooth_iters=3, smooth_factor=0.5, max_faces=16000)
-    return [m.build()]
+            a = j / n * 2 * math.pi + rnd.uniform(-0.25, 0.25) + k * 0.4
+            out = V((math.cos(a), 0, math.sin(a)))
+            p = V((0, y - r * 0.12, 0)) + out * r * 0.55
+            nrm = (V((0, 1, 0)) * 0.8 + out * 0.6 + V((rnd.uniform(-0.3, 0.3), 0, rnd.uniform(-0.3, 0.3)))).normalized()
+            c.add(card(p, r * 1.25 + 0.25, nrm, a + rnd.uniform(-0.4, 0.4)), leaf("foliage_needles"))
+            # a second, more upright card for the silhouette from the side
+            nrm2 = (out * 0.9 + V((0, 0.35, 0)) + V((rnd.uniform(-0.3, 0.3), 0, rnd.uniform(-0.3, 0.3)))).normalized()
+            c.add(card(p + V((0, 0.06, 0)), r * 1.0 + 0.22, nrm2, rnd.uniform(0, 6.28)), leaf("foliage_needles"))
+    c.add(card((0, 0.5 + 10 * 0.24, 0), 0.45, (0, 0, -1), 0.0), leaf("foliage_needles"))
+    c.add(card((0, 0.5 + 10 * 0.24, 0), 0.45, (1, 0, 0), 0.0), leaf("foliage_needles"))
+    o = c.build(parent=root)
+    o["bake_hide"] = True
+    return [root]
 
 
 def bush():
     m = Model("prop_bush")
     rnd = random.Random(2)
-    canopy(m, (0, 0.32, 0), 0.42, seed=21, color=P("foliage", "4D7A33"), blobs=9, voxel=0.025, squash=0.6)
+    canopy(m, (0, 0.3, 0), 0.34, seed=21, color=P("foliage", "2E4A1E"), blobs=8, voxel=0.025, squash=0.6)
     for k in range(9):
-        p = V(rnd.uniform(-0.35, 0.35), rnd.uniform(0.35, 0.58), rnd.uniform(-0.32, -0.18))
+        p = V(rnd.uniform(-0.35, 0.35), rnd.uniform(0.35, 0.58), rnd.uniform(-0.38, -0.25))
         m.add(sphere(p, 0.035, segments=10, rings=8), P("satin", rnd.choice(("F07AA8", "F7D24A", "FFFFFF"))))
-    return [res(m.build(), 512)]
+    root = res(m.build(), 512)
+    leaf_cards(root, "leaves", (0, 0.34, 0), 0.44, 60, 0.32, seed=22, squash=0.65)
+    return [root]
 
 
 def house(variant):

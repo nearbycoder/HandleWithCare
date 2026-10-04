@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: dcd8bb8d2e73f50e4abbee0fafa6f428
+guid: ac1a053e775c032679a1ab291a8d1462
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -7,12 +7,12 @@ TextureImporter:
   mipmaps:
     mipMapMode: 0
     enableMipMap: 1
-    sRGBTexture: 0
+    sRGBTexture: 1
     linearTexture: 0
     fadeOut: 0
     borderMipMap: 0
-    mipMapsPreserveCoverage: 0
-    alphaTestReferenceValue: 0.5
+    mipMapsPreserveCoverage: 1
+    alphaTestReferenceValue: 0.45
     mipMapFadeDistanceStart: 1
     mipMapFadeDistanceEnd: 3
   bumpmap:
@@ -52,11 +52,11 @@ TextureImporter:
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
-  alphaIsTransparency: 0
+  alphaIsTransparency: 1
   spriteTessellationMethod: 0
   spriteTessellationDetail: -1
   spriteGeometrySubdivision: -1
-  textureType: 1
+  textureType: 0
   textureShape: 1
   singleChannelComponent: 0
   flipbookRows: 1

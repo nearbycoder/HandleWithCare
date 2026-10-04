@@ -7,7 +7,7 @@ namespace HWC.Visuals
     public static class Mat
     {
         static readonly Dictionary<string, Material> cache = new Dictionary<string, Material>();
-        static Material lit, litEmissive, litTransparent, unlit, unlitTransparent, particleAlpha, particleAdd, litBaked, glassClear;
+        static Material lit, litEmissive, litTransparent, unlit, unlitTransparent, particleAlpha, particleAdd, litBaked, glassClear, litCutout;
 
         /// <summary>URP Lit driven by maps baked in Blender (mask: R metallic, G occlusion, A smoothness).</summary>
         public static Material Baked(string key, Texture2D albedo, Texture2D normal, Texture2D mask)
@@ -28,6 +28,19 @@ namespace HWC.Visuals
                 m.EnableKeyword("_METALLICSPECGLOSSMAP");
                 m.EnableKeyword("_OCCLUSIONMAP");
             }
+            cache[key] = m;
+            return m;
+        }
+
+        /// <summary>Alpha-tested, double-sided foliage (leaf cluster cards).</summary>
+        public static Material Cutout(string key, Texture2D albedo, Texture2D normal)
+        {
+            if (cache.TryGetValue(key, out var m) && m != null) return m;
+            m = new Material(Template(ref litCutout, "HWC_LitCutout")) { name = key };
+            m.SetTexture("_BaseMap", albedo);
+            m.SetColor("_BaseColor", Color.white);
+            if (normal != null) { m.SetTexture("_BumpMap", normal); m.EnableKeyword("_NORMALMAP"); }
+            else m.DisableKeyword("_NORMALMAP");
             cache[key] = m;
             return m;
         }

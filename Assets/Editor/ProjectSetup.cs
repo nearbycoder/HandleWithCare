@@ -44,6 +44,16 @@ namespace HWC.EditorTools
             m.EnableKeyword("_NORMALMAP");
             m.EnableKeyword("_METALLICSPECGLOSSMAP");
             m.EnableKeyword("_OCCLUSIONMAP");
+            // Foliage cards: alpha-tested leaf clusters, double sided, cast cut-out shadows
+            m = Ensure("HWC_LitCutout", lit);
+            m.SetFloat("_AlphaClip", 1f);
+            m.SetFloat("_Cutoff", 0.45f);
+            m.SetFloat("_Cull", 0f);
+            m.SetFloat("_Smoothness", 0.3f);
+            m.EnableKeyword("_ALPHATEST_ON");
+            m.EnableKeyword("_NORMALMAP");
+            m.SetOverrideTag("RenderType", "TransparentCutout");
+            m.renderQueue = (int)RenderQueue.AlphaTest;
             // Glass: premultiplied so reflections stay bright while the body stays see-through
             m = Ensure("HWC_Glass", lit);
             m.SetFloat("_Surface", 1f);

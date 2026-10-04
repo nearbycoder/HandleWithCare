@@ -529,7 +529,7 @@ def build_material(name):
 # ----------------------------------------------------------------------------- baking
 
 def _is_baked(mat):
-    return mat is not None and not mat.name.startswith(("glass_", "glow_", "tex_", "decal_"))
+    return mat is not None and not mat.name.startswith(("glass_", "glow_", "tex_", "decal_", "leaf_"))
 
 
 def _setup_cycles(samples):
@@ -669,6 +669,10 @@ def bake(obj, res=1024, ao_samples=96, ao_strength=0.55, margin=0.004, name=None
     bpy.context.view_layer.objects.active = obj
     obj.select_set(True)
 
+    # leaf cards and other marked helpers would smother the occlusion bake; hide them meanwhile
+    hidden = [o for o in bpy.context.scene.objects if o.get("bake_hide") and not o.hide_render]
+    for o in hidden:
+        o.hide_render = True
     _bake_emit(obj, mats, img, "Base Color", 4)
     albedo = _pixels(img)[..., :3].copy()
     _bake_emit(obj, mats, img, "Metallic", 1)
@@ -681,6 +685,8 @@ def bake(obj, res=1024, ao_samples=96, ao_strength=0.55, margin=0.004, name=None
     bpy.context.scene.cycles.samples = ao_samples
     bpy.ops.object.bake(type="AO")
     ao = _pixels(img)[..., 0].copy()
+    for o in hidden:
+        o.hide_render = False
 
     for m in mats:
         tn = m.node_tree.nodes.get("__bake_target")

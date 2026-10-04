@@ -49,7 +49,11 @@ namespace HWC.EditorTools
             if (assetPath.Contains("/Textures/Baked/")) t.maxTextureSize = 2048;
             bool clamp = file.StartsWith("decal_") || file == "label";
             t.wrapMode = clamp ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
-            t.alphaIsTransparency = file.StartsWith("decal_") || file == "clouds";
+            bool foliage = file.StartsWith("foliage_") && !file.EndsWith("_n");
+            t.alphaIsTransparency = file.StartsWith("decal_") || file == "clouds" || foliage;
+            // keep alpha-tested leaf cards from thinning out with distance
+            t.mipMapsPreserveCoverage = foliage;
+            if (foliage) t.alphaTestReferenceValue = 0.45f;
         }
 
         void OnPreprocessAudio()

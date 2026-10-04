@@ -70,6 +70,12 @@ namespace HWC.Visuals
             int us = name.IndexOf('_');
             string kind = us > 0 ? name.Substring(0, us) : name;
             string arg = us > 0 ? name.Substring(us + 1) : "";
+            if (kind == "leaf")
+            {
+                m = Mat.Cutout("leaf_" + arg, TextureLibrary.Get(arg), TextureLibrary.Get(arg + "_n"));
+                resolved[name] = m;
+                return m;
+            }
             if (kind == "bake")
             {
                 m = TextureLibrary.BakedMaterial(arg);

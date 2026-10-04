@@ -641,6 +641,100 @@ def make_hay():
     pbr_set("hay", col, hgt, 3.0, 0.0, 0.45 + 0.55 * hgt, 0.15 + 0.15 * hgt)
 
 
+def _foliage_canvas(n):
+    return np.zeros((n, n, 3)), np.zeros((n, n)), np.zeros((n, n))   # colour, alpha, height
+
+
+def _draw_leaf(col, alpha, hgt, cx, cy, ang, length, width, color, r):
+    """Pointed oval leaf from (cx, cy) along `ang` (radians), with a midrib and soft dome."""
+    n = alpha.shape[0]
+    ca, sa = math.cos(ang), math.sin(ang)
+    x0, x1 = int(max(0, min(cx, cx + ca * length) - width)), int(min(n, max(cx, cx + ca * length) + width + 1))
+    y0, y1 = int(max(0, min(cy, cy + sa * length) - width)), int(min(n, max(cy, cy + sa * length) + width + 1))
+    if x1 <= x0 or y1 <= y0:
+        return
+    yy, xx = np.mgrid[y0:y1, x0:x1].astype(float)
+    dx, dy = xx - cx, yy - cy
+    u = (dx * ca + dy * sa) / length                 # 0 at the stem, 1 at the tip
+    v = (-dx * sa + dy * ca) / (width * 0.5)
+    half = np.sin(np.clip(u, 0, 1) * math.pi) ** 0.75 * (1 - 0.25 * u)
+    inside = (u > 0) & (u < 1) & (np.abs(v) < half)
+    if not inside.any():
+        return
+    t = np.clip(np.abs(v) / np.maximum(half, 1e-3), 0, 1)
+    dome = (1 - t ** 2) * 0.8 + 0.2
+    rib = np.clip(1 - np.abs(v) * width * 0.5 / 1.6, 0, 1) * (u < 0.92)
+    veins = 0.5 + 0.5 * np.sin((u * 9 - np.abs(v) * 2.2) * math.pi)
+    shade = (0.82 + 0.18 * u) * (0.92 + 0.08 * veins) * (1 + 0.25 * rib) * r.uniform(0.85, 1.12)
+    c = np.clip(color[None, None, :] * shade[..., None], 0, 1)
+    sl = (slice(y0, y1), slice(x0, x1))
+    m = inside
+    col[sl][m] = c[m]
+    alpha[sl][m] = 1.0
+    hgt[sl][m] = (dome - 0.35 * rib + 0.05 * veins)[m] + r.uniform(0, 0.3)
+
+
+def make_foliage_broadleaf():
+    """Cluster of broad leaves on an alpha background, for tree and bush leaf cards."""
+    n = 1024
+    col, alpha, hgt = _foliage_canvas(n)
+    r = np.random.default_rng(111)
+    pal = [hexrgb(h) for h in ("4E7A2E", "5E8C34", "6A9A3A", "45702A", "7FA647", "3E6526")]
+    for k in range(230):
+        rad = r.random() ** 0.8 * n * 0.42
+        a = r.uniform(0, 2 * math.pi)
+        cx, cy = n / 2 + math.cos(a) * rad * 0.9, n / 2 + math.sin(a) * rad * 0.9
+        ang = a + r.uniform(-0.8, 0.8)
+        length = r.uniform(70, 125)
+        _draw_leaf(col, alpha, hgt, cx, cy, ang, length, length * r.uniform(0.42, 0.55), pal[r.integers(0, len(pal))], r)
+    # dilate colour into the transparent margin so filtered edges don't go dark
+    for _ in range(6):
+        grow = (alpha == 0) & (blur(alpha, 1) > 0)
+        if not grow.any():
+            break
+        acc = blur(col * alpha[..., None], 1) / np.maximum(blur(alpha, 1), 1e-4)[..., None]
+        col[grow] = acc[grow]
+        alpha_tmp = alpha.copy()
+        alpha_tmp[grow] = 1e-3
+        alpha = alpha_tmp
+    alpha = np.where(alpha >= 0.5, 1.0, 0.0)
+    save("foliage_broadleaf", col, alpha)
+    save_normal("foliage_broadleaf_n", normal_from_height(blur(hgt, 1), 2.5))
+
+
+def make_foliage_needles():
+    """Spray of conifer needles along a few twigs."""
+    n = 1024
+    col, alpha, hgt = _foliage_canvas(n)
+    r = np.random.default_rng(222)
+    pal = [hexrgb(h) for h in ("2F5A34", "3A6A3C", "28502E", "4A7A44")]
+    for twig in range(14):
+        a = twig / 14 * 2 * math.pi + r.uniform(-0.2, 0.2)
+        sx, sy = n / 2 + math.cos(a) * 60, n / 2 + math.sin(a) * 60
+        L = r.uniform(280, 400)
+        ang = a + r.uniform(-0.3, 0.3)
+        for t in np.linspace(0, 1, 70):
+            px, py = sx + math.cos(ang) * L * t, sy + math.sin(ang) * L * t
+            for side in (-1, 1):
+                na = ang + side * r.uniform(0.6, 1.1)
+                nl = r.uniform(55, 90) * (1 - 0.4 * t)
+                c = pal[r.integers(0, len(pal))] * r.uniform(0.85, 1.15)
+                for s in np.linspace(0, 1, int(nl)):
+                    x = int(px + math.cos(na) * nl * s)
+                    y = int(py + math.sin(na) * nl * s)
+                    if 1 <= x < n - 1 and 1 <= y < n - 1:
+                        col[y - 1:y + 2, x] = c * (0.8 + 0.3 * s)
+                        alpha[y - 1:y + 2, x] = 1
+                        hgt[y, x] = 1.0
+        for s in np.linspace(0, 1, int(L)):  # twig
+            x, y = int(sx + math.cos(ang) * L * s), int(sy + math.sin(ang) * L * s)
+            if 2 <= x < n - 2 and 2 <= y < n - 2:
+                col[y - 2:y + 3, x - 2:x + 3] = hexrgb("5A4030")
+                alpha[y - 2:y + 3, x - 2:x + 3] = 1
+    save("foliage_needles", col, alpha)
+    save_normal("foliage_needles_n", normal_from_height(blur(hgt, 1), 2.0))
+
+
 def make_clouds():
     """Sky cloud layer (white with alpha), tiles horizontally; tinted per lighting preset in Unity."""
     w, h = 2048, 512
@@ -665,7 +759,7 @@ ALL = {
     "pegboard": make_pegboard, "paper_ui": make_paper_ui,
     "asphalt": make_asphalt, "concrete": make_concrete, "grass": make_grass, "cobble": make_cobble,
     "brick": make_brick, "shingle": make_shingle, "treadplate": make_treadplate, "water": make_water,
-    "hay": make_hay, "clouds": make_clouds,
+    "hay": make_hay, "clouds": make_clouds, "foliage": lambda: (make_foliage_broadleaf(), make_foliage_needles()),
 }
 
 

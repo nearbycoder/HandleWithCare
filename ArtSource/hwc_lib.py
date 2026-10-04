@@ -47,6 +47,7 @@ def metal(h): return "metal_" + h.lstrip("#").upper()
 def glass(h): return "glass_" + h.lstrip("#").upper()
 def glow(h): return "glow_" + h.lstrip("#").upper()
 def tex(name): return "tex_" + name
+def leaf(name): return "leaf_" + name
 def decal(name): return "decal_" + name
 
 
@@ -78,7 +79,7 @@ def get_material(name):
         return pbr.build_material(name)
     mat = bpy.data.materials.new(name)
     kind, arg = name.split("_", 1)
-    hexstr = TEXTURE_PREVIEW_COLORS.get(arg.split("_")[0], "B0B0B0") if kind in ("tex", "decal") else arg
+    hexstr = TEXTURE_PREVIEW_COLORS.get(arg.split("_")[0], "B0B0B0") if kind in ("tex", "decal", "leaf") else arg
     rgb = [_lin(int(hexstr[i:i + 2], 16) / 255) for i in (0, 2, 4)]
     roughness = {"metal": 0.3, "glass": 0.05, "glow": 0.5, "shiny": 0.18, "matte": 0.9}.get(kind, 0.6)
     mat.diffuse_color = (*rgb, 1.0)
@@ -101,6 +102,13 @@ def get_material(name):
             bsdf.inputs["Coat Weight"].default_value = 0.5
         if kind == "tex":
             _preview_texture(mat, bsdf, arg)
+        if kind == "leaf":
+            _preview_texture(mat, bsdf, arg)
+            img = next((n for n in mat.node_tree.nodes if n.type == "TEX_IMAGE"), None)
+            if img is not None:
+                mat.node_tree.links.new(img.outputs["Alpha"], bsdf.inputs["Alpha"])
+            mat.blend_method = "CLIP" if hasattr(mat, "blend_method") else None
+            bsdf.inputs["Roughness"].default_value = 0.6
     return mat
 
 
@@ -486,6 +494,25 @@ def boolean(prim, cutters, op="DIFFERENCE"):
         bpy.data.meshes.remove(me)
     out.normal_update()
     return out, prim[1]
+
+
+def card(center, size, normal, spin=0.0, aspect=1.0):
+    """A single quad (UV 0..1) facing `normal`, rotated `spin` radians about it. For leaf cards."""
+    n = V(normal).normalized()
+    ref = V((0, 1, 0)) if abs(n.y) < 0.95 else V((1, 0, 0))
+    t1 = n.cross(ref).normalized()
+    t2 = n.cross(t1).normalized()
+    c, s_ = math.cos(spin), math.sin(spin)
+    a = (t1 * c + t2 * s_) * size * 0.5
+    b = (-t1 * s_ + t2 * c) * size * 0.5 * aspect
+    p = V(center)
+    bm = bmesh.new()
+    vs = [bm.verts.new(p - a - b), bm.verts.new(p + a - b), bm.verts.new(p + a + b), bm.verts.new(p - a + b)]
+    f = bm.faces.new(vs)
+    uv = bm.loops.layers.uv.verify()
+    for loop, co in zip(f.loops, ((0, 0), (1, 0), (1, 1), (0, 1))):
+        loop[uv].uv = co
+    return bm, False
 
 
 def bumps_on_face(center, size, normal_axis, rows, cols, radius, height, segments=10):
