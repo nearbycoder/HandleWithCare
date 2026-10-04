@@ -19,6 +19,7 @@ namespace HWC.Gameplay
         UiButton continueBtn;
         float titleT;
         RectTransform titleLogo, titleSub;
+        const float LogoScale = 0.82f;
         readonly List<RectTransform> titleButtons = new List<RectTransform>();
         Game G => Game.I;
         public bool Open => (title != null && title.gameObject.activeSelf) || select.gameObject.activeSelf || settings.gameObject.activeSelf || credits.gameObject.activeSelf;
@@ -55,7 +56,8 @@ namespace HWC.Gameplay
             title = Ui.Rect("Title", root).Stretch();
             var logo = Ui.Rect("logo", title);
             titleLogo = logo;
-            logo.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(-420, -90), new Vector2(980, 330));
+            // left column: logo, strapline, menu; the parcel sits on the right of the frame
+            logo.Place(new Vector2(0, 1), new Vector2(0.5f, 0.5f), new Vector2(70 + 980 * LogoScale * 0.5f, -(48 + 330 * LogoScale * 0.5f)), new Vector2(980, 330));
             var stamp = Ui.Panel(logo, "stampBg", new Color(0.85f, 0.28f, 0.23f, 0.95f), Ui.Rounded(26, 6));
             stamp.rectTransform.Stretch();
             Ui.Shadow(stamp, 10, 0.35f);
@@ -72,9 +74,10 @@ namespace HWC.Gameplay
             t2.characterSpacing = 8;
             var sub = Ui.Text(title, "sub", "MOSSBURY PARCEL POST  ·  WE SHIP ANYTHING. CAREFULLY.", 30, Palette.Ink, Ui.Display);
             titleSub = sub.rectTransform;
-            sub.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(-420, -440), new Vector2(1000, 44));
+            sub.fontSize = 26;
+            sub.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(84, -360), new Vector2(790, 40));
             var subBg = Ui.Panel(title, "subBg", new Color(0.97f, 0.93f, 0.85f, 0.92f), Ui.Rounded(10));
-            subBg.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(-420, -436), new Vector2(960, 58));
+            subBg.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(70, -358), new Vector2(818, 54));
             subBg.transform.SetSiblingIndex(sub.transform.GetSiblingIndex());
 
             string[] labels = { "START SHIFT", "DELIVERY LOG", "SETTINGS", "CREDITS", "QUIT" };
@@ -82,13 +85,13 @@ namespace HWC.Gameplay
             for (int i = 0; i < labels.Length; i++)
             {
                 var b = Ui.Button(title, labels[i], labels[i], acts[i], i == 0 ? Palette.PostalRed : Palette.Cream, i == 0 ? Palette.Cream : Palette.Ink, i == 0 ? 46 : 34);
-                b.Image.rectTransform.Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-110, 150 - i * 92 - (i > 0 ? 24 : 0)), new Vector2(i == 0 ? 400 : 340, i == 0 ? 96 : 74));
+                b.Image.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(84, -480 - i * 88 - (i > 0 ? 22 : 0)), new Vector2(i == 0 ? 400 : 340, i == 0 ? 96 : 74));
                 Ui.Shadow(b.Image, 6, 0.3f);
                 titleButtons.Add(b.Image.rectTransform);
                 if (i == 0) { continueBtn = b; continueLabel = b.Label; }
             }
-            totalStars = Ui.Text(title, "stars", "", 28, Palette.Ink, Ui.Display, TextAlignmentOptions.Right);
-            totalStars.rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-110, 40), new Vector2(500, 40));
+            totalStars = Ui.Text(title, "stars", "", 28, Palette.Ink, Ui.Display, TextAlignmentOptions.Left);
+            totalStars.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(88, 40), new Vector2(500, 40));
         }
 
         public void ShowTitle()
@@ -370,7 +373,7 @@ namespace HWC.Gameplay
             titleT += Time.unscaledDeltaTime;
             // stamp-slam entrance for the logo, then a gentle breathe
             float s = titleT < 0.25f ? Mathf.Lerp(2.2f, 0.94f, titleT / 0.25f) : (titleT < 0.4f ? Mathf.Lerp(0.94f, 1f, (titleT - 0.25f) / 0.15f) : 1f + Mathf.Sin(titleT * 1.6f) * 0.006f);
-            titleLogo.localScale = Vector3.one * s;
+            titleLogo.localScale = Vector3.one * (s * LogoScale);
             titleLogo.localRotation = Quaternion.Euler(0, 0, -3f);
             if (titleT > 0.2f && titleT - Time.unscaledDeltaTime <= 0.2f) { G.Hud.Sfx("stamp_good"); G.Rig.AddTrauma(0.35f); }
             for (int i = 0; i < titleButtons.Count; i++)

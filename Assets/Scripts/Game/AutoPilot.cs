@@ -230,10 +230,16 @@ namespace HWC.Gameplay
             if (tour)
             {
                 float dur = g.LastRun.Duration;
-                foreach (float f in new[] { 0.2f, 0.45f, 0.7f, 0.9f })
+                // fixed points plus a frame just before each leg change (mid dip-to-black)
+                var shots = new System.Collections.Generic.List<(float t, string name)>();
+                foreach (float f in new[] { 0.2f, 0.45f, 0.7f, 0.9f }) shots.Add((dur * f, $"journey_{(int)(f * 100):00}"));
+                var starts = g.LastRun.Kin.LegStartTick;
+                for (int i = 1; i < starts.Count; i++) shots.Add((starts[i] * SimConst.Dt - 0.08f, $"journey_cut{i}"));
+                shots.Sort((a, b) => a.t.CompareTo(b.t));
+                foreach (var (t, name) in shots)
                 {
-                    while (g.Phase == Phase.Journey && g.Journey.T < dur * f) yield return null;
-                    Shot($"L{n:00}_4_journey_{(int)(f * 100):00}");
+                    while (g.Phase == Phase.Journey && g.Journey.T < t) yield return null;
+                    Shot($"L{n:00}_4_{name}");
                 }
             }
             else

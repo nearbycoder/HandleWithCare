@@ -613,6 +613,11 @@ namespace HWC.Gameplay
         void BuildJourney()
         {
             journeyRoot = Ui.Rect("Journey", root).Stretch();
+            // dip to black around each leg change (behind the HUD, in front of the scene)
+            legDip = Ui.Panel(journeyRoot, "legDip", new Color(0.05f, 0.04f, 0.04f, 1f), Ui.Rounded(2));
+            legDip.rectTransform.Stretch();
+            legDip.raycastTarget = false;
+            legDip.color = new Color(0.05f, 0.04f, 0.04f, 0f);
             var lb = Ui.Panel(journeyRoot, "legBanner", Palette.Ink, Ui.Rounded(12));
             legRt = lb.rectTransform;
             legRt.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -26), new Vector2(560, 70));
@@ -696,6 +701,8 @@ namespace HWC.Gameplay
             }
             // leg separators
             var kin = rec.Kin;
+            legCuts.Clear();
+            for (int i = 1; i < kin.LegStartTick.Count; i++) legCuts.Add(kin.LegStartTick[i] * SimConst.Dt);
             for (int i = 1; i < kin.LegStartTick.Count; i++)
             {
                 var sep = Ui.Panel(timeline, "sep", Palette.Cream, Ui.Rounded(2));
@@ -718,6 +725,10 @@ namespace HWC.Gameplay
             { LegKind.Van, "THE VAN" }, { LegKind.Depot, "SORTING DEPOT" }, { LegKind.Doorstep, "LAST MILE" },
             { LegKind.Ship, "THE FERRY" }, { LegKind.Plane, "AIR MAIL" }, { LegKind.Catapult, "EXPRESS CATAPULT" },
         };
+
+        Image legDip;
+        readonly List<float> legCuts = new List<float>();
+        const float LegDipHalf = 0.22f;   // seconds of playback either side of a leg change
 
         void OnLeg(int leg)
         {
@@ -979,6 +990,10 @@ namespace HWC.Gameplay
             if (journeyRoot.gameObject.activeSelf && G.Journey.Rec != null)
             {
                 float frac = G.Journey.T / Mathf.Max(0.01f, G.Journey.Duration);
+                float near = float.MaxValue;
+                foreach (var cut in legCuts) near = Mathf.Min(near, Mathf.Abs(G.Journey.T - cut));
+                float dip = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(1f - near / LegDipHalf));
+                legDip.color = new Color(0.05f, 0.04f, 0.04f, dip);
                 timelineFill.anchorMax = new Vector2(frac, 1);
                 timeText.text = $"{G.Journey.T:0.0}s";
                 captionT += dt;

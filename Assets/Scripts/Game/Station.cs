@@ -135,7 +135,7 @@ namespace HWC.Gameplay
             Box.ClearStatics();
             Box.transform.SetParent(transform, false);
             Box.transform.localPosition = new Vector3(0.55f, Box.OuterHalfHeight, -0.05f);
-            Box.transform.localRotation = Quaternion.Euler(0, -18f, 0);
+            Box.transform.localRotation = Quaternion.Euler(0, -24f, 0);
             Box.ShowGrid(false);
             Box.ShowFront(true);
             Box.SetFlaps(1f, true);
@@ -144,7 +144,7 @@ namespace HWC.Gameplay
             foreach (Transform c in ItemShelf) Destroy(c.gameObject);
             var rig = Game.I.Rig;
             rig.Anchor = Vector3.zero;
-            rig.LookAt(new Vector3(-0.25f, 1.05f, -2.6f), new Vector3(0.15f, 0.42f, 0.1f), 30f);
+            rig.LookAt(new Vector3(-0.5f, 1.05f, -2.95f), new Vector3(-0.12f, 0.45f, 0.1f), 30f);   // parcel on the right, menu column on the left
             rig.Snap();
             rig.PosSharpness = 1.5f;
         }
