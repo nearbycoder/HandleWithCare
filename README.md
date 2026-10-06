@@ -9,6 +9,7 @@
 <p align="center">
   <img alt="Unity 6000.6.2f1 (URP)" src="https://img.shields.io/badge/Unity-6000.6.2f1%20URP-222c37?logo=unity&logoColor=white">
   <img alt="Platform: Linux" src="https://img.shields.io/badge/platform-Linux%20x86__64-d9483b?logo=linux&logoColor=white">
+  <img alt="macOS: builds, untested" src="https://img.shields.io/badge/macOS-builds%2C%20untested-8a8a8a?logo=apple&logoColor=white">
   <img alt="Art: Blender 4.5" src="https://img.shields.io/badge/art-Blender%204.5-f5792a?logo=blender&logoColor=white">
   <img alt="Input: mouse and keyboard" src="https://img.shields.io/badge/input-mouse%20%2B%20keyboard-2f8f8b">
 </p>
@@ -164,9 +165,25 @@ cd HandleWithCare-v0.1.0-linux-x86_64
 It needs a 64-bit Linux desktop with working Vulkan or OpenGL drivers. Progress is saved to
 `~/.config/unity3d/Mossbury Parcel Post/Handle With Care/`.
 
+The release on GitHub is still v0.1.0 (Linux only). Version 0.2.0 (this README) builds locally for
+Linux and macOS but hasn't been published.
+
+**macOS (untested).** `Tools/unity.sh build-mac` makes a universal (Intel + Apple silicon) app, and
+`python3 Tools/package.py mac` zips it. Nobody has run it on a Mac yet. The app is not signed with a
+Developer ID or notarized, so Gatekeeper will refuse the first launch. Right-click the app and
+choose **Open**, or clear the quarantine flag:
+
+```sh
+xattr -dr com.apple.quarantine "HandleWithCare.app"
+```
+
+**Windows.** `Tools/unity.sh build-windows` is ready, but the Windows Build Support module isn't
+installed on the machine this was made on, so no Windows build has been made.
+
 ## Build from source
 
-You need **Unity 6000.6.2f1** with Linux Build Support (Mono scripting backend). The art
+You need **Unity 6000.6.2f1** with Linux Build Support (Mono scripting backend), plus Mac or Windows
+Build Support for those players. The art
 pipeline needs **Blender 4.5**, and the audio generator needs **Python 3 with numpy** (Blender's bundled
 Python works). The trailer tools need **ffmpeg** and **ImageMagick**.
 
@@ -174,8 +191,14 @@ Python works). The trailer tools need **ffmpeg** and **ImageMagick**.
 # open the project in the editor, or build headless:
 Tools/unity.sh                  # open in the editor
 Tools/unity.sh build-linux      # batch build -> Builds/Linux/HandleWithCare.x86_64 (menu: Handle With Care > Build Linux Player)
+Tools/unity.sh build-mac        # Builds/Mac/HandleWithCare.app (universal, unsigned)
+Tools/unity.sh build-windows    # Builds/Windows/HandleWithCare.exe (not tried: module not installed)
 Tools/play.sh                   # run the build windowed at 1920x1080
+python3 Tools/package.py        # zip every built player into Builds/Release/ (keeps permissions)
 ```
+
+The builds set the version (0.2.0), the bundle id (`com.nearbycoder.handlewithcare`) and the app
+icon, which `blender -b -P ArtSource/make_textures.py -- icon` draws into `Assets/Icons/AppIcon.png`.
 
 `Tools/unity.sh` passes through the editor path in `$UNITY` (default `~/Unity/Hub/Editor/6000.6.2f1/Editor/Unity`).
 On distributions that ship only `libxml2.so.16`, it can load a `libxml2.so.2` copy from `Tools/.libs/`.
@@ -229,7 +252,8 @@ Assets/
                       quirk and trail overlays
   Scripts/UI/         Runtime-built uGUI + TextMeshPro: HUD, menus, tutorial
   Scripts/Audio/      Pooled sound effects, music crossfades and ducking
-  Editor/             Project setup, import settings, build script
+  Editor/             Project setup, import settings, build script (Linux, macOS, Windows)
+  Icons/              App icon (generated)
   Resources/          Models (FBX from Blender), textures, audio, fonts, template materials
 ArtSource/            Blender and numpy generators, with .blend sources in ArtSource/blend
   hwc_lib.py          Modelling helpers: Unity-space bmesh primitives, voxel-fused organic shapes,
@@ -243,7 +267,8 @@ ArtSource/            Blender and numpy generators, with .blend sources in ArtSo
 Tools/
   SimCheck/           .NET console app that compiles Assets/Scripts/Sim: validator, explorer, solver
   trailer/            Shot list, capture wrapper, trailer edit and README media scripts
-  *.sh                Editor launcher, build, play, autopilot, screenshot tours
+  *.sh                Editor launcher, build, play, autopilots, screenshot tours
+  package.py          Zips the built players for a release
 docs/                 Design brief, design plan, README media
 ```
 
@@ -294,11 +319,14 @@ ImageMagick (trailer and README media).
 
 ## Status and known issues
 
-The game is complete and playable from start to finish: 25 deliveries (20 in the story, 5 in
+Version 0.2.0 is complete and playable from start to finish: 25 deliveries (20 in the story, 5 in
 Overtime), every one validated solvable with three stars.
 
-- **Platforms.** Only the Linux build has been made and tested. The project should build for Windows
-  and macOS from the editor, but neither has been tried.
+- **Platforms.** Linux is built and tested. The macOS build is made and checked on Linux (a
+  universal x86_64 + arm64 binary, the bundle id, version and icon are all in place) but has
+  **not been run on a Mac**, and it is unsigned and not notarized. Windows has a build entry point
+  but no build, because the module isn't installed. A WebGL build isn't planned: the simulation
+  runs on a worker thread and the textures are BC7.
 - **Performance.** The frame rate on a dedicated GPU has not been measured. On the shared machine it
   was built on, other programs kept the GPU about 97% busy. The game's own main thread takes about 9 ms
   per frame during a journey (`Tools/play.sh -hwcFps` logs this). Settings has a High Quality Graphics

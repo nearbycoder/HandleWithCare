@@ -79,7 +79,7 @@ def hexrgb(h):
     return np.array([int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)])
 
 
-def save(name, rgb, alpha=None):
+def save(name, rgb, alpha=None, out=None):
     """rgb: (h, w, 3) float sRGB 0..1 (row 0 = top)."""
     h, w = rgb.shape[:2]
     a = np.ones((h, w)) if alpha is None else alpha
@@ -87,7 +87,7 @@ def save(name, rgb, alpha=None):
     img = bpy.data.images.new(name, w, h, alpha=True)
     img.colorspace_settings.name = "sRGB"
     img.pixels = px.astype(np.float32).ravel()
-    img.filepath_raw = os.path.join(OUT, name + ".png")
+    img.filepath_raw = os.path.join(out or OUT, name + ".png")
     img.file_format = "PNG"
     img.save()
     bpy.data.images.remove(img)
@@ -753,13 +753,59 @@ def make_clouds():
     save("clouds", rgb, alpha)
 
 
+def rounded_rect(n_h, n_w, x0, y0, x1, y1, r):
+    """Anti-aliased rounded-rectangle coverage (h, w) for the box [x0, x1) x [y0, y1)."""
+    yy, xx = np.mgrid[0:n_h, 0:n_w] + 0.5
+    cx = np.clip(xx, x0 + r, x1 - r)
+    cy = np.clip(yy, y0 + r, y1 - r)
+    d = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2) - r
+    return np.clip(0.5 - d, 0, 1)
+
+
+def make_icon():
+    """App icon (macOS / Linux / Windows): a kraft parcel face with the red HANDLE WITH CARE stamp.
+    Written to Assets/Icons/AppIcon.png (outside Resources: only the player settings use it)."""
+    n = 1024
+    out = os.path.join(ROOT, "Assets", "Icons")
+    os.makedirs(out, exist_ok=True)
+    # macOS-style tile: 824 px rounded square centred on the 1024 canvas, with a soft drop shadow
+    m, r = 100, 185
+    tile = rounded_rect(n, n, m, m, n - m, n - m, r)
+    shadow = blur(rounded_rect(n, n, m, m + 14, n - m, n - m + 14, r), 14) * 0.35
+    rgb, hgt = kraft_base(n, "C8955A", 41)
+    # a strip of parcel tape across the top, slightly darker where it overlaps the edge
+    tape = rounded_rect(n, n, m, 200, n - m, 300, 0)
+    rgb = rgb * (1 - tape[..., None] * 0.55) + hexrgb("D9B26F")[None, None, :] * tape[..., None] * 0.55
+    # the stamp: postal red with a cream inner rule and the two-line wordmark
+    red = hexrgb("D9483B")
+    cream = hexrgb("F3E9D2")
+    sx0, sy0, sx1, sy1 = 170, 360, n - 170, 820
+    stamp = rounded_rect(n, n, sx0, sy0, sx1, sy1, 46)
+    rule = np.clip(rounded_rect(n, n, sx0 + 22, sy0 + 22, sx1 - 22, sy1 - 22, 30)
+                   - rounded_rect(n, n, sx0 + 32, sy0 + 32, sx1 - 32, sy1 - 32, 22), 0, 1)
+    ink = ink_wear((n, n), 19, amount=0.2) * 0.3 + 0.7
+    a = stamp * ink
+    rgb = rgb * (1 - a[..., None]) + red[None, None, :] * a[..., None]
+    paste(rgb, None, rule * ink, cream, 0, 0)
+    w1 = text_mask("HANDLE", width=600, height=190, letter_spacing=0.06)
+    w2 = text_mask("WITH CARE", width=600, height=150, letter_spacing=0.08)
+    paste(rgb, None, w1 * ink[0:190, 0:600], cream, (n - 600) // 2, sy0 + 50)
+    paste(rgb, None, w2 * ink[200:350, 100:700], cream, (n - 600) // 2, sy0 + 250)
+    # soft edge shading so the tile reads as a slightly domed card
+    yy, xx = np.mgrid[0:n, 0:n] / n
+    rgb = rgb * (1.04 - 0.1 * yy[..., None] - 0.04 * np.abs(xx - 0.5)[..., None])
+    alpha = np.maximum(tile, shadow)
+    rgb = rgb * tile[..., None] + np.zeros(3)[None, None, :] * (1 - tile[..., None])
+    save("AppIcon", rgb, alpha, out=out)
+
+
 ALL = {
     "kraft": make_kraft, "kraftin": make_kraftin, "corrugate": make_corrugate, "tapes": make_tapes,
     "label": make_label, "decals": make_decals, "wood": make_wood, "plaster": make_plaster,
     "pegboard": make_pegboard, "paper_ui": make_paper_ui,
     "asphalt": make_asphalt, "concrete": make_concrete, "grass": make_grass, "cobble": make_cobble,
     "brick": make_brick, "shingle": make_shingle, "treadplate": make_treadplate, "water": make_water,
-    "hay": make_hay, "clouds": make_clouds, "foliage": lambda: (make_foliage_broadleaf(), make_foliage_needles()),
+    "hay": make_hay, "clouds": make_clouds, "icon": make_icon, "foliage": lambda: (make_foliage_broadleaf(), make_foliage_needles()),
 }
 
 
