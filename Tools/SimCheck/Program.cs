@@ -26,6 +26,7 @@ static class Program
                 case "trace": return RunOne(int.Parse(args[1]), args.Length > 2 ? args[2] : "ref", true);
                 case "map": return RunMap(args);
                 case "route": return PrintRoute(int.Parse(args[1]));
+                case "hints": return PrintHints();
                 case "debug":
                 {
                     var lv = Levels.Get(int.Parse(args[1]));
@@ -117,6 +118,13 @@ static class Program
             }
             else if (rec != null) Console.Write(rec.Outcome.Stars == 3 ? "  (ref is 3★)" : "  (no 3★ ref)");
 
+            // Ask Mabel: the last hint stage must be a packing that validates and earns three stars
+            var hinted = HintedPacking(lv);
+            string he = hinted.Validate(lv);
+            if (he != null) problems.Add("hint packing invalid: " + he);
+            else if (Simulator.Run(lv, hinted, false).Outcome.Stars < 3) problems.Add("hint packing is not three stars");
+            else Console.Write("  hints: 3★");
+
             if (lv.Number > 1)
             {
                 var naive = Naive(lv);
@@ -130,6 +138,28 @@ static class Program
         }
         Console.WriteLine(failures == 0 ? $"ALL OK ({sw.Elapsed.TotalSeconds:0.0}s)" : $"{failures} PROBLEM(S)");
         return failures == 0 ? 0 : 1;
+    }
+
+    /// <summary>Everything the hints show at the final stage, assembled into a packing.</summary>
+    public static Packing HintedPacking(LevelDef lv)
+    {
+        var src = Hints.Source(lv);
+        var pk = new Packing(lv.W, lv.H);
+        pk.Pieces.AddRange(Hints.Pieces(lv, Hints.MaxStage, lv.Items[0]));
+        if (Hints.ShowsStatics(Hints.MaxStage)) { pk.Dividers.AddRange(src.Dividers); pk.Shelves.AddRange(src.Shelves); }
+        return pk;
+    }
+
+    static int PrintHints()
+    {
+        foreach (var lv in Levels.All)
+        {
+            Console.WriteLine($"#{lv.Number,2} {lv.Title}");
+            foreach (var focus in lv.Items.Distinct())
+                Console.WriteLine($"     [{focus}] {Hints.Note(lv, 1, focus)}");
+            for (int st = 2; st <= Hints.MaxStage; st++) Console.WriteLine($"     {st}: {Hints.Note(lv, st, lv.Items[0])}");
+        }
+        return 0;
     }
 
     public static string Stars(Outcome o) => new string('★', o.Stars) + new string('☆', 3 - o.Stars);

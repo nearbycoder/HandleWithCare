@@ -53,6 +53,7 @@ Pick an item off the shelf, drop it in the box, paint padding around it, seal, a
 | Click a divider or shelf (with that tool) | Remove it |
 | `Z` / `Y` (or `Shift`+`Z`) | Undo / redo |
 | `Space` / `Enter` | Seal & ship, once every item is packed |
+| ASK MABEL (under her note) | After a trip that missed a star: one more hint per click |
 | `Esc` | Drop what you are holding, or pause |
 | During the journey | `Space` pause, `Enter` skip, `1`–`4` playback speed |
 | Replay | Click the timeline to jump, speed buttons, `C` or the CAM button cycles director / close-up / wide |
@@ -81,6 +82,11 @@ take the weight off a cake, and straps pin an item in place (until a strap snaps
 stay at or under par for a star.
 
 <img src="docs/media/screenshots/03-ember-sneezes.jpg" alt="In the sorting depot the box is tipped on its side and Ember sneezes fire at the vase: ACHOO!" width="100%">
+
+**Ask Mabel.** After a trip that missed a star, Mabel will help if you ask. The first hint is a note
+about the item at risk (where it sits in her packing and what is beside it). The next ones show that
+item's exact spot as a ghost in the box, then her dividers and shelves, then her whole packing. Hints
+never cost stars; the delivery log just pencils in "hinted".
 
 **Watch the trip.** Seal the box and the journey plays out with a director camera that knows the
 future: it slows down and leans in just before something goes wrong, and shakes on the big hits.
@@ -180,12 +186,16 @@ python3 ArtSource/make_audio.py                                         # every 
 
 ```sh
 Tools/simcheck.sh check         # every delivery: reference packing valid, delivered, under par, 3-star,
-                                # deterministic; an items-only packing must fail
+                                # deterministic; an items-only packing must fail; the full hint is 3-star
+Tools/simcheck.sh hints         # print Mabel's hint notes for every delivery
 Tools/simcheck.sh map 3 "t..." "vb.." "vppp"   # simulate any packing and print the timeline
 Tools/simcheck.sh solve 7       # parallel local search for cheap / three-star packings (used to set pars)
 Tools/autopilot.sh              # the built player plays all 20 references through the real packing code
                                 # and checks each outcome and hash against the validator
-Tools/tour.sh                   # screenshots of the menus and a delivery played with real input events
+Tools/hintpilot.sh              # Ask Mabel on all 20: click through every hint, build what the ghosts show,
+                                # expect three stars and the validator's hash
+Tools/tour.sh                   # screenshots of the menus and a delivery played with real input events,
+                                # then the whole retry loop (R, Space, Enter, P) with the keyboard only
 ```
 
 **Recreate the trailer and README media.**

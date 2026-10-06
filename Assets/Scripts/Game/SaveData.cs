@@ -23,6 +23,9 @@ namespace HWC.Gameplay
             public float BestCare = -1;
             public int Attempts;
             public string Packing;
+            public int HintStage;          // Ask Mabel: how many hints have been shown (0 = none)
+            public int HintFocus = -1;     // the item the hints are about (PieceKind), fixed when first asked
+            public bool HintsHidden;
         }
 
         public int Version = 1;
@@ -74,6 +77,14 @@ namespace HWC.Gameplay
 
         public int StarsFor(int number) => Get(number)?.Stars ?? 0;
         public bool IsDelivered(int number) => Get(number)?.Delivered ?? false;
+        public int HintStage(int number) => Get(number)?.HintStage ?? 0;
+
+        /// <summary>Hints unlock after a trip that missed a star (and stay once used).</summary>
+        public bool HintsAvailable(int number)
+        {
+            var r = Get(number);
+            return r != null && (r.HintStage > 0 || (r.Attempts > 0 && r.Stars < 3));
+        }
 
         public int TotalStars
         {

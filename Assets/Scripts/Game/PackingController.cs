@@ -89,7 +89,57 @@ namespace HWC.Gameplay
             tray.Clear();
             if (trails != null) trails.Hide();
             if (quirks != null) quirks.Clear();
+            ClearHints();
             Hovered?.Invoke(null);
+        }
+
+        // ---- Ask Mabel: ghosts of the reference packing --------------------------------------------
+
+        public readonly List<Placement> HintPieces = new List<Placement>();
+        public readonly List<int> HintDividers = new List<int>();
+        public readonly List<ShelfSpec> HintShelves = new List<ShelfSpec>();
+        readonly List<GameObject> hintObjects = new List<GameObject>();
+        static readonly Color HintTint = new Color(1f, 0.86f, 0.3f, 0.5f);
+        static readonly Color HintStaticTint = new Color(1f, 0.8f, 0.2f, 0.85f);   // dividers and shelves are thin: stronger
+
+        void ClearHints()
+        {
+            foreach (var o in hintObjects) if (o != null) Destroy(o);
+            hintObjects.Clear();
+            HintPieces.Clear(); HintDividers.Clear(); HintShelves.Clear();
+        }
+
+        /// <summary>Shows the hint ghosts for a stage (0 or hidden = none).</summary>
+        public void ShowHints(int stage, PieceKind focus, bool visible)
+        {
+            ClearHints();
+            if (!Active || stage <= 0) return;
+            HintPieces.AddRange(Hints.Pieces(Level, stage, focus));
+            var src = Hints.Source(Level);
+            if (Hints.ShowsStatics(stage)) { HintDividers.AddRange(src.Dividers); HintShelves.AddRange(src.Shelves); }
+            if (!visible) return;
+            foreach (var p in HintPieces)
+            {
+                var v = PieceView.Create(p.Kind, Box.Contents, p.Rotated, p.Facing);
+                v.SetCellRect(p.X, p.Y, p.W, p.H);
+                v.SetStrapped(p.Strapped);
+                v.SetGhost(true, HintTint);
+                v.name = "hint_" + p.Kind;
+                hintObjects.Add(v.gameObject);
+            }
+            foreach (int d in HintDividers)
+            {
+                var go = Box.MakeDivider(d, Box.Contents, true);
+                BoxView.TintGhost(go, HintStaticTint);
+                hintObjects.Add(go);
+            }
+            foreach (var sh in HintShelves)
+            {
+                src.ShelfSpan(sh, out int x0, out int x1);
+                var go = Box.MakeShelf(sh.Row, x0, x1, Box.Contents, true);
+                BoxView.TintGhost(go, HintStaticTint);
+                hintObjects.Add(go);
+            }
         }
 
         public IReadOnlyList<PieceView> Views => views;

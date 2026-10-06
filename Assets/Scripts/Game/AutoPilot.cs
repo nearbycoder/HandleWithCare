@@ -3,6 +3,7 @@ using System.Collections;
 using System.IO;
 using System.Text;
 using HWC.Sim;
+using HWC.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
@@ -28,13 +29,14 @@ namespace HWC.Gameplay
         {
             var args = Environment.GetCommandLineArgs();
             if (Array.IndexOf(args, "-hwcFps") >= 0) g.gameObject.AddComponent<FrameProbe>();
-            string shots = Arg(args, "-hwcShots"), auto = Arg(args, "-hwcAutopilot"), menus = Arg(args, "-hwcMenus");
-            if (shots == null && auto == null && menus == null) return false;
+            string shots = Arg(args, "-hwcShots"), auto = Arg(args, "-hwcAutopilot"), menus = Arg(args, "-hwcMenus"), hints = Arg(args, "-hwcHints");
+            if (shots == null && auto == null && menus == null && hints == null) return false;
             SaveData.Disabled = true;
             var ap = g.gameObject.AddComponent<AutoPilot>();
-            ap.dir = shots ?? auto ?? menus;
+            ap.dir = shots ?? auto ?? menus ?? hints;
             ap.all = auto != null;
-            g.SkipReveal = ap.all;
+            ap.hints = hints != null;
+            g.SkipReveal = ap.all || ap.hints;
             ap.menus = menus != null;
             int.TryParse(Arg(args, "-hwcLevel") ?? "1", out ap.level);
             ap.which = Arg(args, "-hwcWhich") ?? "ref";
@@ -48,7 +50,7 @@ namespace HWC.Gameplay
             return null;
         }
 
-        bool menus;
+        bool menus, hints;
 
         // ---- real input events (exercise the same path as a player's mouse) -------------------
 
@@ -242,6 +244,20 @@ namespace HWC.Gameplay
             yield return null;
             yield return new WaitForSecondsRealtime(0.5f);
             if (menus) { yield return MenuTour(); yield break; }
+            if (hints)
+            {
+                InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+                for (int n = 1; n <= Levels.All.Count; n++) yield return RunHinted(n, n == 18);
+                Game.I.Menus.ShowSelect();
+                yield return new WaitForSecondsRealtime(0.8f);
+                Shot("hints_log");
+                yield return AfterShot();
+                File.WriteAllText(Path.Combine(dir, "report.txt"), report.ToString());
+                Debug.Log("[AutoPilot] done");
+                yield return new WaitForSecondsRealtime(0.3f);
+                Application.Quit();
+                yield break;
+            }
             if (all)
             {
                 for (int n = 1; n <= Levels.All.Count; n++) yield return RunLevel(n, "ref", false);
@@ -335,6 +351,61 @@ namespace HWC.Gameplay
             Debug.Log($"[AutoPilot] {(pass ? "PASS" : "FAIL")} {line}");
             report.AppendLine((pass ? "PASS " : "FAIL ") + line);
             if (!tour && n % 4 == 1) Shot($"auto_L{n:00}_results");
+        }
+
+        static Vector2 ButtonScreen(UiButton b)
+        {
+            var rt = b.Image.rectTransform;
+            return RectTransformUtility.WorldToScreenPoint(null, rt.TransformPoint(rt.rect.center));
+        }
+
+        /// <summary>Ask Mabel on a delivery after a missed star: click the hint button through every stage
+        /// with real mouse events, build exactly what the ghosts show, ship it and expect three stars.</summary>
+        IEnumerator RunHinted(int n, bool shots)
+        {
+            var g = Game.I;
+            var lv = Levels.Get(n);
+            var rec = g.Save.Get(n, true);
+            rec.Attempts = 1; rec.Stars = 0; rec.HintStage = 0; rec.HintFocus = -1; rec.HintsHidden = false;
+            g.StartLevel(n);
+            g.Packing.ClearAll();
+            g.Menus.HideAll();
+            yield return new WaitForSecondsRealtime(0.4f);
+            var btn = g.Hud.HintButton;
+            if (!btn.gameObject.activeInHierarchy) { Fail(n, "hint button not shown after a missed star"); yield break; }
+            mousePos = ButtonScreen(btn) + new Vector2(0, -200);
+            for (int st = 1; st <= Hints.MaxStage; st++)
+            {
+                yield return ClickAt(ButtonScreen(btn));
+                yield return new WaitForSecondsRealtime(shots ? 0.5f : 0.05f);
+                if (rec.HintStage != st) { Fail(n, $"click {st} left the hint stage at {rec.HintStage}"); yield break; }
+                if (shots) { Shot($"hint_L{n:00}_stage{st}"); yield return AfterShot(); }
+            }
+            // build what the ghosts show, through the packing controller
+            var pk = new Packing(lv.W, lv.H);
+            pk.Pieces.AddRange(g.Packing.HintPieces);
+            pk.Dividers.AddRange(g.Packing.HintDividers);
+            pk.Shelves.AddRange(g.Packing.HintShelves);
+            var order = pk.Clone();
+            order.Pieces.Sort((a, b) => a.Y != b.Y ? a.Y.CompareTo(b.Y) : a.X.CompareTo(b.X));
+            foreach (int d in order.Dividers) g.Packing.DebugAddDivider(d);
+            foreach (var sh in order.Shelves) g.Packing.DebugAddShelf(sh);
+            foreach (var p in order.Pieces)
+                if (!g.Packing.DebugPlace(p)) { Fail(n, $"could not place hinted {p.Kind} at {p.X},{p.Y}"); yield break; }
+            yield return new WaitForSecondsRealtime(shots ? 0.6f : 0.1f);
+            if (shots) { Shot($"hint_L{n:00}_built"); yield return AfterShot(); }
+            if (!g.Packing.ReadyToSeal) { Fail(n, "hinted packing not ready to seal: " + g.CurrentPacking.Validate(lv)); yield break; }
+            var expected = Simulator.Run(lv, pk, false);
+            g.SealAndShip();
+            while (g.Phase == Phase.Sealing) yield return null;
+            g.Journey.Skip();
+            while (g.Phase != Phase.Results) yield return null;
+            yield return new WaitForSecondsRealtime(0.1f);
+            var got = g.LastRun;
+            bool pass = got.Hash == expected.Hash && got.Outcome.Stars == 3;
+            string line = $"hints #{n:00} {lv.Title}: stars {got.Outcome.Stars} hash {(got.Hash == expected.Hash ? "match" : "MISMATCH")} note \"{Hints.Note(lv, 1, (PieceKind)Math.Max(0, rec.HintFocus))}\"";
+            Debug.Log($"[AutoPilot] {(pass ? "PASS" : "FAIL")} {line}");
+            report.AppendLine((pass ? "PASS " : "FAIL ") + line);
         }
 
         void Fail(int n, string why)

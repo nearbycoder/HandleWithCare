@@ -189,6 +189,13 @@ namespace HWC.Gameplay
                 var st = Ui.Icon(card.transform, "star" + s, Ui.Star, s < stars ? Palette.Gold : new Color(0, 0, 0, 0.13f));
                 st.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(92 + s * 34, 10), new Vector2(30, 30));
             }
+            if (unlocked && G.Save.HintStage(lv.Number) > 0)
+            {
+                // a pencil note: Mabel helped with this one
+                var hn = Ui.Text(card.transform, "hinted", "hinted", 17, new Color(0.35f, 0.32f, 0.3f, 0.8f), Ui.Italic, TextAlignmentOptions.Left);
+                hn.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(198, 13), new Vector2(64, 24));
+                hn.rectTransform.localRotation = Quaternion.Euler(0, 0, -4);
+            }
             if (!unlocked)
             {
                 var lk = Ui.Text(card.transform, "lock", "LOCKED", 22, new Color(0.45f, 0.38f, 0.32f), Ui.Display, TextAlignmentOptions.Right);

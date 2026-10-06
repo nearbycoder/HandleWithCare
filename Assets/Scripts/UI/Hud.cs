@@ -276,8 +276,19 @@ namespace HWC.Gameplay
             Ui.Shadow(sticky, 5, 0.22f);
             mabelText = Ui.Text(sticky.transform, "text", "", 23, Palette.Ink, Ui.Italic, TextAlignmentOptions.TopLeft);
             mabelText.rectTransform.Stretch(18, 16, 16, 34);
+            mabelText.enableAutoSizing = true; mabelText.fontSizeMin = 15; mabelText.fontSizeMax = 23;   // hint notes run longer
             var sign = Ui.Text(sticky.transform, "sign", "— Mabel", 20, Palette.InkSoft, Ui.Bold, TextAlignmentOptions.BottomRight);
             sign.rectTransform.Stretch(16, 16, 10, 10);
+
+            // Ask Mabel (under the sticky note): escalating hints from her own packing
+            hintBtn = Ui.Button(packRoot, "askMabel", "ASK MABEL", AskMabel, Palette.Sticky, Palette.Ink, 26);
+            hintBtn.Image.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-40, -306), new Vector2(250, 54));
+            hintBtn.Image.rectTransform.localRotation = Quaternion.Euler(0, 0, 2.5f);
+            Ui.Shadow(hintBtn.Image, 4, 0.22f);
+            hintBadge = Ui.Panel(sticky.transform, "hint", Palette.Teal, Ui.Rounded(10));
+            hintBadge.rectTransform.Place(new Vector2(0, 1), new Vector2(0.5f, 0.5f), new Vector2(40, -4), new Vector2(120, 34));
+            hintBadgeText = Ui.Text(hintBadge.transform, "t", "HINT 1/4", 22, Palette.Cream, Ui.Display);
+            hintBadgeText.rectTransform.Stretch();
 
             // toolbar
             var bar = Ui.Panel(packRoot, "toolbar", new Color(0.16f, 0.12f, 0.1f, 0.82f), Ui.Rounded(20));
@@ -358,6 +369,50 @@ namespace HWC.Gameplay
         }
 
         RectTransform lastTrip, orderCard;
+        UiButton hintBtn;
+        Image hintBadge;
+        TextMeshProUGUI hintBadgeText;
+        public UiButton HintButton => hintBtn;
+
+        void AskMabel()
+        {
+            var lv = G.Level;
+            if (lv == null || G.Phase != Phase.Packing) return;
+            var rec = G.Save.Get(lv.Number, true);
+            if (rec.HintStage < Hints.MaxStage)
+            {
+                if (rec.HintStage == 0 || rec.HintFocus < 0) rec.HintFocus = (int)Hints.Focus(lv, G.LastRun);
+                rec.HintStage++;
+                rec.HintsHidden = false;
+                Sfx("note", 0.8f);
+                packT = 0;   // the sticky note pops again
+            }
+            else rec.HintsHidden = !rec.HintsHidden;
+            G.Save.Write();
+            RefreshHints(lv);
+        }
+
+        void RefreshHints(LevelDef lv)
+        {
+            var rec = G.Save.Get(lv.Number);
+            int stage = rec?.HintStage ?? 0;
+            hintBtn.gameObject.SetActive(G.Save.HintsAvailable(lv.Number) && !Cinematic);
+            hintBadge.gameObject.SetActive(stage > 0);
+            mabelText.rectTransform.Stretch(18, 16, stage > 0 ? 34 : 16, 34);   // clear of the HINT badge
+            if (stage == 0)
+            {
+                mabelText.text = lv.Mabel;
+                hintBtn.Label.text = "ASK MABEL";
+                G.Packing.ShowHints(0, lv.Items[0], false);
+                return;
+            }
+            var focus = rec.HintFocus >= 0 ? (PieceKind)rec.HintFocus : lv.Items[0];
+            newBadge.gameObject.SetActive(false);
+            hintBadgeText.text = $"HINT {stage}/{Hints.MaxStage}";
+            mabelText.text = Hints.Note(lv, stage, focus);
+            hintBtn.Label.text = stage < Hints.MaxStage ? "ANOTHER HINT" : (rec.HintsHidden ? "SHOW HINTS" : "HIDE HINTS");
+            G.Packing.ShowHints(stage, focus, !rec.HintsHidden);
+        }
         bool wasReady;
         TextMeshProUGUI routeText;
 
@@ -496,6 +551,7 @@ namespace HWC.Gameplay
             orderCard.sizeDelta = new Vector2(520, 282);
             lastTrip.anchoredPosition = new Vector2(28, -322);
             mabelText.text = lv.Mabel;
+            RefreshHints(lv);
             for (int i = 0; i < slots.Count; i++)
             {
                 var s = slots[i];
