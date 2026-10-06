@@ -151,7 +151,7 @@ namespace HWC.Gameplay
             revealRoot = Ui.Rect("Reveal", root).Stretch();
             var skip = Ui.Button(revealRoot, "skip", "SKIP  ▶▶", () => G.Reveal.Skip(), Palette.Cream, Palette.Ink, 28);
             skip.Image.rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 22), new Vector2(170, 56));
-            var hint = Ui.Text(revealRoot, "skipKeys", "ENTER / SPACE", 18, Palette.Cream, Ui.Bold, TextAlignmentOptions.Right);
+            var hint = Prompt(Ui.Text(revealRoot, "skipKeys", "ENTER / SPACE", 18, Palette.Cream, Ui.Bold, TextAlignmentOptions.Right), "ENTER / SPACE", "A / B");
             hint.rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-34, 80), new Vector2(240, 26));
             hint.outlineWidth = 0.25f;
             hint.outlineColor = Palette.Ink;
@@ -288,6 +288,7 @@ namespace HWC.Gameplay
             hintBtn.Image.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-40, -332), new Vector2(250, 54));
             hintBtn.Image.rectTransform.localRotation = Quaternion.Euler(0, 0, 2.5f);
             Ui.Shadow(hintBtn.Image, 4, 0.22f);
+            KeyHint(hintBtn, "", "Y");
             hintBadge = Ui.Panel(sticky.transform, "hint", Palette.Teal, Ui.Rounded(10));
             hintBadge.rectTransform.Place(new Vector2(0, 1), new Vector2(0.5f, 0.5f), new Vector2(40, -4), new Vector2(120, 34));
             hintBadgeText = Ui.Text(hintBadge.transform, "t", "HINT 1/4", 22, Palette.Cream, Ui.Display);
@@ -311,17 +312,26 @@ namespace HWC.Gameplay
                 cbg.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(4, 6), new Vector2(46, 30));
                 cnt.transform.SetParent(cbg.transform, false);
                 cnt.rectTransform.Stretch();
-                var key = Ui.Text(b.transform, "key", (i + 1).ToString(), 18, new Color(0.3f, 0.25f, 0.2f, 0.6f), Ui.Bold, TextAlignmentOptions.TopLeft);
+                var key = Prompt(Ui.Text(b.transform, "key", (i + 1).ToString(), 18, new Color(0.3f, 0.25f, 0.2f, 0.6f), Ui.Bold, TextAlignmentOptions.TopLeft), (i + 1).ToString(), "");
                 key.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(8, -4), new Vector2(30, 24));
                 int idx = i;
                 b.OnHover = () => ShowMaterialCard((MaterialSlot)idx);
                 slots.Add((slot, b, cnt, icon));
             }
 
+            // gamepad: the shoulders step through the toolbar
+            foreach (var (side, label) in new[] { (0f, "LB"), (1f, "RB") })
+            {
+                var sh = Prompt(Ui.Text(bar.transform, "pad" + label, "", 24, Palette.Cream, Ui.Display), "", label);
+                sh.rectTransform.Place(new Vector2(side, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(side == 0f ? -34f : 34f, 0), new Vector2(60, 40));
+                sh.outlineWidth = 0.2f; sh.outlineColor = Palette.Ink;
+            }
+
             // seal button (bottom-right)
             sealBtn = Ui.Button(packRoot, "seal", "SEAL & SHIP", () => G.SealAndShip(), Palette.PostalRed, Palette.Cream, 46);
             sealBtn.Image.rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-30, 40), new Vector2(330, 110));
             sealBtn.Image.rectTransform.localRotation = Quaternion.Euler(0, 0, -2f);
+            KeyHint(sealBtn, "SPACE", "VIEW");
             sealHint = Ui.Text(packRoot, "sealHint", "", 22, Palette.Cream, Ui.Bold, TextAlignmentOptions.Center);
             sealHint.rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-30, 154), new Vector2(330, 32));
             var outline = sealHint.gameObject.AddComponent<Shadow>();
@@ -330,6 +340,8 @@ namespace HWC.Gameplay
             undoBtn = Ui.Button(packRoot, "undo", "UNDO", () => G.Packing.Undo(), Palette.Cream, Palette.Ink, 26);
             undoBtn.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(28, 40), new Vector2(120, 56));
             redoBtn = Ui.Button(packRoot, "redo", "REDO", () => G.Packing.Redo(), Palette.Cream, Palette.Ink, 26);
+            KeyHint(undoBtn, "Z", "LT", 14f);
+            KeyHint(redoBtn, "Y", "RT", 14f);
             redoBtn.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(156, 40), new Vector2(120, 56));
             clearBtn = Ui.Button(packRoot, "clear", "EMPTY BOX", () => G.Packing.ClearAll(), Palette.Cream, Palette.Ink, 26);
             clearBtn.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(28, 104), new Vector2(248, 56));
@@ -630,7 +642,7 @@ namespace HWC.Gameplay
             sealBtn.SetInteractable(pc.ReadyToSeal);
             if (pc.ReadyToSeal && !wasReady) { sealBtn.Pulse(); Sfx("stamp_ok", 0.5f); }
             wasReady = pc.ReadyToSeal;
-            sealHint.text = remaining > 0 ? $"Pack {remaining} more item{(remaining > 1 ? "s" : "")}" : (ready ? "Space to seal" : "");
+            sealHint.text = remaining > 0 ? $"Pack {remaining} more item{(remaining > 1 ? "s" : "")}" : (ready ? (PadPrompts ? "View to seal" : "Space to seal") : "");
         }
 
         static MaterialSlot SlotFor(PieceKind k) => k == PieceKind.Paper ? MaterialSlot.Paper : (k == PieceKind.Bubble ? MaterialSlot.Bubble : MaterialSlot.Foam);
@@ -721,6 +733,7 @@ namespace HWC.Gameplay
 
             var skip = Ui.Button(journeyRoot, "skip", "SKIP  ▶▶", () => G.Journey.Skip(), Palette.Cream, Palette.Ink, 28);
             skip.Image.rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 22), new Vector2(170, 56));
+            KeyHint(skip, "ENTER", "B", 13f);
             skipBtn = skip;
 
             // replay controls (scrub by clicking the timeline, speed, done)
@@ -881,13 +894,13 @@ namespace HWC.Gameplay
 
             repackBtn = Ui.Button(p.transform, "repack", "REPACK", () => G.Repack(), Palette.Teal, Palette.Cream, 40);
             repackBtn.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-300, 34), new Vector2(260, 84));
-            KeyHint(repackBtn, "R");
+            KeyHint(repackBtn, "R", "X");
             replayBtn = Ui.Button(p.transform, "replay", "REPLAY", () => G.Replay(), Palette.Ink, Palette.Cream, 40);
             replayBtn.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 34), new Vector2(260, 84));
-            KeyHint(replayBtn, "P");
+            KeyHint(replayBtn, "P", "Y");
             nextBtn = Ui.Button(p.transform, "next", "NEXT ▶", () => G.NextLevel(), Palette.PostalRed, Palette.Cream, 40);
             nextBtn.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(300, 34), new Vector2(260, 84));
-            KeyHint(nextBtn, "ENTER");
+            KeyHint(nextBtn, "ENTER", "A");
             var log = Ui.Button(resultsRoot, "log", "DELIVERY LOG", () => G.ShowDeliveryLog(), Palette.Cream, Palette.Ink, 26);
             log.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(28, 28), new Vector2(240, 60));
             var menu = Ui.Button(resultsRoot, "menu", "MAIN MENU", () => G.ShowTitle(), Palette.Cream, Palette.Ink, 26);
@@ -903,12 +916,32 @@ namespace HWC.Gameplay
         UiButton nextBtn, repackBtn, replayBtn;
 
         /// <summary>A small keyboard shortcut in the button's top-left corner, like the toolbar numbers.</summary>
-        static void KeyHint(UiButton b, string key, float size = 16f)
+        void KeyHint(UiButton b, string key, string pad, float size = 16f)
         {
             var c = b.Label != null ? b.Label.color : Palette.Cream;
             var t = Ui.Text(b.transform, "key", key, size, new Color(c.r, c.g, c.b, 0.6f), Ui.Bold, TextAlignmentOptions.TopLeft);
             t.rectTransform.Stretch(9, 9, 5, 5);
             t.raycastTarget = false;
+            Prompt(t, key, pad);
+        }
+
+        // ---- prompts that follow the input device (keyboard and mouse, or gamepad) ----------------------
+        readonly List<(TextMeshProUGUI t, string kb, string pad)> prompts = new List<(TextMeshProUGUI, string, string)>();
+        bool padPrompts;
+        public static bool PadPrompts => PadInput.I != null && PadInput.I.Active;
+
+        TextMeshProUGUI Prompt(TextMeshProUGUI t, string kb, string pad)
+        {
+            prompts.Add((t, kb, pad));
+            t.text = PadPrompts ? pad : kb;
+            return t;
+        }
+
+        void RefreshPrompts()
+        {
+            padPrompts = PadPrompts;
+            foreach (var (t, kb, pad) in prompts) if (t != null) t.text = padPrompts ? pad : kb;
+            if (packRoot.gameObject.activeSelf && G.Packing.Level != null) RefreshPacking();
         }
 
         /// <summary>Keyboard shortcuts for the unboxing and the results, so a retry never needs the mouse.</summary>
@@ -1072,6 +1105,8 @@ namespace HWC.Gameplay
             }
             escConsumed = false;
             UpdateShortcuts(kb);
+            if (PadPrompts != padPrompts) RefreshPrompts();
+            if (camBtn != null && camBtn.gameObject.activeInHierarchy) camBtn.Label.text = "CAM: " + JourneyPlayer.CameraModeNames[G.Journey.CameraMode];
 
             float dt = Clock.UnscaledDelta;
             UpdateStamps(dt);

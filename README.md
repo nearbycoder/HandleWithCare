@@ -62,7 +62,8 @@ Pick an item off the shelf, drop it in the box, paint padding around it, seal, a
 | Review | `R` repack, `P` replay, `Enter` next delivery |
 
 **Gamepad (and Steam Deck).** Pick up a controller and a cursor appears: the left stick moves it,
-the d-pad jumps it to the next box cell, item or button. Everything the mouse does works the same.
+the d-pad jumps it to the next box cell, item or button. Everything the mouse does works the same. The
+on-screen hints and Mabel's tutorial notes switch to gamepad buttons while you use one.
 
 | Gamepad | Action |
 | --- | --- |
