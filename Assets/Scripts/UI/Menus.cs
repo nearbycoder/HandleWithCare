@@ -380,6 +380,7 @@ namespace HWC.Gameplay
         }
 
         RectTransform overtimeNote;
+        public bool OvertimeNoteShowing => overtimeNote != null && overtimeNote.gameObject.activeInHierarchy;
 
         /// <summary>After The Dragon Egg: the credits, plus a note that Overtime is open (when it is).</summary>
         public void ShowCreditsFinale(bool overtimeOpens = false)

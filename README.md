@@ -119,7 +119,8 @@ and the delivery log stamps the order EXPERT.
 
 ## Content
 
-Twenty handcrafted deliveries over four shifts, each one introducing a new idea:
+Twenty handcrafted deliveries over four shifts, each one introducing a new idea, then five more in
+Overtime, which opens when the credits roll:
 
 | Shift | Journey | Deliveries |
 | --- | --- | --- |
@@ -127,6 +128,12 @@ Twenty handcrafted deliveries over four shifts, each one introducing a new idea:
 | 2 · The Sorting Depot | Truck, then conveyors, a drop, a robot arm and a chute | Opposites Attract, Potion Commotion, Happy Birthday Timmy, A Prickly Situation, Magnetic Personality |
 | 3 · Last Mile | Depot or truck, then Dash the courier, the porch stairs and a toss | Clockwork Clank, Swan Song, Boing, Hoppy Delivery, Ember |
 | 4 · Express Service | Ferry, cargo plane and catapult | High Seas, Air Pocket, The Vase and the Dragon, Museum Piece, The Dragon Egg |
+| 5 · Overtime | Every route so far, mixed | Fire and Ice, Party Animal, Let Them Eat Cake, A Warm Welcome, Moving Day |
+
+Overtime puts together quirks the story never shares a box: Ember beside an ice swan, a hopping frog
+with a balloon, Clank loose with a cake, a dragon egg kept warm by the lava lamp on a rolling ferry,
+and Mabel's own house move by catapult. Like the rest, each one is proven solvable with three stars,
+and random item-only packings never get through.
 
 That's 19 item types, 3 kinds of padding plus dividers, shelves and straps, and six journey
 environments. There's also an onboarding tutorial and shift title cards, plus a delivery log with
@@ -193,10 +200,11 @@ Tools/simcheck.sh check         # every delivery: reference packing valid, deliv
 Tools/simcheck.sh hints         # print Mabel's hint notes for every delivery
 Tools/simcheck.sh map 3 "t..." "vb.." "vppp"   # simulate any packing and print the timeline
 Tools/simcheck.sh solve 7       # parallel local search for cheap / three-star packings (used to set pars)
-Tools/autopilot.sh              # the built player plays all 20 references through the real packing code
+Tools/simcheck.sh explore 21    # random item-only packings: how many get delivered (should be none)
+Tools/autopilot.sh              # the built player plays all 25 references through the real packing code
                                 # and checks each outcome and hash against the validator
-Tools/hintpilot.sh              # Ask Mabel on all 20: click through every hint, build what the ghosts show,
-                                # expect three stars and the validator's hash
+Tools/hintpilot.sh              # Ask Mabel on all 25: click through every hint, build what the ghosts show,
+                                # expect three stars and the validator's hash; then the finale opens Overtime
 Tools/tour.sh                   # screenshots of the menus and a delivery played with real input events,
                                 # then the whole retry loop (R, Space, Enter, P) with the keyboard only
 ```
@@ -214,7 +222,7 @@ python3 Tools/trailer/make_media.py     # docs/media/teaser.webp, docs/media/tra
 ```
 Assets/
   Scripts/Sim/        Deterministic simulation in pure C# (no UnityEngine): items and quirks, packing
-                      rules, routes and kinematics, the physics world, recording, the 20 levels
+                      rules, routes and kinematics, the physics world, recording, the 25 levels
   Scripts/Game/       Game flow, packing controller, journey player, unboxing, save, autopilot,
                       trailer director
   Scripts/Visuals/    Box and piece views, journey stages, camera rig, post-processing, particles,
@@ -286,8 +294,8 @@ ImageMagick (trailer and README media).
 
 ## Status and known issues
 
-Version 0.1.0 is complete and playable from start to finish: 20 deliveries, every one validated
-solvable with three stars.
+The game is complete and playable from start to finish: 25 deliveries (20 in the story, 5 in
+Overtime), every one validated solvable with three stars.
 
 - **Platforms.** Only the Linux build has been made and tested. The project should build for Windows
   and macOS from the editor, but neither has been tried.

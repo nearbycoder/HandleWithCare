@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Self-test with the built player: plays all 20 deliveries with their reference packings through
+# Self-test with the built player: plays every delivery with their reference packings through
 # the real packing code, seals, simulates and checks every outcome against the .NET validator
 # (same hash = deterministic across runtimes). Prints PASS/FAIL lines and writes report.txt.
 #   Tools/autopilot.sh [OUTDIR]

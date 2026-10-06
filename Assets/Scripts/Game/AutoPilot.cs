@@ -248,6 +248,16 @@ namespace HWC.Gameplay
             {
                 InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
                 for (int n = 1; n <= Levels.All.Count; n++) yield return RunHinted(n, n == 18);
+                // the story finale: Next after The Dragon Egg rolls credits and opens Overtime
+                var g = Game.I;
+                g.StartLevel(20);
+                yield return new WaitForSecondsRealtime(0.3f);
+                g.NextLevel();
+                yield return new WaitForSecondsRealtime(0.8f);
+                bool finale = g.Phase == Phase.Title && g.Menus.OvertimeNoteShowing && g.Save.IsUnlocked(21);
+                Debug.Log($"[AutoPilot] {(finale ? "PASS" : "FAIL")} finale: credits with the Overtime note, delivery 21 unlocked");
+                Shot("finale_overtime");
+                yield return AfterShot();
                 Game.I.Menus.ShowSelect();
                 yield return new WaitForSecondsRealtime(0.8f);
                 Shot("hints_log");
@@ -288,10 +298,18 @@ namespace HWC.Gameplay
             order.Pieces.Sort((a, b) => a.Y != b.Y ? a.Y.CompareTo(b.Y) : a.X.CompareTo(b.X));
             foreach (int d in order.Dividers) { g.Packing.DebugAddDivider(d); if (tour) yield return new WaitForSecondsRealtime(0.08f); }
             foreach (var s in order.Shelves) { g.Packing.DebugAddShelf(s); if (tour) yield return new WaitForSecondsRealtime(0.08f); }
-            foreach (var p in order.Pieces)
+            // bottom-up, like a player; anything not placeable yet (a balloon tucked under a cake) waits a round
+            var pending = new System.Collections.Generic.List<Placement>(order.Pieces);
+            while (pending.Count > 0)
             {
-                if (!g.Packing.DebugPlace(p)) { Fail(n, $"could not place {p.Kind} at {p.X},{p.Y}"); yield break; }
-                if (tour) yield return new WaitForSecondsRealtime(0.12f);
+                int before = pending.Count;
+                for (int i = 0; i < pending.Count; i++)
+                {
+                    if (!g.Packing.DebugPlace(pending[i])) continue;
+                    pending.RemoveAt(i--);
+                    if (tour) yield return new WaitForSecondsRealtime(0.12f);
+                }
+                if (pending.Count == before) { Fail(n, $"could not place {pending[0].Kind} at {pending[0].X},{pending[0].Y}"); yield break; }
             }
             yield return new WaitForSecondsRealtime(tour ? 0.8f : 0.1f);
             if (tour) Shot($"L{n:00}_2_packed");
@@ -390,8 +408,13 @@ namespace HWC.Gameplay
             order.Pieces.Sort((a, b) => a.Y != b.Y ? a.Y.CompareTo(b.Y) : a.X.CompareTo(b.X));
             foreach (int d in order.Dividers) g.Packing.DebugAddDivider(d);
             foreach (var sh in order.Shelves) g.Packing.DebugAddShelf(sh);
-            foreach (var p in order.Pieces)
-                if (!g.Packing.DebugPlace(p)) { Fail(n, $"could not place hinted {p.Kind} at {p.X},{p.Y}"); yield break; }
+            var pending = new System.Collections.Generic.List<Placement>(order.Pieces);
+            while (pending.Count > 0)
+            {
+                int before = pending.Count;
+                for (int i = 0; i < pending.Count; i++) if (g.Packing.DebugPlace(pending[i])) pending.RemoveAt(i--);
+                if (pending.Count == before) { Fail(n, $"could not place hinted {pending[0].Kind} at {pending[0].X},{pending[0].Y}"); yield break; }
+            }
             yield return new WaitForSecondsRealtime(shots ? 0.6f : 0.1f);
             if (shots) { Shot($"hint_L{n:00}_built"); yield return AfterShot(); }
             if (!g.Packing.ReadyToSeal) { Fail(n, "hinted packing not ready to seal: " + g.CurrentPacking.Validate(lv)); yield break; }

@@ -19,7 +19,7 @@ namespace HWC.Sim
                     AddChapter2(all);
                     AddChapter3(all);
                     AddChapter4(all);
-                    // CH5
+                    all.AddRange(Chapter5());   // Overtime: unlocks after the finale
                     for (int i = 0; i < all.Count; i++) { all[i].Number = i + 1; all[i].Seed = (uint)(1000 + i * 7919); }
                 }
                 return all;

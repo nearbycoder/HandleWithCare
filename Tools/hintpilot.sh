@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Self-test of Ask Mabel with the built player: on all 20 deliveries, clicks the hint button through
+# Self-test of Ask Mabel with the built player: on every delivery, clicks the hint button through
 # every stage with real mouse events, builds exactly what the hint ghosts show, ships it and expects
-# three stars with the validator's hash. Screenshots of each stage on delivery 18.
+# three stars with the validator's hash. Screenshots of each stage on delivery 18, then checks
+# that finishing delivery 20 rolls the credits and opens Overtime.
 #   Tools/hintpilot.sh [OUTDIR]
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
