@@ -515,7 +515,7 @@ namespace HWC.Gameplay
                 string what = Catalog.Get(kind).Name;
                 string how = inc.Kind == IncidentKind.Stuck ? "stuck to the other magnet" : StatusWordForIncident(inc.Kind).ToLowerInvariant();
                 string detail = inc.Limit > 0 && (inc.Kind == IncidentKind.Broke || inc.Kind == IncidentKind.Woke || inc.Kind == IncidentKind.Squished) ? $" (jolt {inc.Value:0.#}/{inc.Limit:0.#})" : "";
-                lines.Add($"<color=#A8322A>\u2717</color> {what} {how} at {EventName(rec, inc.Leg, inc.Event)}{detail}");
+                lines.Add($"<color=#A8322A><size=150%><b>\u00D7</b></size></color> {what} {how} at {EventName(rec, inc.Leg, inc.Event)}{detail}");
             }
             if (lines.Count == 0)
             {
@@ -524,7 +524,7 @@ namespace HWC.Gameplay
                     if (it.Care < SimConst.CareFraction || lines.Count >= 3) continue;
                     lines.Add($"<color=#B07A1A>!</color> {Catalog.Get(it.Kind).Name} rattled ({it.Care * 100:0}%) at {EventName(rec, it.PeakLeg, it.PeakEvent)}");
                 }
-                if (lines.Count == 0) lines.Add("<color=#2E8B57>\u2713</color> Everything arrived calm and happy.");
+                if (lines.Count == 0) lines.Add("<color=#2E8B57>\u25CF</color> Everything arrived calm and happy.");
             }
             lastTrip.gameObject.SetActive(true);
             lastTripText.text = string.Join("\n", lines);
@@ -620,7 +620,7 @@ namespace HWC.Gameplay
             var lv = pc.Level;
             int cost = pc.Pk.Cost;
             budgetText.text = $"{cost} <size=70%>/ par {lv.Par}</size>";
-            expertText.text = G.Save.IsExpert(lv.Number) ? $"MABEL'S BEST  {lv.Expert}   <color=#2E8B57>\u2713 MATCHED</color>" : $"MABEL'S BEST  {lv.Expert}";
+            expertText.text = G.Save.IsExpert(lv.Number) ? $"MABEL'S BEST  {lv.Expert}   <color=#2E8B57>MATCHED</color>" : $"MABEL'S BEST  {lv.Expert}";
             float frac = Mathf.Clamp01(cost / (float)Mathf.Max(1, lv.Par * 1.5f));
             budgetFill.rectTransform.anchorMax = new Vector2(Mathf.Max(0.02f, frac), 1);
             budgetFill.color = cost <= lv.Par ? Palette.Good : Palette.Bad;

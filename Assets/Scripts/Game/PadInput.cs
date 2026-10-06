@@ -25,6 +25,8 @@ namespace HWC.Gameplay
         public bool Active { get; private set; }
         public event Action<bool> ActiveChanged;
         public Vector2 CursorPosition => pos;
+        /// <summary>The gamepad-only self-test: the desk's real mouse and keyboard never take over.</summary>
+        public bool PadOnly;
 
         Mouse padMouse;
         Vector2 pos, lastPos;
@@ -80,16 +82,25 @@ namespace HWC.Gameplay
 
         bool MouseOrKeyboardUsed()
         {
+            bool used = false;
             foreach (var d in InputSystem.devices)
             {
                 if (d is Mouse m && m != padMouse)
                 {
-                    if (m.delta.ReadValue().sqrMagnitude > 9f || m.leftButton.wasPressedThisFrame || m.rightButton.wasPressedThisFrame) return true;
+                    if (m.delta.ReadValue().sqrMagnitude > 9f || m.leftButton.wasPressedThisFrame || m.rightButton.wasPressedThisFrame) used = true;
                 }
             }
             var kb = Keyboard.current;
-            return kb != null && kb.anyKey.wasPressedThisFrame;
+            if (kb != null && kb.anyKey.wasPressedThisFrame) used = true;
+            if (used && PadOnly)
+            {
+                if (Time.unscaledTime > ignoredLogAt) { ignoredLogAt = Time.unscaledTime + 1f; Debug.Log("[Pad] ignored the real mouse or keyboard (gamepad-only test)"); }
+                return false;
+            }
+            return used;
         }
+
+        float ignoredLogAt;
 
         void SetActive(bool on)
         {
@@ -107,6 +118,7 @@ namespace HWC.Gameplay
             {
                 InputSystem.QueueStateEvent(padMouse, new MouseState { position = pos });   // let go of any held button
             }
+            Debug.Log(on ? "[Pad] the gamepad took over" : "[Pad] the mouse or keyboard took over");
             Cursor.visible = !on;
             cursor.gameObject.SetActive(on);
             ActiveChanged?.Invoke(on);
@@ -278,8 +290,9 @@ namespace HWC.Gameplay
         void SnapToDefault()
         {
             UiButton target = null;
-            if (G.Hud.Paused) target = G.Hud.ResumeButton;
-            else if (G.Menus.Open) target = G.Menus.DefaultButton;
+            // Settings and the Delivery Log open on top of the pause menu (which stays paused underneath)
+            if (G.Menus.Open) target = G.Menus.DefaultButton;
+            else if (G.Hud.Paused) target = G.Hud.ResumeButton;
             else if (G.Phase == Phase.Results && G.Hud.ResultsShowing) target = G.Hud.NextButton.Interactable ? G.Hud.NextButton : G.Hud.RepackButton;
             else if (G.Phase == Phase.Packing && G.Station.Box != null)
             {
@@ -296,7 +309,7 @@ namespace HWC.Gameplay
         List<Vector2> Targets()
         {
             var list = new List<Vector2>();
-            Transform uiRoot = G.Hud.Paused ? G.Hud.PauseRoot : (G.Menus.Open ? G.Menus.ActiveScreen : G.Hud.Root);
+            Transform uiRoot = G.Menus.Open ? G.Menus.ActiveScreen : (G.Hud.Paused ? G.Hud.PauseRoot : G.Hud.Root);
             if (uiRoot != null)
             {
                 foreach (var b in uiRoot.GetComponentsInChildren<UiButton>(false))

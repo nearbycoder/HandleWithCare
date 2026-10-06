@@ -164,9 +164,10 @@ namespace HWC.Gameplay
         {
             var g = Game.I;
             g.Save.SeenTips.Clear();
-            g.Save.Records.Add(new SaveData.LevelRecord { Number = 1, Stars = 3, Delivered = true, UnderBudget = true, Careful = true });
-            g.Save.Records.Add(new SaveData.LevelRecord { Number = 2, Stars = 2, Delivered = true });
-            g.Save.Records.Add(new SaveData.LevelRecord { Number = 3, Stars = 1, Delivered = true });
+            g.Save.Records.Add(new SaveData.LevelRecord { Number = 1, Stars = 3, Delivered = true, UnderBudget = true, Careful = true, Attempts = 1, BestCost = 5, BestCare = 0.33f });
+            // two stars, the budget one missing; one star, the care one missing too
+            g.Save.Records.Add(new SaveData.LevelRecord { Number = 2, Stars = 2, Delivered = true, Careful = true, Attempts = 3, BestCost = Levels.Get(2).Par + 2, BestCare = 0.41f, HintStage = 1 });
+            g.Save.Records.Add(new SaveData.LevelRecord { Number = 3, Stars = 1, Delivered = true, Attempts = 2, BestCost = Levels.Get(3).Par + 1, BestCare = 0.8f });
             g.ShowTitle();
             yield return new WaitForSecondsRealtime(2.0f);
             Shot("M1_title");
@@ -175,6 +176,7 @@ namespace HWC.Gameplay
             yield return new WaitForSecondsRealtime(0.8f);
             Shot("M2_select");
             yield return AfterShot();
+            yield return DeliveryLogDetail();
             g.Menus.ShowSettings(g.ShowTitle);
             yield return new WaitForSecondsRealtime(0.8f);
             Shot("M3_settings");
@@ -217,6 +219,29 @@ namespace HWC.Gameplay
         void Check2(bool ok, string area, string what) => Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} {area}: {what}");
 
         static Vector2 RectScreen(RectTransform rt) => RectTransformUtility.WorldToScreenPoint(null, rt.TransformPoint(rt.rect.center));
+
+        /// <summary>The delivery log: the stars sit in their goal's place, and hovering a card explains them.</summary>
+        IEnumerator DeliveryLogDetail()
+        {
+            var g = Game.I;
+            InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+            mousePos = new Vector2(UnityEngine.Screen.width * 0.5f, UnityEngine.Screen.height * 0.5f);
+            var card2 = g.Menus.CardRect(2);
+            var stars = new bool[3];
+            for (int i = 0; i < 3; i++) stars[i] = card2.Find("star" + i).GetComponent<UnityEngine.UI.Image>().color.a > 0.5f;
+            Check2(stars[0] && !stars[1] && stars[2], "log", "a two-star card missing the budget star shows gold, gap, gold");
+            yield return MoveMouse(RectScreen(card2), 16);
+            yield return new WaitForSecondsRealtime(0.3f);
+            string d = g.Menus.SelectDetailText;
+            Debug.Log("[AutoPilot] log: detail for card 2: " + d.Replace("\n", " | "));
+            Check2(d.Contains("02") && d.Contains($"best {Levels.Get(2).Par + 2} / par {Levels.Get(2).Par}") && d.Contains("3 trips") && d.Contains("hinted"),
+                   "log", "hovering card 2 shows its best cost against par, trips and the hint mark");
+            Shot("M2b_select_detail");
+            yield return AfterShot();
+            yield return MoveMouse(RectScreen(g.Menus.CardRect(3)), 10);
+            yield return new WaitForSecondsRealtime(0.3f);
+            Check2(g.Menus.SelectDetailText.Contains("03") && g.Menus.SelectDetailText.Contains("best 80% / 65%"), "log", "hovering card 3 shows its best care against the 65% line");
+        }
 
         /// <summary>The display settings, clicked with real mouse events.</summary>
         IEnumerator DisplaySettings()
@@ -445,6 +470,15 @@ namespace HWC.Gameplay
             while (g.Phase != Phase.Results) yield return null;
             yield return new WaitForSecondsRealtime(tour ? 1.2f : 0.2f);
             if (tour) Shot($"L{n:00}_6_results");
+            if (tour)
+            {
+                // back at the bench: the last trip's trails and report
+                yield return AfterShot();
+                g.Repack();
+                yield return new WaitForSecondsRealtime(1.2f);
+                Shot($"L{n:00}_7_bench_after");
+                yield return AfterShot();
+            }
 
             var got = g.LastRun;
             bool same = got.Hash == expected.Hash && got.Outcome.Stars == expected.Outcome.Stars;
@@ -509,6 +543,7 @@ namespace HWC.Gameplay
             var g = Game.I;
             InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
             gp = InputSystem.AddDevice<Gamepad>("PadPilot");
+            PadInput.I.PadOnly = true;   // whoever is at the desk may move the real mouse over this window
             g.Save.SeenTips.Clear();
             g.ShowTitle();
             yield return new WaitForSecondsRealtime(1.5f);
@@ -649,11 +684,32 @@ namespace HWC.Gameplay
             yield return PadButton(GamepadButton.South);          // SETTINGS
             yield return new WaitForSecondsRealtime(0.4f);
             PadCheck(g.Menus.Open, "d-pad down twice and A opens Settings");
+            yield return new WaitForSecondsRealtime(0.5f);
+            PadCheck(Near(PadInput.I.CursorPosition, ButtonScreen(g.Menus.DefaultButton)), "the cursor starts on DONE in Settings opened from pause");
+            var atDone = PadInput.I.CursorPosition;
+            yield return PadButton(GamepadButton.DpadUp);
+            PadCheck(PadInput.I.CursorPosition.y > atDone.y + 20f, "the d-pad moves between the settings opened from pause");
             Shot("P7_settings");
             yield return AfterShot();
             yield return PadButton(GamepadButton.East);
             yield return new WaitForSecondsRealtime(0.3f);
             PadCheck(!g.Menus.Open && g.Hud.Paused, "B leaves Settings");
+            // the delivery log from the pause menu: the d-pad walks the cards and the detail follows
+            yield return new WaitForSecondsRealtime(0.5f);
+            for (int i = 0; i < 3; i++) yield return PadButton(GamepadButton.DpadDown);
+            yield return PadButton(GamepadButton.South);          // DELIVERY LOG
+            yield return new WaitForSecondsRealtime(0.6f);
+            PadCheck(g.Menus.ActiveScreen != null && RectTransformUtility.RectangleContainsScreenPoint(g.Menus.DefaultButton.Image.rectTransform, PadInput.I.CursorPosition, null),
+                     "d-pad down three times and A opens the delivery log, the cursor on BACK");
+            for (int i = 0; i < 8 && !g.Menus.SelectDetailText.Contains("01  "); i++) yield return PadButton(GamepadButton.DpadUp);
+            yield return new WaitForSecondsRealtime(0.2f);
+            Debug.Log("[AutoPilot] pad: log detail: " + g.Menus.SelectDetailText.Replace("\n", " | "));
+            PadCheck(g.Menus.SelectDetailText.Contains("01  ") && g.Menus.SelectDetailText.Contains("DELIVERED"), "the d-pad onto card 1 shows its stars by goal");
+            Shot("P8_log_detail");
+            yield return AfterShot();
+            yield return PadButton(GamepadButton.East);
+            yield return new WaitForSecondsRealtime(0.4f);
+            PadCheck(!g.Menus.Open && g.Hud.Paused, "B leaves the delivery log, back to the pause menu");
             yield return PadButton(GamepadButton.East);
             yield return new WaitForSecondsRealtime(0.2f);
             PadCheck(!g.Hud.Paused, "B resumes");

@@ -180,6 +180,58 @@ namespace HWC.Gameplay
             selectGrid.Stretch(30, 30, 110, 110);
             var back = selectBack = Ui.Button(board.transform, "back", "◀  BACK", () => { if (G.Phase == Phase.Title) ShowTitle(); else { HideAll(); G.Hud.SetPaused(true); } }, Palette.Cream, Palette.Ink, 32);
             back.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(30, 24), new Vector2(220, 68));
+            // the card under the pointer: which of its three stars are earned, and the best trip so far
+            var det = Ui.Panel(board.transform, "detail", Palette.Paper, Ui.Rounded(10, 2));
+            det.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(276, 14), new Vector2(1454, 88));
+            det.raycastTarget = false;
+            selectDetail = Ui.Text(det.transform, "t", "", 22, Palette.Ink, Ui.Body, TextAlignmentOptions.Left);
+            selectDetail.rectTransform.Stretch(20, 20, 6, 6);
+            selectDetail.enableAutoSizing = true; selectDetail.fontSizeMin = 15; selectDetail.fontSizeMax = 22;
+            selectDetail.raycastTarget = false;
+        }
+
+        TextMeshProUGUI selectDetail;
+        const string DetailPrompt = "Point at a delivery to see which stars it has and your best trip.";
+        public string SelectDetailText => selectDetail != null ? selectDetail.text : "";
+
+        /// <summary>A card in the delivery log (for the self-tests).</summary>
+        public RectTransform CardRect(int number)
+        {
+            foreach (Transform col in selectGrid)
+            {
+                var c = col.Find("card" + number);
+                if (c != null) return (RectTransform)c;
+            }
+            return null;
+        }
+
+        /// <summary>The three stars of a delivery by goal (delivered, under budget, handled with care).</summary>
+        bool[] StarGoals(int number)
+        {
+            var r = G.Save.Get(number);
+            var got = new[] { r != null && r.Delivered, r != null && r.Delivered && r.UnderBudget, r != null && r.Delivered && r.Careful };
+            int stars = r?.Stars ?? 0, n = 0;
+            foreach (bool b in got) if (b) n++;
+            if (n < stars) for (int i = 0; i < 3; i++) got[i] = i < stars;   // an older record without the goals
+            return got;
+        }
+
+        // Fira Sans has no check or cross marks (they draw as empty boxes): a dot and a multiplication sign
+        static string Mark(bool ok) => ok ? "<color=#2E8B57>\u25CF</color>" : "<color=#A8322A><size=150%><b>\u00D7</b></size></color>";
+
+        string Detail(LevelDef lv)
+        {
+            string head = $"<b>{lv.Number:00}  {lv.Title.ToUpperInvariant()}</b>";
+            if (!G.Save.IsUnlocked(lv.Number)) return head + $"\nLocked: deliver {lv.Number - 1:00} first.";
+            var r = G.Save.Get(lv.Number);
+            string mabel = $"Mabel's best {lv.Expert}" + (r != null && r.Expert ? "  <color=#1F7A6F>EXPERT</color>" : "");
+            if (r == null || r.Attempts == 0) return head + $"   \u00B7   not shipped yet\nPar {lv.Par}   \u00B7   {mabel}";
+            string about = $"   \u00B7   {(r.Attempts == 1 ? "1 trip" : r.Attempts + " trips")}{(r.HintStage > 0 ? "   \u00B7   hinted" : "")}   \u00B7   {mabel}";
+            if (!r.Delivered) return head + about + $"\n{Mark(false)} Not delivered yet   \u00B7   par {lv.Par}";
+            var got = StarGoals(lv.Number);
+            string budget = r.BestCost >= 0 ? $"  best {r.BestCost} / par {lv.Par}" : "";
+            string care = r.BestCare >= 0 ? $"  best {r.BestCare * 100:0}% / {SimConst.CareFraction * 100:0}%" : "";
+            return head + about + $"\n{Mark(got[0])} DELIVERED        {Mark(got[1])} UNDER BUDGET{budget}        {Mark(got[2])} HANDLED WITH CARE{care}";
         }
 
         static readonly string[] ShiftNames = { "SHIFT 1 · FIRST DAY", "SHIFT 2 · THE DEPOT", "SHIFT 3 · LAST MILE", "SHIFT 4 · EXPRESS", "SHIFT 5 · OVERTIME" };
@@ -188,6 +240,7 @@ namespace HWC.Gameplay
         {
             HideAll();
             select.gameObject.SetActive(true);
+            selectDetail.text = DetailPrompt;
             foreach (Transform c in selectGrid) Destroy(c.gameObject);
             int shifts = Levels.Chapters;
             float cardW = (1760f - 60f) / shifts - 20f;     // 390 with four shifts, 320 with five
@@ -214,7 +267,6 @@ namespace HWC.Gameplay
         void MakeCard(RectTransform col, LevelDef lv, int k, float cardW)
         {
             bool unlocked = G.Save.IsUnlocked(lv.Number);
-            int stars = G.Save.StarsFor(lv.Number);
             var card = Ui.Button(col, "card" + lv.Number, null, () => { if (unlocked) { HideAll(); G.Hud.SetPaused(false); G.StartLevel(lv.Number); } }, unlocked ? Palette.Cream : Palette.Hex("D8CBB4"), Palette.Ink);
             var rt = card.Image.rectTransform;
             rt.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(((k % 2) * 2 - 1) * 6, -70 - k * 136), new Vector2(cardW, 124));
@@ -222,6 +274,7 @@ namespace HWC.Gameplay
             rt.localRotation = Quaternion.Euler(0, 0, ((lv.Number * 37) % 7 - 3) * 0.6f);
             Ui.Shadow(card.Image, 5, 0.3f);
             card.HoverScale = unlocked ? 1.04f : 1f;
+            card.OnHover = () => selectDetail.text = Detail(lv);
             var pin = Ui.Panel(card.transform, "pin", Palette.PostalRed, Ui.Circle);
             pin.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -4), new Vector2(22, 22));
             var num = Ui.Text(card.transform, "num", lv.Number.ToString("00"), 44, unlocked ? Palette.PostalRed : new Color(0.4f, 0.35f, 0.3f), Ui.Display, TextAlignmentOptions.Left);
@@ -234,9 +287,10 @@ namespace HWC.Gameplay
             cu.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(92, -52), new Vector2(inner, 28));
             cu.enableAutoSizing = true; cu.fontSizeMin = 14; cu.fontSizeMax = 19;
             cu.textWrappingMode = TextWrappingModes.NoWrap;
+            var goals = StarGoals(lv.Number);   // a missing star shows as a gap in its place
             for (int s = 0; s < 3; s++)
             {
-                var st = Ui.Icon(card.transform, "star" + s, Ui.Star, s < stars ? Palette.Gold : new Color(0, 0, 0, 0.13f));
+                var st = Ui.Icon(card.transform, "star" + s, Ui.Star, goals[s] ? Palette.Gold : new Color(0, 0, 0, 0.13f));
                 st.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(92 + s * 34, 10), new Vector2(30, 30));
             }
             if (unlocked && G.Save.HintStage(lv.Number) > 0)
