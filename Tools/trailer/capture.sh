@@ -9,8 +9,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUT="$ROOT/Recordings/clips"
 mkdir -p "$OUT"
+. "$ROOT/Tools/selftest.inc.sh"
+sandbox_config "$OUT"
 args=(-logFile "$OUT/player.log" -hwcTrailer "$OUT" -hwcShotList "$ROOT/Tools/trailer/shots.txt")
 [ -n "${1:-}" ] && args+=(-hwcClips "$1")
 timeout 3600 nice "$ROOT/Tools/play.sh" "${args[@]}" > /dev/null 2>&1 || true
 grep -E "\[Trailer\]|Exception" "$OUT/player.log" | grep -v "=== " || true
-grep -q "\[Trailer\] done" "$OUT/player.log"
+grep -q "\[Trailer\] done" "$OUT/player.log" && check_config
