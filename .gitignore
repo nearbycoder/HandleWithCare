@@ -49,3 +49,6 @@ desktop.ini
 *.swp
 *~
 .DS_Store
+
+# Mono native crash dumps from the player
+mono_crash.*

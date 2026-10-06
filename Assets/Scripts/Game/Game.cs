@@ -264,7 +264,13 @@ namespace HWC.Gameplay
         public void NextLevel()
         {
             int n = Level.Number + 1;
-            if (n > Levels.All.Count) { ShowTitle(); Menus.ShowCreditsFinale(); return; }
+            // the story ends at The Dragon Egg (credits, then Overtime opens); Overtime ends with credits too
+            if (n > Levels.All.Count || Levels.Get(n).Chapter > Levels.StoryChapters && Level.Chapter <= Levels.StoryChapters)
+            {
+                ShowTitle();
+                Menus.ShowCreditsFinale(n <= Levels.All.Count);
+                return;
+            }
             StartLevel(n);
         }
 

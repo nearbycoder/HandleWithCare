@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Screenshot tour of one delivery with the built player: Tools/shots.sh LEVEL [ref|ref3|naive] [OUTDIR]
+# Screenshot tour of one delivery with the built player: Tools/shots.sh LEVEL [ref|ref3|expert|naive] [OUTDIR]
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LEVEL="${1:-1}"; WHICH="${2:-ref}"; OUT="${3:-/tmp/hwc-shots}"

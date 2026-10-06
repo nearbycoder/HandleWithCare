@@ -118,6 +118,19 @@ static class Program
             }
             else if (rec != null) Console.Write(rec.Outcome.Stars == 3 ? "  (ref is 3★)" : "  (no 3★ ref)");
 
+            // Mabel's best: a stored packing that validates, earns three stars and costs Expert <= par
+            var ex = lv.ExpertPacking();
+            string ee = ex.Validate(lv);
+            if (ee != null) problems.Add("expert packing invalid: " + ee);
+            else
+            {
+                var rx = Simulator.Run(lv, ex, false);
+                if (rx.Outcome.Stars < 3) problems.Add("expert packing is not three stars: " + Describe(rx));
+                if (lv.Expert > lv.Par) problems.Add($"expert cost {lv.Expert} > par {lv.Par}");
+                if (rec != null && lv.Expert > rec.Outcome.Cost) problems.Add($"expert cost {lv.Expert} > reference cost {rec.Outcome.Cost}");
+                Console.Write($"  expert {lv.Expert}");
+            }
+
             // Ask Mabel: the last hint stage must be a packing that validates and earns three stars
             var hinted = HintedPacking(lv);
             string he = hinted.Validate(lv);

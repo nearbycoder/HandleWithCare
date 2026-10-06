@@ -73,13 +73,14 @@ namespace HWC.Gameplay
         TextMeshProUGUI shiftTitle, shiftLine;
         float shiftT = -1f;
         public bool ShiftCardShowing => shiftT >= 0f;
-        static readonly string[] ShiftTitles = { "SHIFT 1  \u00B7  FIRST DAY", "SHIFT 2  \u00B7  THE SORTING DEPOT", "SHIFT 3  \u00B7  LAST MILE", "SHIFT 4  \u00B7  EXPRESS SERVICE" };
+        static readonly string[] ShiftTitles = { "SHIFT 1  \u00B7  FIRST DAY", "SHIFT 2  \u00B7  THE SORTING DEPOT", "SHIFT 3  \u00B7  LAST MILE", "SHIFT 4  \u00B7  EXPRESS SERVICE", "SHIFT 5  \u00B7  OVERTIME" };
         static readonly string[] ShiftLines =
         {
             "Welcome to Mossbury Parcel Post. We ship anything. Carefully.",
             "The depot has a new robot arm. It has no feelings. Pack accordingly.",
             "Meet Dash, our fastest courier. He says stairs are \u201Cbasically a ramp\u201D.",
             "By sea, by air, and by catapult. Yes, catapult. Don't ask.",
+            "The rush is over. These are the orders nobody else would take.",
         };
 
         void BuildShiftCard()
@@ -112,8 +113,8 @@ namespace HWC.Gameplay
             string key = "shift_" + lv.Chapter;
             if (!first || G.Save.SeenTips.Contains(key) || G.Autopilot) return;
             G.Save.SeenTips.Add(key);
-            shiftTitle.text = ShiftTitles[Mathf.Clamp(lv.Chapter - 1, 0, 3)];
-            shiftLine.text = ShiftLines[Mathf.Clamp(lv.Chapter - 1, 0, 3)];
+            shiftTitle.text = ShiftTitles[Mathf.Clamp(lv.Chapter - 1, 0, ShiftTitles.Length - 1)];
+            shiftLine.text = ShiftLines[Mathf.Clamp(lv.Chapter - 1, 0, ShiftLines.Length - 1)];
             shiftCard.gameObject.SetActive(true);
             shiftCard.SetAsLastSibling();
             shiftT = 0f;
@@ -256,14 +257,16 @@ namespace HWC.Gameplay
 
             // budget (top-right)
             var bud = Ui.Panel(packRoot, "budget", Palette.Cream, Ui.Rounded(14, 3));
-            bud.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-28, -24), new Vector2(340, 96));
+            bud.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-28, -24), new Vector2(340, 124));
             Ui.Shadow(bud);
             var bl = Ui.Text(bud.transform, "label", "MATERIALS USED", 22, Palette.InkSoft, Ui.Display, TextAlignmentOptions.TopLeft);
             bl.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(18, -12), new Vector2(300, 30));
             budgetText = Ui.Text(bud.transform, "value", "0 / par 5", 30, Palette.Ink, Ui.Display, TextAlignmentOptions.TopRight);
             budgetText.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-18, -8), new Vector2(200, 36));
             var track = Ui.Panel(bud.transform, "track", new Color(0, 0, 0, 0.12f), Ui.Rounded(8));
-            track.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(18, 16), new Vector2(304, 18));
+            track.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(18, 44), new Vector2(304, 18));
+            expertText = Ui.Text(bud.transform, "expert", "", 19, Palette.InkSoft, Ui.Bold, TextAlignmentOptions.BottomLeft);
+            expertText.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(18, 10), new Vector2(304, 26));
             budgetFill = Ui.Panel(track.transform, "fill", Palette.Good, Ui.Rounded(8));
             budgetFill.rectTransform.anchorMin = Vector2.zero;
             budgetFill.rectTransform.anchorMax = new Vector2(0.5f, 1);
@@ -271,7 +274,7 @@ namespace HWC.Gameplay
 
             // Mabel's sticky note
             sticky = Ui.Panel(packRoot, "sticky", Palette.Sticky, Ui.Rounded(4));
-            sticky.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-34, -140), new Vector2(330, 150));
+            sticky.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-34, -166), new Vector2(330, 150));
             sticky.rectTransform.localRotation = Quaternion.Euler(0, 0, 2.5f);
             Ui.Shadow(sticky, 5, 0.22f);
             mabelText = Ui.Text(sticky.transform, "text", "", 23, Palette.Ink, Ui.Italic, TextAlignmentOptions.TopLeft);
@@ -282,7 +285,7 @@ namespace HWC.Gameplay
 
             // Ask Mabel (under the sticky note): escalating hints from her own packing
             hintBtn = Ui.Button(packRoot, "askMabel", "ASK MABEL", AskMabel, Palette.Sticky, Palette.Ink, 26);
-            hintBtn.Image.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-40, -306), new Vector2(250, 54));
+            hintBtn.Image.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-40, -332), new Vector2(250, 54));
             hintBtn.Image.rectTransform.localRotation = Quaternion.Euler(0, 0, 2.5f);
             Ui.Shadow(hintBtn.Image, 4, 0.22f);
             hintBadge = Ui.Panel(sticky.transform, "hint", Palette.Teal, Ui.Rounded(10));
@@ -370,6 +373,7 @@ namespace HWC.Gameplay
 
         RectTransform lastTrip, orderCard;
         UiButton hintBtn;
+        TextMeshProUGUI expertText, resExpert;
         Image hintBadge;
         TextMeshProUGUI hintBadgeText;
         public UiButton HintButton => hintBtn;
@@ -604,6 +608,7 @@ namespace HWC.Gameplay
             var lv = pc.Level;
             int cost = pc.Pk.Cost;
             budgetText.text = $"{cost} <size=70%>/ par {lv.Par}</size>";
+            expertText.text = G.Save.IsExpert(lv.Number) ? $"MABEL'S BEST  {lv.Expert}   <color=#2E8B57>\u2713 MATCHED</color>" : $"MABEL'S BEST  {lv.Expert}";
             float frac = Mathf.Clamp01(cost / (float)Mathf.Max(1, lv.Par * 1.5f));
             budgetFill.rectTransform.anchorMax = new Vector2(Mathf.Max(0.02f, frac), 1);
             budgetFill.color = cost <= lv.Par ? Palette.Good : Palette.Bad;
@@ -869,6 +874,8 @@ namespace HWC.Gameplay
             resReview.rectTransform.Stretch(24, 24, 14, 40);
             resCustomer = Ui.Text(rev.transform, "cust", "", 22, Palette.InkSoft, Ui.Bold, TextAlignmentOptions.BottomRight);
             resCustomer.rectTransform.Stretch(24, 24, 10, 12);
+            resExpert = Ui.Text(rev.transform, "expert", "", 20, Palette.InkSoft, Ui.Bold, TextAlignmentOptions.BottomLeft);
+            resExpert.rectTransform.Stretch(24, 24, 10, 12);
             resCost = Ui.Text(p.transform, "cost", "", 22, Palette.InkSoft, Ui.Bold);
             resCost.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -478), new Vector2(860, 30));
 
@@ -964,6 +971,8 @@ namespace HWC.Gameplay
             resReview.text = "“" + Review(lv, rec) + "”";
             resCustomer.text = "— " + lv.Customer;
             resCost.text = "";
+            bool expert = o.Stars == 3 && o.Cost <= lv.Expert;
+            resExpert.text = expert ? $"<color=#1F7A6F>EXPERT!</color>  Matched Mabel's best ({lv.Expert})" : (o.Delivered ? $"Mabel's best: {lv.Expert}" : "");
             nextBtn.SetInteractable(o.Delivered || G.Save.IsDelivered(lv.Number));
             Sfx(o.Delivered ? (o.Stars == 3 ? "fanfare" : "success") : "fail");
             AudioDirector.I?.Duck(0.6f, 1.6f);

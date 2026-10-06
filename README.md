@@ -113,7 +113,9 @@ and up to three stars:
 - **Handled with care**: no item ever went above 65% of its limit, and nothing toppled.
 
 Stars add up across attempts and unlock six tape designs: Kraft, Candy Stripe, Teal Polka, FRAGILE,
-Dragon Scale and Gold.
+Dragon Scale and Gold. For the stubborn there is also **Mabel's best**: the cheapest three-star packing
+the solver has found for each delivery, shown under the materials meter. Match it with three stars
+and the delivery log stamps the order EXPERT.
 
 ## Content
 
@@ -186,7 +188,8 @@ python3 ArtSource/make_audio.py                                         # every 
 
 ```sh
 Tools/simcheck.sh check         # every delivery: reference packing valid, delivered, under par, 3-star,
-                                # deterministic; an items-only packing must fail; the full hint is 3-star
+                                # deterministic; an items-only packing must fail; the full hint is 3-star;
+                                # Mabel's best is a stored 3-star packing at or under par
 Tools/simcheck.sh hints         # print Mabel's hint notes for every delivery
 Tools/simcheck.sh map 3 "t..." "vb.." "vppp"   # simulate any packing and print the timeline
 Tools/simcheck.sh solve 7       # parallel local search for cheap / three-star packings (used to set pars)
@@ -297,8 +300,11 @@ solvable with three stars.
   code.
 - **Audio.** The synthesized audio was checked by measurement (levels, spectrum, loudness), not by a
   dedicated listening pass.
-- **Difficulty.** A few early deliveries are cheap to solve (A Prickly Situation can be done with one
-  divider), so their under-budget star is easy.
+- **Difficulty.** Pars sit two or three above the cheapest known three-star cost, so the
+  under-budget star stays friendly; Mabel's best is the tighter target. A Prickly Situation no
+  longer has a divider (one divider used to solve it): the wall between the spikes and the balloon
+  has to be spike-proof padding. Mabel's best comes from a randomised local search, so a cheaper
+  packing may still exist.
 - **Input.** No gamepad or touch support. Mouse and keyboard only.
 
 ## License

@@ -282,7 +282,7 @@ namespace HWC.Gameplay
             yield return new WaitForSecondsRealtime(tour ? 1.0f : 0.3f);
             if (tour) Shot($"L{n:00}_1_empty");
 
-            var pk = whichPacking == "ref3" ? (lv.Reference3Packing() ?? lv.ReferencePacking()) : (whichPacking == "naive" ? NaivePacking(lv) : lv.ReferencePacking());
+            var pk = whichPacking == "ref3" ? (lv.Reference3Packing() ?? lv.ReferencePacking()) : whichPacking == "expert" ? lv.ExpertPacking() : (whichPacking == "naive" ? NaivePacking(lv) : lv.ReferencePacking());
             // place pieces through the controller, bottom-up, like a player would
             var order = pk.Clone();
             order.Pieces.Sort((a, b) => a.Y != b.Y ? a.Y.CompareTo(b.Y) : a.X.CompareTo(b.X));

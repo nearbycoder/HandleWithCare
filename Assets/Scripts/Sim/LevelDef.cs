@@ -32,12 +32,23 @@ namespace HWC.Sim
         public int[] Ref3Dividers;
         public string Ref3Shelves;
         public string Ref3Mods;
+        public string[] ExpertRef;    // optional: Mabel's best, a cheaper three-star packing found by the solver
+        public int[] ExpertDividers;
+        public string ExpertShelves;
+        public string ExpertMods;
 
         Kinematics kin;
         public Kinematics Kinematics => kin ?? (kin = Kinematics.Build(Route));
 
         public Packing ReferencePacking() => LevelParse.Parse(this, Ref, RefDividers, RefShelves, RefMods);
         public Packing Reference3Packing() => Ref3 == null ? null : LevelParse.Parse(this, Ref3, Ref3Dividers, Ref3Shelves, Ref3Mods);
+
+        /// <summary>The cheapest known three-star packing (the reference unless the solver found better).</summary>
+        public Packing ExpertPacking() => ExpertRef == null ? (Reference3Packing() ?? ReferencePacking()) : LevelParse.Parse(this, ExpertRef, ExpertDividers, ExpertShelves, ExpertMods);
+
+        int expert = -1;
+        /// <summary>"Mabel's best": the material cost of <see cref="ExpertPacking"/>.</summary>
+        public int Expert => expert >= 0 ? expert : (expert = ExpertPacking().Cost);
 
         public HashSet<LegKind> LegKinds
         {

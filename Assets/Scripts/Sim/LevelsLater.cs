@@ -79,13 +79,13 @@ namespace HWC.Sim
                 ReviewGood = "Prickly as ever, and the balloon survived. A miracle.",
                 ReviewBad = "BANG. The balloon met the cactus. They did not get along.",
                 W = 5, H = 3, Items = new[] { PieceKind.Cactus, PieceKind.Balloon, PieceKind.Teacup },
-                Materials = M(paper: 6, bubble: 2, foam: 3, divider: 1), Par = 4,
+                // no divider: the wall between the spikes and the balloon has to be spike-proof padding
+                Materials = M(paper: 8, bubble: 3, foam: 3), Par = 6,
                 Route = Route(VanShort(), DepotArm()),
                 Ref = new[] {
-                    "..l..",
-                    "c....",
-                    "x...." },
-                RefDividers = new[] { 1 },
+                    "lp...",
+                    ".p...",
+                    "pcpxp" },
             };
             yield return new LevelDef
             {
@@ -251,6 +251,13 @@ namespace HWC.Sim
                     "bpf.pp" },
                 RefDividers = new[] { 5 },
                 RefMods = "3,2:L",
+                ExpertRef = new[] {      // solver: a second divider walls off the cactus
+                    "......",
+                    "pxvdd.",
+                    "cpv.p.",
+                    "bpf.p." },
+                ExpertDividers = new[] { 5, 2 },
+                ExpertMods = "3,2:L",
             };
             yield return new LevelDef
             {

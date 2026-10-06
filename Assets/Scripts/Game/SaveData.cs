@@ -26,6 +26,7 @@ namespace HWC.Gameplay
             public int HintStage;          // Ask Mabel: how many hints have been shown (0 = none)
             public int HintFocus = -1;     // the item the hints are about (PieceKind), fixed when first asked
             public bool HintsHidden;
+            public bool Expert;            // three stars at or under Mabel's best
         }
 
         public int Version = 1;
@@ -78,6 +79,7 @@ namespace HWC.Gameplay
         public int StarsFor(int number) => Get(number)?.Stars ?? 0;
         public bool IsDelivered(int number) => Get(number)?.Delivered ?? false;
         public int HintStage(int number) => Get(number)?.HintStage ?? 0;
+        public bool IsExpert(int number) => Get(number)?.Expert ?? false;
 
         /// <summary>Hints unlock after a trip that missed a star (and stay once used).</summary>
         public bool HintsAvailable(int number)
@@ -111,6 +113,7 @@ namespace HWC.Gameplay
                 int s = 1 + (r.UnderBudget ? 1 : 0) + (r.Careful ? 1 : 0);
                 r.Stars = Math.Max(r.Stars, Math.Min(s, 3));
                 if (r.BestCost < 0 || o.Cost < r.BestCost) r.BestCost = o.Cost;
+                if (o.Stars == 3 && o.Cost <= lv.Expert) r.Expert = true;
                 if (r.BestCare < 0 || o.WorstCare < r.BestCare) r.BestCare = o.WorstCare;
             }
             Write();

@@ -8,6 +8,8 @@ using HWC.Sim;
 static class Search
 {
     static readonly PieceKind[] Pads = { PieceKind.Paper, PieceKind.Bubble, PieceKind.Foam };
+    /// <summary>Worker threads (HWC_THREADS, default 24): keep it lower on a shared machine.</summary>
+    static readonly int Threads = int.TryParse(System.Environment.GetEnvironmentVariable("HWC_THREADS"), out int t) && t > 0 ? t : 24;
 
     /// <summary>Random item-only packings: does anything get delivered without materials?</summary>
     public static int Explore(int n, int samples)
@@ -17,7 +19,7 @@ static class Search
         int delivered = 0;
         var found = new List<string>();
         object gate = new object();
-        Parallel.For(0, samples, new ParallelOptions { MaxDegreeOfParallelism = 24 }, i =>
+        Parallel.For(0, samples, new ParallelOptions { MaxDegreeOfParallelism = Threads }, i =>
         {
             var rnd = new Random(i * 7919 + 13);
             var pk = new Packing(lv.W, lv.H);
@@ -69,7 +71,7 @@ static class Search
         var lv = Levels.Get(n);
         _ = lv.Kinematics;
         var results = new (double score, Packing pk, Recording rec)[restarts];
-        Parallel.For(0, restarts, new ParallelOptions { MaxDegreeOfParallelism = 24 }, r =>
+        Parallel.For(0, restarts, new ParallelOptions { MaxDegreeOfParallelism = Threads }, r =>
         {
             var rnd = new Random(r * 104729 + n);
             Packing refPk = null;

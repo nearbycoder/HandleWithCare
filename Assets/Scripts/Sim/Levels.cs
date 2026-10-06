@@ -3,7 +3,7 @@ using static HWC.Sim.Ev;
 
 namespace HWC.Sim
 {
-    /// <summary>The twenty handcrafted deliveries.</summary>
+    /// <summary>The handcrafted deliveries: twenty in the story, five more in Overtime.</summary>
     public static partial class Levels
     {
         static List<LevelDef> all;
@@ -19,6 +19,7 @@ namespace HWC.Sim
                     AddChapter2(all);
                     AddChapter3(all);
                     AddChapter4(all);
+                    // CH5
                     for (int i = 0; i < all.Count; i++) { all[i].Number = i + 1; all[i].Seed = (uint)(1000 + i * 7919); }
                 }
                 return all;
@@ -26,6 +27,13 @@ namespace HWC.Sim
         }
 
         public static LevelDef Get(int number) => All[number - 1];
+
+        /// <summary>Shifts 1-4 tell the story; shift 5 (Overtime) opens after the finale.</summary>
+        public const int StoryChapters = 4;
+        public static int Chapters
+        {
+            get { int c = 0; foreach (var l in All) if (l.Chapter > c) c = l.Chapter; return c; }
+        }
 
         static MaterialCounts M(int paper = 0, int bubble = 0, int foam = 0, int divider = 0, int shelf = 0, int strap = 0) =>
             new MaterialCounts { Paper = paper, Bubble = bubble, Foam = foam, Divider = divider, Shelf = shelf, Strap = strap };
@@ -62,6 +70,9 @@ namespace HWC.Sim
                 Route = Route(Van(Depart(1.0f, 7f), Cruise(0.8f), Bump(0.05f), Cruise(0.9f), Brake(0.6f), Rest(0.4f))),
                 Ref = new[] {
                     "ppp",
+                    "pcp" },
+                ExpertRef = new[] {      // solver: the cup only needs company on the floor
+                    "...",
                     "pcp" },
             });
 

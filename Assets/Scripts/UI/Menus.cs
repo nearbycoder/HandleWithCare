@@ -136,40 +136,43 @@ namespace HWC.Gameplay
             back.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(30, 24), new Vector2(220, 68));
         }
 
-        static readonly string[] ShiftNames = { "SHIFT 1 · FIRST DAY", "SHIFT 2 · THE DEPOT", "SHIFT 3 · LAST MILE", "SHIFT 4 · EXPRESS" };
+        static readonly string[] ShiftNames = { "SHIFT 1 · FIRST DAY", "SHIFT 2 · THE DEPOT", "SHIFT 3 · LAST MILE", "SHIFT 4 · EXPRESS", "SHIFT 5 · OVERTIME" };
 
         public void ShowSelect()
         {
             HideAll();
             select.gameObject.SetActive(true);
             foreach (Transform c in selectGrid) Destroy(c.gameObject);
-            for (int ch = 1; ch <= 4; ch++)
+            int shifts = Levels.Chapters;
+            float cardW = (1760f - 60f) / shifts - 20f;     // 390 with four shifts, 320 with five
+            for (int ch = 1; ch <= shifts; ch++)
             {
                 var col = Ui.Rect("shift" + ch, selectGrid);
-                col.anchorMin = new Vector2((ch - 1) / 4f, 0);
-                col.anchorMax = new Vector2(ch / 4f, 1);
+                col.anchorMin = new Vector2((ch - 1) / (float)shifts, 0);
+                col.anchorMax = new Vector2(ch / (float)shifts, 1);
                 col.offsetMin = new Vector2(10, 0);
                 col.offsetMax = new Vector2(-10, 0);
-                var head = Ui.Panel(col, "head", Palette.Ink, Ui.Rounded(10));
-                head.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(400, 52));
-                var ht = Ui.Text(head.transform, "t", ShiftNames[ch - 1], 26, Palette.Cream, Ui.Display);
+                var head = Ui.Panel(col, "head", ch > Levels.StoryChapters ? Palette.TealDark : Palette.Ink, Ui.Rounded(10));
+                head.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(cardW + 10, 52));
+                var ht = Ui.Text(head.transform, "t", ShiftNames[Mathf.Min(ch, ShiftNames.Length) - 1], 26, Palette.Cream, Ui.Display);
                 ht.rectTransform.Stretch(6, 6, 2, 2);
                 int k = 0;
                 foreach (var lv in Levels.All)
                 {
                     if (lv.Chapter != ch) continue;
-                    MakeCard(col, lv, k++);
+                    MakeCard(col, lv, k++, cardW);
                 }
             }
         }
 
-        void MakeCard(RectTransform col, LevelDef lv, int k)
+        void MakeCard(RectTransform col, LevelDef lv, int k, float cardW)
         {
             bool unlocked = G.Save.IsUnlocked(lv.Number);
             int stars = G.Save.StarsFor(lv.Number);
             var card = Ui.Button(col, "card" + lv.Number, null, () => { if (unlocked) { HideAll(); G.Hud.SetPaused(false); G.StartLevel(lv.Number); } }, unlocked ? Palette.Cream : Palette.Hex("D8CBB4"), Palette.Ink);
             var rt = card.Image.rectTransform;
-            rt.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(((k % 2) * 2 - 1) * 6, -70 - k * 136), new Vector2(390, 124));
+            rt.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(((k % 2) * 2 - 1) * 6, -70 - k * 136), new Vector2(cardW, 124));
+            float inner = cardW - 104f;   // title and customer width
             rt.localRotation = Quaternion.Euler(0, 0, ((lv.Number * 37) % 7 - 3) * 0.6f);
             Ui.Shadow(card.Image, 5, 0.3f);
             card.HoverScale = unlocked ? 1.04f : 1f;
@@ -178,11 +181,12 @@ namespace HWC.Gameplay
             var num = Ui.Text(card.transform, "num", lv.Number.ToString("00"), 44, unlocked ? Palette.PostalRed : new Color(0.4f, 0.35f, 0.3f), Ui.Display, TextAlignmentOptions.Left);
             num.rectTransform.Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(16, 8), new Vector2(80, 60));
             var t = Ui.Text(card.transform, "title", unlocked ? lv.Title.ToUpperInvariant() : "???", 28, Palette.Ink, Ui.Display, TextAlignmentOptions.TopLeft);
-            t.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(92, -16), new Vector2(286, 36));
+            t.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(92, -16), new Vector2(inner, 36));
             t.textWrappingMode = TextWrappingModes.NoWrap;
             t.enableAutoSizing = true; t.fontSizeMin = 16; t.fontSizeMax = 28;
             var cu = Ui.Text(card.transform, "cust", unlocked ? lv.Customer : "Locked", 19, Palette.InkSoft, Ui.Italic, TextAlignmentOptions.TopLeft);
-            cu.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(92, -52), new Vector2(286, 28));
+            cu.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(92, -52), new Vector2(inner, 28));
+            cu.enableAutoSizing = true; cu.fontSizeMin = 14; cu.fontSizeMax = 19;
             cu.textWrappingMode = TextWrappingModes.NoWrap;
             for (int s = 0; s < 3; s++)
             {
@@ -193,7 +197,7 @@ namespace HWC.Gameplay
             {
                 // a pencil note: Mabel helped with this one
                 var hn = Ui.Text(card.transform, "hinted", "hinted", 17, new Color(0.35f, 0.32f, 0.3f, 0.8f), Ui.Italic, TextAlignmentOptions.Left);
-                hn.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(198, 13), new Vector2(64, 24));
+                hn.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(16, 8), new Vector2(70, 24));
                 hn.rectTransform.localRotation = Quaternion.Euler(0, 0, -4);
             }
             if (!unlocked)
@@ -203,7 +207,8 @@ namespace HWC.Gameplay
             }
             else if (G.Save.IsDelivered(lv.Number))
             {
-                var d = Ui.Text(card.transform, "done", "DELIVERED", 22, Palette.Good, Ui.Display, TextAlignmentOptions.Right);
+                bool ex = G.Save.IsExpert(lv.Number);
+                var d = Ui.Text(card.transform, "done", ex ? "EXPERT" : "DELIVERED", 22, ex ? Palette.TealDark : Palette.Good, Ui.Display, TextAlignmentOptions.Right);
                 d.rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-14, 10), new Vector2(160, 30));
                 d.rectTransform.localRotation = Quaternion.Euler(0, 0, 6);
             }
@@ -361,17 +366,33 @@ namespace HWC.Gameplay
             body.rectTransform.Stretch(60, 60, 120, 140);
             var back = Ui.Button(p.transform, "back", "BACK", ShowTitle, Palette.PostalRed, Palette.Cream, 38);
             back.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 30), new Vector2(260, 76));
+            // beside the credits panel, not over its text
+            var note = Ui.Panel(credits, "overtime", Palette.Sticky, Ui.Rounded(4));
+            note.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(700, 200), new Vector2(330, 170));
+            note.rectTransform.localRotation = Quaternion.Euler(0, 0, 4f);
+            Ui.Shadow(note, 5, 0.25f);
+            var nt = Ui.Text(note.transform, "t", "Don't go home yet. Five odd orders came in. They're in the Delivery Log under OVERTIME.", 22, Palette.Ink, Ui.Italic, TextAlignmentOptions.TopLeft);
+            nt.rectTransform.Stretch(16, 14, 14, 30);
+            var ns = Ui.Text(note.transform, "sig", "— Mabel", 18, Palette.InkSoft, Ui.Bold, TextAlignmentOptions.BottomRight);
+            ns.rectTransform.Stretch(14, 14, 8, 8);
+            overtimeNote = note.rectTransform;
+            note.gameObject.SetActive(false);
         }
 
-        public void ShowCreditsFinale()
+        RectTransform overtimeNote;
+
+        /// <summary>After The Dragon Egg: the credits, plus a note that Overtime is open (when it is).</summary>
+        public void ShowCreditsFinale(bool overtimeOpens = false)
         {
             ShowCredits();
+            overtimeNote.gameObject.SetActive(overtimeOpens);
         }
 
         void ShowCredits()
         {
             HideAll();
             credits.gameObject.SetActive(true);
+            overtimeNote.gameObject.SetActive(false);
         }
 
         void Update()
