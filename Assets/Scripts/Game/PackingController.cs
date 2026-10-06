@@ -282,6 +282,7 @@ namespace HWC.Gameplay
         {
             if (quirks != null && Active) quirks.Tick();
             if (!Active || G.Phase != Phase.Packing || G.Hud.Paused) return;
+            if (G.FreshPhase) return;   // the key or click that opened the packing screen isn't a packing action
             var mouse = Mouse.current;
             var kb = Keyboard.current;
             if (mouse == null) return;

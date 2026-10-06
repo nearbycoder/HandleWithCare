@@ -20,7 +20,12 @@ namespace HWC.Gameplay
         // the box's own piece views are lifted into the room; put them back afterwards so a replay can use them
         readonly List<(Transform t, Transform parent, Vector3 pos, Quaternion rot, Vector3 scale, bool active)> moved = new List<(Transform, Transform, Vector3, Quaternion, Vector3, bool)>();
         public bool Running;
+        /// <summary>Repeat unboxings of a delivery run faster; the first one (and the egg finale) plays in full.</summary>
+        public bool Quick;
+        /// <summary>Unscaled time the egg started to hatch (-1 = not yet), for the screenshot tours.</summary>
+        public float HatchStartedAt = -1f;
         bool skip;
+        float Pace => Quick ? 0.5f : 1f;
         Game G => Game.I;
 
         public event Action<ItemResult, Vector3> ItemRevealed;   // UI stamps
@@ -80,6 +85,7 @@ namespace HWC.Gameplay
         {
             Running = true;
             skip = false;
+            HatchStartedAt = -1f;
             EnsureRoom();
             room.SetActive(true);
             var preset = LightingPreset.For(null);
@@ -116,7 +122,7 @@ namespace HWC.Gameplay
             var to = new Vector3(0, box.OuterHalfHeight, 0);
             while (t < 0.35f)
             {
-                t += Time.deltaTime;
+                t += Time.deltaTime / Pace;
                 float u = Mathf.Clamp01(t / 0.35f);
                 box.transform.localPosition = Vector3.Lerp(from, to, u * u);
                 yield return null;
@@ -125,12 +131,12 @@ namespace HWC.Gameplay
             G.Hud.Sfx("thud", 0.8f);
             rig.AddTrauma(0.25f);
             Fx.Dust(box.transform.position - Vector3.up * box.OuterHalfHeight, box.W);
-            yield return Wait(0.55f);
+            yield return Wait(0.55f * Pace);
 
             // slice the tape
             G.Hud.Sfx("slice");
             box.SetTape(0f, false);
-            yield return Wait(0.45f);
+            yield return Wait(0.45f * Pace);
 
             // flaps burst open with a flash of light
             G.Hud.Sfx("flaps_open");
@@ -139,7 +145,7 @@ namespace HWC.Gameplay
             Fx.Dust(box.transform.position + Vector3.up * box.OuterHalfHeight, box.W * 1.5f);
             Fx.Sparkle(box.transform.position + Vector3.up * box.OuterHalfHeight, Color.white, box.InteriorWidth * 0.5f);
             spot.intensity = 0f;
-            yield return Wait(0.6f);
+            yield return Wait(0.6f * Pace);
 
             // items rise one at a time
             var items = new List<ItemResult>(rec.Outcome.Items);
@@ -183,7 +189,7 @@ namespace HWC.Gameplay
                 var startRot = show.transform.rotation;
                 while (t < 0.55f && !skip)
                 {
-                    t += Time.deltaTime;
+                    t += Time.deltaTime / Pace;
                     float u = Mathf.Clamp01(t / 0.55f);
                     float e = 1f - Mathf.Pow(1f - u, 3f);
                     show.transform.position = Vector3.Lerp(startPos, top, e) + Vector3.up * Mathf.Sin(u * Mathf.PI) * 0.08f;
@@ -198,12 +204,12 @@ namespace HWC.Gameplay
                 StampFx(it, top);
                 if (it.Kind == PieceKind.Dragon && !it.Failed) StartCoroutine(RevealSneeze(show.transform));
                 if (it.Kind == PieceKind.DragonEgg && !it.Failed && rec.Outcome.Delivered) yield return Hatch(show, top);
-                yield return Wait(it.Failed ? 1.1f : 0.85f);
+                yield return Wait((it.Failed ? 1.1f : 0.85f) * Pace);
                 // settle into the lineup
                 t = 0;
                 while (t < 0.4f && !skip)
                 {
-                    t += Time.deltaTime;
+                    t += Time.deltaTime / Pace;
                     float u = Mathf.Clamp01(t / 0.4f);
                     float e = u * u * (3 - 2 * u);
                     show.transform.position = Vector3.Lerp(top, slot, e) + Vector3.up * Mathf.Sin(u * Mathf.PI) * 0.12f;
@@ -258,6 +264,7 @@ namespace HWC.Gameplay
         /// <summary>The finale: the egg wobbles, cracks and a hatchling pops out (and sneezes).</summary>
         IEnumerator Hatch(GameObject egg, Vector3 at)
         {
+            HatchStartedAt = Time.unscaledTime;
             float t = 0;
             while (t < 0.9f)
             {
@@ -285,7 +292,8 @@ namespace HWC.Gameplay
             }
             G.Hud.Sfx("fanfare", 0.8f);
             Fx.Confetti(at + Vector3.down * 0.2f, 0.6f);
-            ItemRevealed?.Invoke(new ItemResult { Kind = PieceKind.DragonEgg, Status = ItemStatus.Perfect, Body = -1 }, at + Vector3.up * 0.25f);
+            // just above the hatchling: higher and the stamp leaves the top of the frame on the 6x4 box
+            ItemRevealed?.Invoke(new ItemResult { Kind = PieceKind.DragonEgg, Status = ItemStatus.Perfect, Body = -1 }, at + Vector3.up * 0.08f);
             yield return RevealSneeze(baby.transform);
             yield return Wait(0.6f);
             egg.SetActive(true);

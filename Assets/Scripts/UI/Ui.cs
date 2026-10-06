@@ -271,7 +271,14 @@ namespace HWC.UI
 
         public void OnPointerClick(PointerEventData e)
         {
-            if (e.button != PointerEventData.InputButton.Left || !Interactable) return;
+            if (e.button != PointerEventData.InputButton.Left) return;
+            Press();
+        }
+
+        /// <summary>Clicks the button (mouse or keyboard shortcut), with the same sound and squash.</summary>
+        public void Press()
+        {
+            if (!Interactable || !isActiveAndEnabled) return;
             ClickSound?.Invoke();
             scale = 0.86f;
             OnClick?.Invoke();

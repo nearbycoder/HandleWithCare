@@ -56,6 +56,8 @@ Pick an item off the shelf, drop it in the box, paint padding around it, seal, a
 | `Esc` | Drop what you are holding, or pause |
 | During the journey | `Space` pause, `Enter` skip, `1`–`4` playback speed |
 | Replay | Click the timeline to jump, speed buttons, `C` or the CAM button cycles director / close-up / wide |
+| Unboxing | `Enter`, `Space` or `Esc` skips to the review |
+| Review | `R` repack, `P` replay, `Enter` next delivery |
 
 Mouse and keyboard only: there is no gamepad or touch support.
 
@@ -96,7 +98,8 @@ the hard brake, jolt 11/8").
 <img src="docs/media/screenshots/04-unboxing.jpg" alt="The unboxing: the vase rises out of the box with a green PERFECT stamp" width="100%">
 
 **The unboxing.** At the other end, the box lands on the customer's kitchen table, the tape is
-sliced, the flaps burst open and each item rises into the light to get its stamp. Then the review
+sliced, the flaps burst open and each item rises into the light to get its stamp. The second time
+you open the same delivery, the unboxing plays at double speed (except for the dragon egg). Then the review
 and up to three stars:
 
 - **Delivered**: every item arrives OK.
@@ -286,7 +289,6 @@ solvable with three stars.
   dedicated listening pass.
 - **Difficulty.** A few early deliveries are cheap to solve (A Prickly Situation can be done with one
   divider), so their under-budget star is easy.
-- **Framing.** The unboxing camera frames the dragon egg's finale a little tight at the top.
 - **Input.** No gamepad or touch support. Mouse and keyboard only.
 
 ## License

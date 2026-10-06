@@ -165,17 +165,76 @@ namespace HWC.Gameplay
             yield return AfterShot();
             yield return PlayFirstDeliveryByHand(true);
             while (g.Phase != Phase.Reveal) yield return null;
+            float reveal0 = Time.unscaledTime;
             yield return new WaitForSecondsRealtime(2.9f);
             Shot("M6_reveal");
             while (g.Phase != Phase.Results) yield return null;
+            Debug.Log($"[AutoPilot] first unboxing took {Time.unscaledTime - reveal0:0.0}s (quick {g.Reveal.Quick})");
             yield return new WaitForSecondsRealtime(2.2f);
             Shot("M7_results");
             yield return AfterShot();
             g.Hud.SetPaused(true);
             yield return new WaitForSecondsRealtime(0.4f);
             Shot("M8_pause");
+            yield return AfterShot();
+            g.Hud.SetPaused(false);
+            yield return KeyboardRetryLoop();
             Debug.Log("[AutoPilot] done");
             Application.Quit();
+        }
+
+        void Check(bool ok, string what) => Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} keys: {what}");
+
+        IEnumerator WaitPhase(Phase p, float timeout)
+        {
+            float t0 = Time.unscaledTime;
+            while (Game.I.Phase != p && Time.unscaledTime - t0 < timeout) yield return null;
+        }
+
+        /// <summary>From Results back round the loop with the keyboard only: R, Space, Enter, Enter, Enter.</summary>
+        IEnumerator KeyboardRetryLoop()
+        {
+            var g = Game.I;
+            yield return Key(UnityEngine.InputSystem.Key.R);
+            Check(g.Phase == Phase.Packing, "R on Results repacks");
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return Key(UnityEngine.InputSystem.Key.Space);
+            Check(g.Phase == Phase.Sealing, "Space seals the kept packing");
+            yield return WaitPhase(Phase.Journey, 5f);
+            yield return new WaitForSecondsRealtime(0.5f);
+            yield return Key(UnityEngine.InputSystem.Key.Enter);
+            yield return WaitPhase(Phase.Reveal, 2f);
+            Check(g.Phase == Phase.Reveal, "Enter skips the journey");
+            float r0 = Time.unscaledTime;
+            yield return WaitPhase(Phase.Results, 20f);
+            Debug.Log($"[AutoPilot] repeat unboxing took {Time.unscaledTime - r0:0.0}s (quick {g.Reveal.Quick})");
+            Check(g.Reveal.Quick, "a repeat unboxing plays quick");
+            yield return new WaitForSecondsRealtime(0.5f);
+            yield return Key(UnityEngine.InputSystem.Key.P);
+            Check(g.Phase == Phase.Journey && g.Journey.IsReplay, "P on Results replays");
+            yield return new WaitForSecondsRealtime(0.5f);
+            yield return Key(UnityEngine.InputSystem.Key.Enter);
+            yield return WaitPhase(Phase.Results, 2f);
+            Check(g.Phase == Phase.Results, "Enter ends the replay");
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return Key(UnityEngine.InputSystem.Key.R);
+            yield return new WaitForSecondsRealtime(0.3f);
+            yield return Key(UnityEngine.InputSystem.Key.Enter);
+            yield return WaitPhase(Phase.Journey, 5f);
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return Key(UnityEngine.InputSystem.Key.Enter);
+            yield return WaitPhase(Phase.Reveal, 2f);
+            yield return new WaitForSecondsRealtime(0.3f);
+            Shot("M9_reveal_skip_hint");
+            yield return AfterShot();
+            r0 = Time.unscaledTime;
+            yield return Key(UnityEngine.InputSystem.Key.Enter);
+            yield return WaitPhase(Phase.Results, 3f);
+            Check(g.Phase == Phase.Results && Time.unscaledTime - r0 < 1.5f, $"Enter skips the unboxing ({Time.unscaledTime - r0:0.00}s)");
+            yield return new WaitForSecondsRealtime(0.6f);
+            yield return Key(UnityEngine.InputSystem.Key.Enter);
+            yield return new WaitForSecondsRealtime(0.3f);
+            Check(g.Phase == Phase.Packing && g.Level.Number == 2, "Enter on Results goes to the next delivery (and doesn't seal it)");
         }
 
         IEnumerator Start()
@@ -257,6 +316,12 @@ namespace HWC.Gameplay
                     while (g.Phase == Phase.Reveal && Time.unscaledTime - r0 < at) yield return null;
                     if (g.Phase != Phase.Reveal) break;
                     Shot($"L{n:00}_5_reveal_{at:0.0}");
+                }
+                // the egg finale: the hatchling has popped out and been stamped
+                if (System.Array.IndexOf(lv.Items, PieceKind.DragonEgg) >= 0)
+                {
+                    while (g.Phase == Phase.Reveal && (g.Reveal.HatchStartedAt < 0 || Time.unscaledTime - g.Reveal.HatchStartedAt < 1.45f)) yield return null;
+                    if (g.Phase == Phase.Reveal) Shot($"L{n:00}_5_hatch");
                 }
             }
             while (g.Phase != Phase.Results) yield return null;

@@ -38,7 +38,12 @@ namespace HWC.Gameplay
         public Menus Menus;
         public Tutorial Tutorial;
         public RevealController Reveal;
-        public Phase Phase;
+        Phase phase;
+        /// <summary>The frame the current phase began on. A key press that changed phase is not
+        /// read again by the next screen in that same frame.</summary>
+        public int PhaseFrame { get; private set; } = -1;
+        public Phase Phase { get => phase; set { phase = value; PhaseFrame = Time.frameCount; } }
+        public bool FreshPhase => Time.frameCount <= PhaseFrame;
         public bool Autopilot;
         public bool SkipReveal;     // the 20-delivery self-test skips the unboxing for speed
 
@@ -233,6 +238,8 @@ namespace HWC.Gameplay
             if (SkipReveal) { ShowResultsNow(); return; }
             Phase = Phase.Reveal;
             Hud.ShowReveal();
+            // seen this unboxing before? play it brisker (the dragon egg finale always plays in full)
+            Reveal.Quick = (Save.Get(Level.Number)?.Attempts ?? 0) > 1 && System.Array.IndexOf(Level.Items, PieceKind.DragonEgg) < 0;
             StartCoroutine(Reveal.Play(LastRun, Station.Box, ShowResultsNow));
         }
 

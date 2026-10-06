@@ -150,10 +150,17 @@ namespace HWC.Gameplay
             revealRoot = Ui.Rect("Reveal", root).Stretch();
             var skip = Ui.Button(revealRoot, "skip", "SKIP  ▶▶", () => G.Reveal.Skip(), Palette.Cream, Palette.Ink, 28);
             skip.Image.rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 22), new Vector2(170, 56));
+            var hint = Ui.Text(revealRoot, "skipKeys", "ENTER / SPACE", 18, Palette.Cream, Ui.Bold, TextAlignmentOptions.Right);
+            hint.rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-34, 80), new Vector2(240, 26));
+            hint.outlineWidth = 0.25f;
+            hint.outlineColor = Palette.Ink;
+            hint.raycastTarget = false;
+            revealSkipHint = hint;
             revealSkip = skip;
         }
 
         UiButton revealSkip;
+        TextMeshProUGUI revealSkipHint;
 
         public void HookReveal(RevealController r)
         {
@@ -177,6 +184,7 @@ namespace HWC.Gameplay
             stamps.Clear();
             revealRoot.gameObject.SetActive(true);
             revealSkip.gameObject.SetActive(!Cinematic);
+            revealSkipHint.gameObject.SetActive(!Cinematic);
             AudioDirector.I?.Loop(null, 0);
             AudioDirector.I?.PlayMusic("reveal", 0.8f);
         }
@@ -808,12 +816,15 @@ namespace HWC.Gameplay
             resCost = Ui.Text(p.transform, "cost", "", 22, Palette.InkSoft, Ui.Bold);
             resCost.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -478), new Vector2(860, 30));
 
-            var repack = Ui.Button(p.transform, "repack", "REPACK", () => G.Repack(), Palette.Teal, Palette.Cream, 40);
-            repack.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-300, 34), new Vector2(260, 84));
-            var replay = Ui.Button(p.transform, "replay", "REPLAY", () => G.Replay(), Palette.Ink, Palette.Cream, 40);
-            replay.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 34), new Vector2(260, 84));
+            repackBtn = Ui.Button(p.transform, "repack", "REPACK", () => G.Repack(), Palette.Teal, Palette.Cream, 40);
+            repackBtn.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-300, 34), new Vector2(260, 84));
+            KeyHint(repackBtn, "R");
+            replayBtn = Ui.Button(p.transform, "replay", "REPLAY", () => G.Replay(), Palette.Ink, Palette.Cream, 40);
+            replayBtn.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 34), new Vector2(260, 84));
+            KeyHint(replayBtn, "P");
             nextBtn = Ui.Button(p.transform, "next", "NEXT ▶", () => G.NextLevel(), Palette.PostalRed, Palette.Cream, 40);
             nextBtn.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(300, 34), new Vector2(260, 84));
+            KeyHint(nextBtn, "ENTER");
             var log = Ui.Button(resultsRoot, "log", "DELIVERY LOG", () => G.ShowDeliveryLog(), Palette.Cream, Palette.Ink, 26);
             log.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(28, 28), new Vector2(240, 60));
             var menu = Ui.Button(resultsRoot, "menu", "MAIN MENU", () => G.ShowTitle(), Palette.Cream, Palette.Ink, 26);
@@ -826,7 +837,33 @@ namespace HWC.Gameplay
         float resultsT;
         bool confettiPending;
 
-        UiButton nextBtn;
+        UiButton nextBtn, repackBtn, replayBtn;
+
+        /// <summary>A small keyboard shortcut in the button's top-left corner, like the toolbar numbers.</summary>
+        static void KeyHint(UiButton b, string key, float size = 16f)
+        {
+            var c = b.Label != null ? b.Label.color : Palette.Cream;
+            var t = Ui.Text(b.transform, "key", key, size, new Color(c.r, c.g, c.b, 0.6f), Ui.Bold, TextAlignmentOptions.TopLeft);
+            t.rectTransform.Stretch(9, 9, 5, 5);
+            t.raycastTarget = false;
+        }
+
+        /// <summary>Keyboard shortcuts for the unboxing and the results, so a retry never needs the mouse.</summary>
+        void UpdateShortcuts(Keyboard kb)
+        {
+            if (kb == null || Paused || G.Menus.Open || G.FreshPhase) return;
+            bool enter = kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame;
+            if (G.Phase == Phase.Reveal && revealRoot.gameObject.activeSelf && revealSkip.gameObject.activeSelf)
+            {
+                if (enter || kb.spaceKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame) revealSkip.Press();
+            }
+            else if (G.Phase == Phase.Results && resultsRoot.gameObject.activeSelf)
+            {
+                if (kb.rKey.wasPressedThisFrame) repackBtn.Press();
+                else if (kb.pKey.wasPressedThisFrame) replayBtn.Press();
+                else if (enter) nextBtn.Press();
+            }
+        }
 
         public void ShowResults(LevelDef lv, Recording rec)
         {
@@ -955,6 +992,7 @@ namespace HWC.Gameplay
                 if (!escConsumed && !G.Menus.Open && (G.Phase == Phase.Packing || G.Phase == Phase.Journey)) SetPaused(!Paused);
             }
             escConsumed = false;
+            UpdateShortcuts(kb);
 
             float dt = Clock.UnscaledDelta;
             UpdateStamps(dt);
