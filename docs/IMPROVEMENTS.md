@@ -46,8 +46,8 @@ the chance of breaking something that works now.
 | 3 | **Shift 5 "Overtime": five new deliveries proved by SimCheck** | High (depth, post-game) | M–L | Med | New combinations of existing quirks (fire vs ice, a hopper with a balloon, a walker with a cake, the egg kept warm by the lava lamp, bouncers with magnets). No new art. Unlocks after the finale. |
 | 4 | **Faster retry loop + keyboard shortcuts after the trip** | Med–High (feel of "one more run") | S | Low | Enter/Space skips the unboxing; on Results, R repacks, Enter goes to Next, P replays; key hints on the buttons. Optional "quick unboxing" once a delivery has been opened before. |
 | 5 | **Expert targets ("Mabel's best") + balance pass** | Med (replayability; addresses the README's "too cheap" note) | S–M | Low | Shows the best known cost from the solver as a fourth, optional stamp. The three stars and pars stay the same, so existing saves keep their meaning. Re-tunes A Prickly Situation so a lone divider isn't the whole answer, proved with the solver. |
-| 6 | **Gamepad / Steam Deck support** | Med–High for Deck owners, Low for desktop | L | Med–High | A cell cursor on the d-pad/stick for packing, face buttons for place/rotate/erase, and uGUI navigation on every runtime-built screen. It can be self-tested with virtual `Gamepad` devices in the autopilot. Too big for this round next to 1–5. |
-| 7 | Display settings: VSync / frame cap, window size, pause on focus loss | Med (laptops, battery, fans) | S | Low | Replaces the hard-coded 120 fps cap. |
+| 6 | **Gamepad / Steam Deck support** (done in round 2) | Med–High for Deck owners, Low for desktop | L | Med–High | A cell cursor on the d-pad/stick for packing, face buttons for place/rotate/erase, and uGUI navigation on every runtime-built screen. It can be self-tested with virtual `Gamepad` devices in the autopilot. Too big for this round next to 1–5. |
+| 7 | Display settings: VSync / frame cap, window size, pause on focus loss (done in round 2) | Med (laptops, battery, fans) | S | Low | Replaces the hard-coded 120 fps cap. |
 | 8 | Dragon-egg finale framing (README known issue) | Low–Med (it's the finale) | S | Low | Pull the reveal camera back or raise its target for the hatch beat; verify with `shots.sh 20`. Can ride along with #4. |
 | 9 | Windows build | High (reach) | S once the module exists | Low | **Blocked**: Windows Build Support isn't installed. A `BuildWindows` entry point can be added and left untested until it is. |
 | 10 | Performance on a dedicated GPU + a real GPU-time probe | Med | M | Low | Can't be measured on this shared iGPU. Needs other hardware or an idle machine. |
@@ -215,3 +215,21 @@ verifiable here: a physical Steam Deck or controller.
 **Verify:** the menu tour clicks them with real mouse events and logs `targetFrameRate`,
 `vSyncCount` and the window size; a `-hwcFps` run with the 30 cap stays at or under 30 fps. Focus loss is
 tested by calling the focus handler (a headless run can't take focus away from its own window).
+
+## Round 2 results (2026-10-06)
+
+| Item | Commit | Verified by |
+| --- | --- | --- |
+| R2-A. Self-tests in the repo, screenshots checked | 3c9d295 | All five self-test scripts write to `Logs/selftest/`; a full run left nothing of ours in /tmp and no zero-byte PNGs |
+| R2-B. Gamepad and Steam Deck | ac4dfcc | `padpilot.sh`: a virtual gamepad only, at 1280×800, 28/28 steps (title → delivery 2, dividers, undo/redo, turning Ember, Ask Mabel, pause, settings). Also fixed: right-clicking the cell you just painted now erases it |
+| R2-C. Prompts follow the device | 286c147 | Keyboard (`tour.sh`) and pad (`padpilot.sh`) screenshots: toolbar 1–6 vs LB/RB, Z/Y vs LT/RT, SPACE vs VIEW, R/P/ENTER vs X/Y/A, and the tutorial wording |
+| R2-D. Display settings | 4a424da | `tour.sh` clicks each control with real mouse events: VSync off, 30 fps limit measured at 30.0 fps, the window resized to the chosen 2560×1440, the save round-trips, and focus loss pauses packing |
+
+After the last commit: `simcheck check` ALL OK (25), `autopilot.sh` 25/25, `hintpilot.sh` 26/26,
+`tour.sh` 18 PASS, `padpilot.sh` 28/28. Screenshots: `docs/media/improvements/round2/`.
+
+Not verified here: a physical controller or Steam Deck (only a virtual pad), and real alt-tab focus
+loss (the handler is called directly). The local macOS build wasn't rebuilt this round.
+
+Still for the owner: Windows Build Support, Mac signing and notarization, publishing a release,
+and a license.
