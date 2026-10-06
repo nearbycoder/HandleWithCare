@@ -155,8 +155,9 @@ and random item-only packings never get through.
 
 That's 19 item types, 3 kinds of padding plus dividers, shelves and straps, and six journey
 environments. There's also an onboarding tutorial and shift title cards, plus a delivery log with
-per-delivery stars, settings (volumes, screen shake, reduced motion, packing grid, fullscreen, a
-graphics quality switch), pause, and a replay with three camera modes.
+per-delivery stars, settings (volumes, screen shake, reduced motion, packing grid, fullscreen or a
+window size, VSync and a frame-rate limit, a graphics quality switch, pausing when the window loses
+focus), pause, and a replay with three camera modes.
 
 ## Screenshots
 
@@ -352,7 +353,8 @@ Overtime), every one validated solvable with three stars.
 - **Performance.** The frame rate on a dedicated GPU has not been measured. On the shared machine it
   was built on, other programs kept the GPU about 97% busy. The game's own main thread takes about 9 ms
   per frame during a journey (`Tools/play.sh -hwcFps` logs this). Settings has a High Quality Graphics
-  switch that drops MSAA, render scale, shadow range and SSAO for slower GPUs.
+  switch that drops MSAA, render scale, shadow range and SSAO for slower GPUs, and VSync with a
+  frame-rate limit (30, 60, 120 or unlimited) for laptops and handhelds.
 - **Foliage.** Trees and bushes use alpha-tested leaf cards over sculpted canopies. Up close they look
   more like good models than real foliage. Dash the courier is a simple jointed figure animated in
   code.

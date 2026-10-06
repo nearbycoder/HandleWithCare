@@ -55,7 +55,6 @@ namespace HWC.Gameplay
         void Awake()
         {
             I = this;
-            Application.targetFrameRate = 120;
             Save = SaveData.Load();
             BuildCore();
         }
@@ -120,7 +119,30 @@ namespace HWC.Gameplay
             Fx.Reduced = Save.ReducedMotion;
             GraphicsQuality.Apply(Save.HighQuality);
             Menus.ApplyAudio();
-            if (!Application.isEditor) Screen.fullScreenMode = Save.Fullscreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
+            ApplyDisplay();
+        }
+
+        /// <summary>VSync, frame-rate cap, fullscreen and window size from the settings.</summary>
+        public void ApplyDisplay()
+        {
+            QualitySettings.vSyncCount = Save.VSync ? 1 : 0;
+            Application.targetFrameRate = Save.FrameCap > 0 ? Save.FrameCap : -1;   // only matters with VSync off
+            if (Application.isEditor) return;
+            if (Save.Fullscreen) Screen.fullScreenMode = FullScreenMode.FullScreenWindow;
+            else if (Save.WindowW > 0 && Save.WindowH > 0) Screen.SetResolution(Save.WindowW, Save.WindowH, FullScreenMode.Windowed);
+            else Screen.fullScreenMode = FullScreenMode.Windowed;
+        }
+
+        /// <summary>Alt-tabbed away: pause a delivery in progress, or at least muffle the music.</summary>
+        void OnApplicationFocus(bool focus)
+        {
+            if (Save == null || !Save.PauseInBackground || Hud == null) return;
+            if (!focus)
+            {
+                if ((Phase == Phase.Packing || Phase == Phase.Journey) && !Hud.Paused && !Menus.Open) Hud.SetPaused(true);
+                else HWC.Audio.AudioDirector.I?.Muffle(true);
+            }
+            else if (!Hud.Paused) HWC.Audio.AudioDirector.I?.Muffle(false);
         }
 
         void Start()
@@ -128,7 +150,8 @@ namespace HWC.Gameplay
             if (TrailerDirector.TryStart(this)) return;
             if (AutoPilot.TryStart(this))
             {
-                Save = new SaveData { SeenTips = new System.Collections.Generic.List<string> { "basics" } };
+                // self-tests run unfocused: never pause on focus loss
+                Save = new SaveData { SeenTips = new System.Collections.Generic.List<string> { "basics" }, PauseInBackground = false };
                 Autopilot = !System.Array.Exists(System.Environment.GetCommandLineArgs(), a => a == "-hwcMenus" || a == "-hwcPad");
                 ApplySettings();
                 if (Autopilot) StartLevel(1);

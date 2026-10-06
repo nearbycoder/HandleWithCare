@@ -39,6 +39,10 @@ namespace HWC.Gameplay
         public bool Fullscreen = true;
         public bool ShowGrid = true;
         public bool HighQuality = true;
+        public bool VSync = true;
+        public int FrameCap = 120;            // frames per second when VSync is off; 0 = unlimited
+        public int WindowW, WindowH;          // windowed size; 0 = leave the window as launched
+        public bool PauseInBackground = true; // pause (and muffle) when the window loses focus
         public string Tape = "kraft";
         public List<string> SeenTips = new List<string>();
         public List<LevelRecord> Records = new List<LevelRecord>();

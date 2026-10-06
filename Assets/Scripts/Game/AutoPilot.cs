@@ -161,11 +161,19 @@ namespace HWC.Gameplay
             yield return new WaitForSecondsRealtime(0.8f);
             Shot("M3_settings");
             yield return AfterShot();
+            yield return DisplaySettings();
             g.Menus.HideAll();
             g.StartLevel(1);
             yield return new WaitForSecondsRealtime(1.2f);
             Shot("M4_tutorial");
             yield return AfterShot();
+            // focus loss mid-delivery pauses (the tour runs unfocused, so the handler is called directly)
+            g.Save.PauseInBackground = true;
+            g.SendMessage("OnApplicationFocus", false);
+            Check2(g.Hud.Paused, "display", "losing focus while packing pauses the game");
+            g.SendMessage("OnApplicationFocus", true);
+            g.Hud.SetPaused(false);
+            g.Save.PauseInBackground = false;
             yield return PlayFirstDeliveryByHand(true);
             while (g.Phase != Phase.Reveal) yield return null;
             float reveal0 = Time.unscaledTime;
@@ -188,6 +196,49 @@ namespace HWC.Gameplay
         }
 
         void Check(bool ok, string what) => Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} keys: {what}");
+        void Check2(bool ok, string area, string what) => Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} {area}: {what}");
+
+        static Vector2 RectScreen(RectTransform rt) => RectTransformUtility.WorldToScreenPoint(null, rt.TransformPoint(rt.rect.center));
+
+        /// <summary>The display settings, clicked with real mouse events.</summary>
+        IEnumerator DisplaySettings()
+        {
+            var g = Game.I;
+            var m = g.Menus;
+            int launchW = UnityEngine.Screen.width, launchH = UnityEngine.Screen.height;
+            InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+            mousePos = new Vector2(UnityEngine.Screen.width * 0.5f, UnityEngine.Screen.height * 0.5f);
+            // VSync off, then the frame-rate limit down to 30
+            if (g.Save.VSync) yield return ClickAt(RectScreen((RectTransform)m.SettingToggle("vsync").transform));
+            Check2(!g.Save.VSync && QualitySettings.vSyncCount == 0, "display", "clicking VSYNC turns it off");
+            for (int i = 0; i < 4 && g.Save.FrameCap != 30; i++) yield return ClickAt(RectScreen(m.FrameRateButton.Image.rectTransform));
+            Check2(g.Save.FrameCap == 30 && Application.targetFrameRate == 30, "display", $"clicking the frame-rate limit reaches 30 (targetFrameRate {Application.targetFrameRate})");
+            yield return new WaitForSecondsRealtime(0.5f);
+            int f0 = Time.frameCount; float t0 = Time.realtimeSinceStartup;
+            yield return new WaitForSecondsRealtime(2f);
+            float fps = (Time.frameCount - f0) / (Time.realtimeSinceStartup - t0);
+            Check2(fps <= 31f, "display", $"measured {fps:0.0} fps with the 30 cap");
+            // windowed, then the next window size
+            if (g.Save.Fullscreen) yield return ClickAt(RectScreen((RectTransform)m.SettingToggle("full").transform));
+            Check2(!g.Save.Fullscreen && m.WindowSizeButton.Interactable, "display", "fullscreen off enables WINDOW SIZE");
+            yield return ClickAt(RectScreen(m.WindowSizeButton.Image.rectTransform));
+            yield return new WaitForSecondsRealtime(1.0f);
+            Debug.Log($"[AutoPilot] display: window size {g.Save.WindowW}x{g.Save.WindowH} chosen, window is {UnityEngine.Screen.width}x{UnityEngine.Screen.height} {UnityEngine.Screen.fullScreenMode}");
+            Check2(g.Save.WindowW > 0 && g.Save.WindowH > 0, "display", "clicking WINDOW SIZE picks a size");
+            yield return ClickAt(RectScreen((RectTransform)m.SettingToggle("bgpause").transform));
+            Check2(g.Save.PauseInBackground, "display", "clicking PAUSE WHEN IN THE BACKGROUND turns it on");
+            Shot("M3b_settings_display");
+            yield return AfterShot();
+            // the choices survive a save round trip
+            var back = JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(g.Save));
+            Check2(back.VSync == g.Save.VSync && back.FrameCap == 30 && back.WindowW == g.Save.WindowW && back.PauseInBackground && !back.Fullscreen, "display", "the display settings survive the save file");
+            // back to the defaults for the rest of the tour (the size the tour was launched at)
+            g.Save.VSync = true; g.Save.FrameCap = 120; g.Save.PauseInBackground = false;
+            g.Save.WindowW = launchW; g.Save.WindowH = launchH;
+            g.ApplyDisplay();
+            yield return new WaitForSecondsRealtime(0.8f);
+            g.Save.WindowW = g.Save.WindowH = 0;
+        }
 
         IEnumerator WaitPhase(Phase p, float timeout)
         {

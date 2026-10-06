@@ -246,32 +246,112 @@ namespace HWC.Gameplay
             var dim = Ui.Panel(settings, "dim", new Color(0.08f, 0.05f, 0.04f, 0.55f), Ui.Rounded(2));
             dim.rectTransform.Stretch();
             var p = Ui.Panel(settings, "panel", Palette.Cream, Ui.Rounded(18, 4));
-            p.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900, 970));
+            p.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1540, 940));
             Ui.Shadow(p, 10);
             var h = Ui.Text(p.transform, "h", "SETTINGS", 64, Palette.Ink, Ui.Display);
             h.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -20), new Vector2(800, 80));
-            master = SliderRow(p.transform, "MASTER VOLUME", -130, v => { G.Save.MasterVolume = v; ApplyAudio(); });
-            music = SliderRow(p.transform, "MUSIC", -205, v => { G.Save.MusicVolume = v; ApplyAudio(); });
-            sfx = SliderRow(p.transform, "SOUND EFFECTS", -280, v => { G.Save.SfxVolume = v; ApplyAudio(); G.Hud.Sfx("click", 0.8f); });
-            ToggleRow(p.transform, "SCREEN SHAKE", -370, "shake");
-            ToggleRow(p.transform, "REDUCED MOTION (no slow-mo, fewer particles)", -435, "motion");
-            ToggleRow(p.transform, "SHOW PACKING GRID", -500, "grid");
-            ToggleRow(p.transform, "FULLSCREEN", -565, "full");
-            ToggleRow(p.transform, "HIGH QUALITY GRAPHICS (turn off on slower computers)", -630, "gfx");
+            // two columns: sound and play on the left, display on the right
+            var left = Ui.Rect("left", p.transform);
+            left.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 0), new Vector2(770, 600));
+            var right = Ui.Rect("right", p.transform);
+            right.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(770, 0), new Vector2(770, 600));
+            ColumnHead(left, "SOUND & PLAY");
+            ColumnHead(right, "DISPLAY");
+            master = SliderRow(left, "MASTER VOLUME", -170, v => { G.Save.MasterVolume = v; ApplyAudio(); });
+            music = SliderRow(left, "MUSIC", -240, v => { G.Save.MusicVolume = v; ApplyAudio(); });
+            sfx = SliderRow(left, "SOUND EFFECTS", -310, v => { G.Save.SfxVolume = v; ApplyAudio(); G.Hud.Sfx("click", 0.8f); });
+            ToggleRow(left, "SCREEN SHAKE", -390, "shake");
+            ToggleRow(left, "REDUCED MOTION (no slow-mo, fewer particles)", -455, "motion");
+            ToggleRow(left, "SHOW PACKING GRID", -520, "grid");
+            ToggleRow(right, "FULLSCREEN", -170, "full");
+            windowBtn = CycleRow(right, "WINDOW SIZE", -235, CycleWindow);
+            frameBtn = CycleRow(right, "FRAME RATE LIMIT (VSync off)", -300, CycleFrameCap);
+            ToggleRow(right, "VSYNC", -365, "vsync");
+            ToggleRow(right, "HIGH QUALITY GRAPHICS (off for slower computers)", -430, "gfx");
+            ToggleRow(right, "PAUSE WHEN IN THE BACKGROUND", -495, "bgpause");
             var tl = Ui.Text(p.transform, "tapeLabel", "TAPE DESIGN", 30, Palette.Ink, Ui.Display, TextAlignmentOptions.Left);
-            tl.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -690), new Vector2(400, 40));
+            tl.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -590), new Vector2(400, 40));
             tapeRow = Ui.Rect("tapes", p.transform);
-            tapeRow.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -740), new Vector2(780, 110));
+            tapeRow.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -640), new Vector2(780, 110));
             var back = settingsDone = Ui.Button(p.transform, "back", "DONE", () => { G.Save.Write(); settingsBack?.Invoke(); }, Palette.PostalRed, Palette.Cream, 38);
             back.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 30), new Vector2(260, 76));
+        }
+
+        static void ColumnHead(RectTransform col, string text)
+        {
+            var t = Ui.Text(col, "head", text, 24, Palette.PostalRedDark, Ui.Display, TextAlignmentOptions.Left);
+            t.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -112), new Vector2(600, 32));
+            t.characterSpacing = 4;
+        }
+
+        // ---- display settings ---------------------------------------------------------------------------
+        UiButton windowBtn, frameBtn;
+        bool syncing;
+        public UiButton WindowSizeButton => windowBtn;
+        public UiButton FrameRateButton => frameBtn;
+        public Toggle SettingToggle(string key) { foreach (var (t, k) in toggles) if (k == key) return t; return null; }
+        static readonly int[] FrameCaps = { 30, 60, 120, 0 };
+        static readonly Vector2Int[] WindowSizes =
+        {
+            new Vector2Int(1280, 720), new Vector2Int(1280, 800), new Vector2Int(1600, 900),
+            new Vector2Int(1920, 1080), new Vector2Int(2560, 1440),
+        };
+
+        /// <summary>The window sizes that fit on this display.</summary>
+        static List<Vector2Int> FittingSizes()
+        {
+            var list = new List<Vector2Int>();
+            int dw = Display.main.systemWidth, dh = Display.main.systemHeight;
+            foreach (var s in WindowSizes) if (s.x <= dw && s.y <= dh) list.Add(s);
+            if (list.Count == 0) list.Add(WindowSizes[0]);
+            return list;
+        }
+
+        void CycleWindow()
+        {
+            var sizes = FittingSizes();
+            var cur = new Vector2Int(G.Save.WindowW > 0 ? G.Save.WindowW : Screen.width, G.Save.WindowH > 0 ? G.Save.WindowH : Screen.height);
+            int i = sizes.IndexOf(cur);
+            var next = sizes[(i + 1) % sizes.Count];
+            G.Save.WindowW = next.x; G.Save.WindowH = next.y;
+            G.ApplyDisplay();
+            RefreshDisplayButtons();
+        }
+
+        void CycleFrameCap()
+        {
+            int i = Array.IndexOf(FrameCaps, G.Save.FrameCap);
+            G.Save.FrameCap = FrameCaps[(i + 1) % FrameCaps.Length];
+            G.ApplyDisplay();
+            RefreshDisplayButtons();
+        }
+
+        void RefreshDisplayButtons()
+        {
+            bool full = G.Save.Fullscreen;
+            windowBtn.Label.text = full ? "FULLSCREEN" : $"{(G.Save.WindowW > 0 ? G.Save.WindowW : Screen.width)} \u00D7 {(G.Save.WindowH > 0 ? G.Save.WindowH : Screen.height)}";
+            windowBtn.SetInteractable(!full);
+            frameBtn.Label.text = G.Save.FrameCap > 0 ? $"{G.Save.FrameCap} FPS" : "UNLIMITED";
+            frameBtn.SetInteractable(!G.Save.VSync);
+        }
+
+        UiButton CycleRow(Transform parent, string label, float y, Action onClick)
+        {
+            var l = Ui.Text(parent, label, label, 26, Palette.Ink, Ui.Display, TextAlignmentOptions.Left);
+            l.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, y), new Vector2(430, 40));
+            l.enableAutoSizing = true; l.fontSizeMin = 18; l.fontSizeMax = 26;
+            var b = Ui.Button(parent, label + "_value", "-", () => { onClick(); G.Hud.Sfx("click", 0.6f); }, Palette.Ink, Palette.Cream, 24);   // filled in by RefreshDisplayButtons
+            b.Image.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-60, y + 4), new Vector2(200, 48));
+            b.HoverScale = 1.04f;
+            return b;
         }
 
         Slider SliderRow(Transform parent, string label, float y, Action<float> onChange)
         {
             var l = Ui.Text(parent, label, label, 28, Palette.Ink, Ui.Display, TextAlignmentOptions.Left);
-            l.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, y), new Vector2(360, 40));
+            l.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, y), new Vector2(280, 40));
             var go = Ui.Rect("slider", parent);
-            go.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(420, y - 6), new Vector2(420, 30));
+            go.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(350, y - 6), new Vector2(360, 30));
             var bg = Ui.Panel(go, "bg", new Color(0, 0, 0, 0.15f), Ui.Rounded(12));
             bg.rectTransform.Stretch(0, 0, 8, 8);
             var fillArea = Ui.Rect("fillArea", go).Stretch(6, 6, 8, 8);
@@ -292,7 +372,8 @@ namespace HWC.Gameplay
         void ToggleRow(Transform parent, string label, float y, string key)
         {
             var l = Ui.Text(parent, label, label, 26, Palette.Ink, Ui.Display, TextAlignmentOptions.Left);
-            l.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, y), new Vector2(660, 40));
+            l.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, y), new Vector2(540, 40));
+            l.enableAutoSizing = true; l.fontSizeMin = 18; l.fontSizeMax = 26;
             var go = Ui.Rect("toggle", parent);
             go.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-60, y + 2), new Vector2(84, 44));
             var bg = Ui.Panel(go, "bg", new Color(0, 0, 0, 0.18f), Ui.Rounded(22));
@@ -305,12 +386,15 @@ namespace HWC.Gameplay
             {
                 bg.color = on ? Palette.Teal : new Color(0, 0, 0, 0.18f);
                 knob.rectTransform.anchoredPosition = new Vector2(on ? 62 : 22, 0);
+                if (syncing) return;   // ShowSettings is only showing the saved values
                 switch (key)
                 {
                     case "shake": G.Save.ScreenShake = on; G.Rig.ShakeEnabled = on; break;
                     case "motion": G.Save.ReducedMotion = on; Fx.Reduced = on; break;
                     case "grid": G.Save.ShowGrid = on; if (G.Station.Box != null) G.Station.Box.ShowGrid(on); break;
-                    case "full": G.Save.Fullscreen = on; Screen.fullScreenMode = on ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed; break;
+                    case "full": G.Save.Fullscreen = on; G.ApplyDisplay(); if (windowBtn != null) RefreshDisplayButtons(); break;
+                    case "vsync": G.Save.VSync = on; G.ApplyDisplay(); if (frameBtn != null) RefreshDisplayButtons(); break;
+                    case "bgpause": G.Save.PauseInBackground = on; break;
                     case "gfx": G.Save.HighQuality = on; GraphicsQuality.Apply(on); break;
                 }
                 G.Hud.Sfx("click", 0.6f);
@@ -329,10 +413,13 @@ namespace HWC.Gameplay
             foreach (var (t, key) in toggles)
             {
                 bool v = key == "shake" ? G.Save.ScreenShake : key == "motion" ? G.Save.ReducedMotion : key == "grid" ? G.Save.ShowGrid
-                    : key == "gfx" ? G.Save.HighQuality : G.Save.Fullscreen;
+                    : key == "gfx" ? G.Save.HighQuality : key == "vsync" ? G.Save.VSync : key == "bgpause" ? G.Save.PauseInBackground : G.Save.Fullscreen;
+                syncing = true;
                 t.isOn = !v;
                 t.isOn = v;
+                syncing = false;
             }
+            RefreshDisplayButtons();
             BuildTapes();
         }
 
