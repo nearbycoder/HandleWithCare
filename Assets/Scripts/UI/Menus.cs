@@ -24,6 +24,26 @@ namespace HWC.Gameplay
         Game G => Game.I;
         public bool Open => (title != null && title.gameObject.activeSelf) || select.gameObject.activeSelf || settings.gameObject.activeSelf || credits.gameObject.activeSelf;
         Action settingsBack;
+        UiButton selectBack, settingsDone, creditsBack;
+
+        /// <summary>The menu screen on top, if any (gamepad navigation stays inside it).</summary>
+        public RectTransform ActiveScreen =>
+            settings.gameObject.activeSelf ? settings : select.gameObject.activeSelf ? select :
+            credits.gameObject.activeSelf ? credits : title.gameObject.activeSelf ? title : null;
+
+        /// <summary>Where the gamepad cursor starts on the screen on top.</summary>
+        public UiButton DefaultButton =>
+            settings.gameObject.activeSelf ? settingsDone : select.gameObject.activeSelf ? selectBack :
+            credits.gameObject.activeSelf ? creditsBack : title.gameObject.activeSelf ? continueBtn : null;
+
+        /// <summary>Gamepad B: leave the screen on top. False if there was nothing to leave.</summary>
+        public bool Back()
+        {
+            if (settings.gameObject.activeSelf) { settingsDone.Press(); return true; }
+            if (select.gameObject.activeSelf) { selectBack.Press(); return true; }
+            if (credits.gameObject.activeSelf) { creditsBack.Press(); return true; }
+            return false;
+        }
 
         public static readonly (string id, string name, int stars)[] Tapes =
         {
@@ -132,7 +152,7 @@ namespace HWC.Gameplay
             h.outlineColor = Palette.Ink;
             selectGrid = Ui.Rect("grid", board.transform);
             selectGrid.Stretch(30, 30, 110, 110);
-            var back = Ui.Button(board.transform, "back", "◀  BACK", () => { if (G.Phase == Phase.Title) ShowTitle(); else { HideAll(); G.Hud.SetPaused(true); } }, Palette.Cream, Palette.Ink, 32);
+            var back = selectBack = Ui.Button(board.transform, "back", "◀  BACK", () => { if (G.Phase == Phase.Title) ShowTitle(); else { HideAll(); G.Hud.SetPaused(true); } }, Palette.Cream, Palette.Ink, 32);
             back.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(30, 24), new Vector2(220, 68));
         }
 
@@ -242,7 +262,7 @@ namespace HWC.Gameplay
             tl.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -690), new Vector2(400, 40));
             tapeRow = Ui.Rect("tapes", p.transform);
             tapeRow.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -740), new Vector2(780, 110));
-            var back = Ui.Button(p.transform, "back", "DONE", () => { G.Save.Write(); settingsBack?.Invoke(); }, Palette.PostalRed, Palette.Cream, 38);
+            var back = settingsDone = Ui.Button(p.transform, "back", "DONE", () => { G.Save.Write(); settingsBack?.Invoke(); }, Palette.PostalRed, Palette.Cream, 38);
             back.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 30), new Vector2(260, 76));
         }
 
@@ -364,7 +384,7 @@ namespace HWC.Gameplay
                 "Thanks to every customer who tipped generously.\nAnd to Ember, who sneezed on everything.",
                 28, Palette.Ink, Ui.Body);
             body.rectTransform.Stretch(60, 60, 120, 140);
-            var back = Ui.Button(p.transform, "back", "BACK", ShowTitle, Palette.PostalRed, Palette.Cream, 38);
+            var back = creditsBack = Ui.Button(p.transform, "back", "BACK", ShowTitle, Palette.PostalRed, Palette.Cream, 38);
             back.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 30), new Vector2(260, 76));
             // beside the credits panel, not over its text
             var note = Ui.Panel(credits, "overtime", Palette.Sticky, Ui.Rounded(4));

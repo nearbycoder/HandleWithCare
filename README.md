@@ -11,7 +11,7 @@
   <img alt="Platform: Linux" src="https://img.shields.io/badge/platform-Linux%20x86__64-d9483b?logo=linux&logoColor=white">
   <img alt="macOS: builds, untested" src="https://img.shields.io/badge/macOS-builds%2C%20untested-8a8a8a?logo=apple&logoColor=white">
   <img alt="Art: Blender 4.5" src="https://img.shields.io/badge/art-Blender%204.5-f5792a?logo=blender&logoColor=white">
-  <img alt="Input: mouse and keyboard" src="https://img.shields.io/badge/input-mouse%20%2B%20keyboard-2f8f8b">
+  <img alt="Input: mouse, keyboard and gamepad" src="https://img.shields.io/badge/input-mouse%20%2B%20keyboard%20%2B%20gamepad-2f8f8b">
 </p>
 
 <p align="center">
@@ -61,7 +61,23 @@ Pick an item off the shelf, drop it in the box, paint padding around it, seal, a
 | Unboxing | `Enter`, `Space` or `Esc` skips to the review |
 | Review | `R` repack, `P` replay, `Enter` next delivery |
 
-Mouse and keyboard only: there is no gamepad or touch support.
+**Gamepad (and Steam Deck).** Pick up a controller and a cursor appears: the left stick moves it,
+the d-pad jumps it to the next box cell, item or button. Everything the mouse does works the same.
+
+| Gamepad | Action |
+| --- | --- |
+| Left stick / d-pad | Move the cursor / jump to the next cell, shelf item or button |
+| A | Click: pick up, drop, hold to paint padding, press buttons |
+| B | Right click: erase padding, put a piece back, or put back the item in hand; back out of menus |
+| X / Y | Rotate the held piece / Ask Mabel |
+| LB / RB | Previous / next material |
+| LT / RT | Undo / redo |
+| View | Seal & ship |
+| Start | Put down the material in hand, or pause |
+| During the journey | A pause, B skip, X speed, Y camera |
+| Unboxing / review | A or B skip / X repack, Y replay, A on NEXT |
+
+There is no touch support.
 
 ## Features
 
@@ -228,6 +244,8 @@ Tools/autopilot.sh              # the built player plays all 25 references throu
                                 # and checks each outcome and hash against the validator
 Tools/hintpilot.sh              # Ask Mabel on all 25: click through every hint, build what the ghosts show,
                                 # expect three stars and the validator's hash; then the finale opens Overtime
+Tools/padpilot.sh               # gamepad only (a virtual pad at 1280x800): title to delivery 2, dividers,
+                                # undo/redo, turning Ember, Ask Mabel, pause and settings
 Tools/tour.sh                   # screenshots of the menus and a delivery played with real input events,
                                 # then the whole retry loop (R, Space, Enter, P) with the keyboard only
 ```
@@ -344,7 +362,9 @@ Overtime), every one validated solvable with three stars.
   longer has a divider (one divider used to solve it): the wall between the spikes and the balloon
   has to be spike-proof padding. Mabel's best comes from a randomised local search, so a cheaper
   packing may still exist.
-- **Input.** No gamepad or touch support. Mouse and keyboard only.
+- **Input.** Mouse and keyboard, or a gamepad. The gamepad support is tested with a virtual pad
+  (`Tools/padpilot.sh`, at the Steam Deck's 1280×800), not yet with a physical controller or on a
+  Steam Deck. There's no touch support.
 
 ## License
 

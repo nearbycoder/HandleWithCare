@@ -551,7 +551,7 @@ namespace HWC.Gameplay
                 // paint: place on press and while dragging over new cells; right-drag erases padding
                 if (mouse.leftButton.wasPressedThisFrame) { painting = true; lastPaintCell = new Vector2Int(-99, -99); }
                 if (!mouse.leftButton.isPressed) painting = false;
-                if (mouse.rightButton.wasPressedThisFrame) erasing = true;
+                if (mouse.rightButton.wasPressedThisFrame) { erasing = true; lastPaintCell = new Vector2Int(-99, -99); }   // erase the cell just painted, too
                 if (!mouse.rightButton.isPressed) erasing = false;
                 var c = new Vector2Int(Mathf.FloorToInt(cell.x), Mathf.FloorToInt(cell.y));
                 if (painting && valid && c != lastPaintCell)
@@ -744,6 +744,12 @@ namespace HWC.Gameplay
         }
 
         public int HoverPiece => hoverPiece;
+
+        /// <summary>World positions of the items still on the shelf (gamepad cursor targets).</summary>
+        public IEnumerable<Vector3> TrayPositions
+        {
+            get { foreach (var t in tray) if (t.View != null) yield return t.View.transform.position; }
+        }
 
         // ---- Scripted placement (autopilot, tutorials) -------------------------------------------
 

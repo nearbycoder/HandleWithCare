@@ -110,6 +110,7 @@ namespace HWC.Gameplay
             Tutorial.transform.SetParent(transform, false);
             Tutorial.Build(OverlayCanvas.transform);
             Hud.HookReveal(Reveal);
+            PadInput.Create(transform);
             ApplySettings();
         }
 
@@ -128,7 +129,7 @@ namespace HWC.Gameplay
             if (AutoPilot.TryStart(this))
             {
                 Save = new SaveData { SeenTips = new System.Collections.Generic.List<string> { "basics" } };
-                Autopilot = !System.Array.Exists(System.Environment.GetCommandLineArgs(), a => a == "-hwcMenus");
+                Autopilot = !System.Array.Exists(System.Environment.GetCommandLineArgs(), a => a == "-hwcMenus" || a == "-hwcPad");
                 ApplySettings();
                 if (Autopilot) StartLevel(1);
                 return;

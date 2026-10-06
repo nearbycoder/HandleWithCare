@@ -1032,6 +1032,7 @@ namespace HWC.Gameplay
             for (int i = 0; i < labels.Length; i++)
             {
                 var b = Ui.Button(p.transform, labels[i], labels[i], acts[i], i == 0 ? Palette.PostalRed : Palette.Ink, Palette.Cream, 34);
+                if (i == 0) resumeBtn = b;
                 b.Image.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -140 - i * 98), new Vector2(400, 78));
             }
         }
@@ -1046,6 +1047,19 @@ namespace HWC.Gameplay
         }
 
         public void ConsumeEscape() { escConsumed = true; }
+
+        // ---- for gamepad navigation ----------------------------------------------------------------
+        UiButton resumeBtn;
+        public RectTransform Root => root;
+        public RectTransform PauseRoot => pauseRoot;
+        public bool ResultsShowing => resultsRoot.gameObject.activeSelf;
+        public bool RevealShowing => revealRoot.gameObject.activeSelf;
+        public UiButton RevealSkipButton => revealSkip;
+        public UiButton NextButton => nextBtn;
+        public UiButton RepackButton => repackBtn;
+        public UiButton ReplayButton => replayBtn;
+        public UiButton ResumeButton => resumeBtn;
+        public UiButton SealButton => sealBtn;
 
         // =================================================================================
 

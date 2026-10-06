@@ -29,11 +29,12 @@ namespace HWC.Gameplay
         {
             var args = Environment.GetCommandLineArgs();
             if (Array.IndexOf(args, "-hwcFps") >= 0) g.gameObject.AddComponent<FrameProbe>();
-            string shots = Arg(args, "-hwcShots"), auto = Arg(args, "-hwcAutopilot"), menus = Arg(args, "-hwcMenus"), hints = Arg(args, "-hwcHints");
-            if (shots == null && auto == null && menus == null && hints == null) return false;
+            string shots = Arg(args, "-hwcShots"), auto = Arg(args, "-hwcAutopilot"), menus = Arg(args, "-hwcMenus"), hints = Arg(args, "-hwcHints"), pad = Arg(args, "-hwcPad");
+            if (shots == null && auto == null && menus == null && hints == null && pad == null) return false;
             SaveData.Disabled = true;
             var ap = g.gameObject.AddComponent<AutoPilot>();
-            ap.dir = shots ?? auto ?? menus ?? hints;
+            ap.dir = shots ?? auto ?? menus ?? hints ?? pad;
+            ap.pad = pad != null;
             ap.all = auto != null;
             ap.hints = hints != null;
             g.SkipReveal = ap.all || ap.hints;
@@ -50,7 +51,7 @@ namespace HWC.Gameplay
             return null;
         }
 
-        bool menus, hints;
+        bool menus, hints, pad;
 
         // ---- real input events (exercise the same path as a player's mouse) -------------------
 
@@ -245,6 +246,15 @@ namespace HWC.Gameplay
             yield return null;
             yield return new WaitForSecondsRealtime(0.5f);
             if (menus) { yield return MenuTour(); yield break; }
+            if (pad)
+            {
+                yield return PadTour();
+                yield return ShotsWritten();
+                Debug.Log("[AutoPilot] done");
+                yield return new WaitForSecondsRealtime(0.3f);
+                Application.Quit();
+                yield break;
+            }
             if (hints)
             {
                 InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
@@ -373,6 +383,210 @@ namespace HWC.Gameplay
             Debug.Log($"[AutoPilot] {(pass ? "PASS" : "FAIL")} {line}");
             report.AppendLine((pass ? "PASS " : "FAIL ") + line);
             if (!tour && n % 4 == 1) Shot($"auto_L{n:00}_results");
+        }
+
+        // ---- gamepad only: a virtual pad device, no mouse or keyboard events -------------------------
+
+        Gamepad gp;
+        GamepadState gs;
+
+        void PadSend() => InputSystem.QueueStateEvent(gp, gs);
+
+        /// <summary>The triggers are axes: GamepadState.WithButton can't set them (their enum values wrap into the d-pad bits).</summary>
+        void PadSet(GamepadButton b, bool down)
+        {
+            if (b == GamepadButton.LeftTrigger) gs.leftTrigger = down ? 1f : 0f;
+            else if (b == GamepadButton.RightTrigger) gs.rightTrigger = down ? 1f : 0f;
+            else gs = gs.WithButton(b, down);
+        }
+
+        IEnumerator PadButton(GamepadButton b, int holdFrames = 2)
+        {
+            PadSet(b, true); PadSend();
+            for (int i = 0; i < holdFrames; i++) yield return null;
+            PadSet(b, false); PadSend();
+            yield return null;
+            yield return null;
+        }
+
+        IEnumerator PadHold(GamepadButton b, bool down)
+        {
+            PadSet(b, down); PadSend();
+            yield return null;
+            yield return null;
+        }
+
+        void PadCheck(bool ok, string what) => Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} pad: {what}");
+
+        static bool Near(Vector2 a, Vector2 b) => (a - b).sqrMagnitude < 9f;
+
+        /// <summary>Presses a d-pad direction until the cursor sits on the target (or gives up).</summary>
+        IEnumerator PadTo(Vector2 target, int maxSteps = 12)
+        {
+            for (int i = 0; i < maxSteps && !Near(PadInput.I.CursorPosition, target); i++)
+            {
+                var d = target - PadInput.I.CursorPosition;
+                GamepadButton b = Mathf.Abs(d.x) > Mathf.Abs(d.y) ? (d.x > 0 ? GamepadButton.DpadRight : GamepadButton.DpadLeft) : (d.y > 0 ? GamepadButton.DpadUp : GamepadButton.DpadDown);
+                yield return PadButton(b);
+            }
+        }
+
+        Vector2 CellScreen(float x, float y) => Game.I.Rig.Cam.WorldToScreenPoint(Game.I.Station.Box.CellToWorld(x, y));
+
+        /// <summary>Title to delivery 2 with a gamepad only, then rotate, dividers, undo, Ask Mabel and pause.</summary>
+        IEnumerator PadTour()
+        {
+            var g = Game.I;
+            InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+            gp = InputSystem.AddDevice<Gamepad>("PadPilot");
+            g.Save.SeenTips.Clear();
+            g.ShowTitle();
+            yield return new WaitForSecondsRealtime(1.5f);
+
+            yield return PadButton(GamepadButton.South);          // wakes the cursor (not a click)
+            yield return new WaitForSecondsRealtime(0.3f);
+            PadCheck(PadInput.I.Active && g.Phase == Phase.Title, "the first press shows the cursor on the title screen");
+            Shot("P1_title_cursor");
+            yield return AfterShot();
+            yield return PadButton(GamepadButton.South);          // START SHIFT
+            yield return new WaitForSecondsRealtime(0.6f);
+            PadCheck(g.Phase == Phase.Packing && g.Level.Number == 1, "A on START SHIFT opens delivery 1");
+            if (g.Hud.ShiftCardShowing)
+            {
+                yield return PadButton(GamepadButton.South);
+                float w = 0; while (g.Hud.ShiftCardShowing && w < 3f) { w += Time.unscaledDeltaTime; yield return null; }
+                PadCheck(!g.Hud.ShiftCardShowing, "A dismisses the shift card");
+            }
+            yield return new WaitForSecondsRealtime(0.4f);
+
+            // pick the teacup off the shelf
+            var cam = g.Rig.Cam;
+            Vector2 cup = Vector2.zero;
+            foreach (var t in g.Packing.TrayPositions) cup = cam.WorldToScreenPoint(t + Vector3.up * 0.06f);
+            yield return PadTo(cup);
+            yield return PadButton(GamepadButton.South);
+            PadCheck(g.Packing.Tool == Tool.Item, "d-pad to the teacup on the shelf, A picks it up");
+            Shot("P2_holding_cup");
+            yield return AfterShot();
+            yield return PadTo(CellScreen(1.5f, 0.5f));
+            yield return PadButton(GamepadButton.South);
+            PadCheck(g.Packing.RemainingItems().Count == 0, "d-pad into the box, A drops the teacup");
+
+            // paper: RB, then hold A and sweep with the d-pad
+            yield return PadButton(GamepadButton.RightShoulder);
+            PadCheck(g.Packing.Tool == Tool.Padding && g.Packing.HeldKind == PieceKind.Paper, "RB picks the first material (paper)");
+            yield return PadTo(CellScreen(0.5f, 0.5f));
+            yield return PadHold(GamepadButton.South, true);
+            foreach (var c in new[] { new Vector2(0.5f, 1.5f), new Vector2(1.5f, 1.5f), new Vector2(2.5f, 1.5f), new Vector2(2.5f, 0.5f) })
+            {
+                var to = CellScreen(c.x, c.y);
+                for (int i = 0; i < 4 && !Near(PadInput.I.CursorPosition, to); i++)
+                {
+                    var d = to - PadInput.I.CursorPosition;
+                    var b = Mathf.Abs(d.x) > Mathf.Abs(d.y) ? (d.x > 0 ? GamepadButton.DpadRight : GamepadButton.DpadLeft) : (d.y > 0 ? GamepadButton.DpadUp : GamepadButton.DpadDown);
+                    gs = gs.WithButton(b, true); PadSend(); yield return null; yield return null;
+                    gs = gs.WithButton(b, false); PadSend(); yield return null; yield return null;
+                }
+            }
+            yield return PadHold(GamepadButton.South, false);
+            int paper = g.Packing.Pk.UsedMaterials().Paper;
+            PadCheck(paper >= 4, $"hold A and sweep the d-pad to paint ({paper} paper)");
+            Shot("P3_painted");
+            yield return AfterShot();
+            yield return PadButton(GamepadButton.East);           // right click: erase the paper under the cursor
+            PadCheck(g.Packing.Pk.UsedMaterials().Paper == paper - 1, "B erases the paper under the cursor");
+            yield return PadButton(GamepadButton.Start);
+            PadCheck(g.Packing.Tool == Tool.None && !g.Hud.Paused, "Start puts the paper down (and doesn't pause)");
+
+            // seal, skip the trip and the unboxing, then the review
+            yield return PadButton(GamepadButton.Select);
+            PadCheck(g.Phase == Phase.Sealing, "View seals and ships");
+            yield return WaitPhase(Phase.Journey, 6f);
+            yield return new WaitForSecondsRealtime(0.8f);
+            yield return PadButton(GamepadButton.East);
+            yield return WaitPhase(Phase.Reveal, 3f);
+            PadCheck(g.Phase == Phase.Reveal, "B skips the trip");
+            yield return new WaitForSecondsRealtime(0.8f);
+            yield return PadButton(GamepadButton.South);
+            yield return WaitPhase(Phase.Results, 3f);
+            PadCheck(g.Phase == Phase.Results, "A skips the unboxing");
+            yield return new WaitForSecondsRealtime(1.2f);
+            PadCheck(Near(PadInput.I.CursorPosition, ButtonScreen(g.Hud.NextButton)), "the cursor starts on NEXT");
+            Shot("P4_results_cursor");
+            yield return AfterShot();
+            yield return PadButton(GamepadButton.West);
+            yield return new WaitForSecondsRealtime(0.3f);
+            PadCheck(g.Phase == Phase.Packing && g.Level.Number == 1, "X repacks");
+            yield return PadButton(GamepadButton.Select);
+            yield return WaitPhase(Phase.Journey, 6f);
+            yield return new WaitForSecondsRealtime(0.5f);
+            yield return PadButton(GamepadButton.East);
+            yield return WaitPhase(Phase.Reveal, 3f);
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return PadButton(GamepadButton.East);
+            yield return WaitPhase(Phase.Results, 3f);
+            yield return new WaitForSecondsRealtime(1.0f);
+            yield return PadButton(GamepadButton.South);          // NEXT
+            yield return new WaitForSecondsRealtime(0.6f);
+            PadCheck(g.Phase == Phase.Packing && g.Level.Number == 2, "A on NEXT opens delivery 2");
+
+            // a later delivery: dividers with undo / redo
+            g.StartLevel(4);
+            yield return new WaitForSecondsRealtime(0.8f);
+            if (g.Hud.ShiftCardShowing) { yield return PadButton(GamepadButton.South); yield return new WaitForSecondsRealtime(0.6f); }
+            for (int i = 0; i < 6 && g.Packing.Tool != Tool.Divider; i++) yield return PadButton(GamepadButton.RightShoulder);
+            PadCheck(g.Packing.Tool == Tool.Divider, "RB cycles to the divider");
+            yield return PadButton(GamepadButton.DpadLeft);
+            yield return PadButton(GamepadButton.South);
+            PadCheck(g.Packing.Pk.Dividers.Count == 1, "A places a divider on the line under the cursor");
+            Shot("P5_divider");
+            yield return AfterShot();
+            yield return PadButton(GamepadButton.LeftTrigger);
+            PadCheck(g.Packing.Pk.Dividers.Count == 0, "LT undoes it");
+            yield return PadButton(GamepadButton.RightTrigger);
+            PadCheck(g.Packing.Pk.Dividers.Count == 1, "RT redoes it");
+            yield return PadButton(GamepadButton.RightShoulder);
+            yield return PadButton(GamepadButton.Start);
+            PadCheck(g.Packing.Tool == Tool.None && !g.Hud.Paused, "Start puts the tool down first");
+
+            // Ember turns round with X; Ask Mabel with Y after a missed star
+            var rec = g.Save.Get(15, true); rec.Attempts = 1; rec.Stars = 0;
+            g.StartLevel(15);
+            yield return new WaitForSecondsRealtime(0.8f);
+            if (g.Hud.ShiftCardShowing) { yield return PadButton(GamepadButton.South); yield return new WaitForSecondsRealtime(0.6f); }
+            Vector2 ember = Vector2.zero;
+            int k = 0;
+            foreach (var t in g.Packing.TrayPositions) { if (k++ == 0) ember = cam.WorldToScreenPoint(t + Vector3.up * 0.06f); }
+            yield return PadTo(ember);
+            yield return PadButton(GamepadButton.South);
+            int facing = g.Packing.HeldFacing; bool rot = g.Packing.HeldRotated;
+            yield return PadButton(GamepadButton.West);
+            PadCheck(g.Packing.Tool == Tool.Item && (g.Packing.HeldFacing != facing || g.Packing.HeldRotated != rot), $"X turns the held {g.Packing.HeldKind}");
+            yield return PadButton(GamepadButton.East);
+            PadCheck(g.Packing.Tool == Tool.None && g.Packing.RemainingItems().Count == g.Level.Items.Length, "B puts the held item back on the shelf");
+            yield return PadButton(GamepadButton.North);
+            PadCheck(g.Save.HintStage(15) == 1, "Y asks Mabel");
+            Shot("P6_hint");
+            yield return AfterShot();
+
+            // pause, settings and back with B
+            yield return PadButton(GamepadButton.Start);
+            PadCheck(g.Hud.Paused, "Start pauses");
+            yield return new WaitForSecondsRealtime(0.3f);
+            PadCheck(Near(PadInput.I.CursorPosition, ButtonScreen(g.Hud.ResumeButton)), "the cursor starts on RESUME");
+            yield return PadButton(GamepadButton.DpadDown);
+            yield return PadButton(GamepadButton.DpadDown);
+            yield return PadButton(GamepadButton.South);          // SETTINGS
+            yield return new WaitForSecondsRealtime(0.4f);
+            PadCheck(g.Menus.Open, "d-pad down twice and A opens Settings");
+            Shot("P7_settings");
+            yield return AfterShot();
+            yield return PadButton(GamepadButton.East);
+            yield return new WaitForSecondsRealtime(0.3f);
+            PadCheck(!g.Menus.Open && g.Hud.Paused, "B leaves Settings");
+            yield return PadButton(GamepadButton.East);
+            yield return new WaitForSecondsRealtime(0.2f);
+            PadCheck(!g.Hud.Paused, "B resumes");
         }
 
         static Vector2 ButtonScreen(UiButton b)
