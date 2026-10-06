@@ -1,4 +1,4 @@
-# Handle With Care — Improvement Plan (round 2)
+# Handle With Care — Improvement Plan
 
 Written 2026-10-06 on the `improvements` branch, from v0.1.0 (commit 4915cce). This is a plan only;
 nothing below has been implemented yet.
@@ -56,7 +56,7 @@ the chance of breaking something that works now.
 | 13 | WebGL build | Low | L | High | **Not recommended.** The simulation runs on a worker thread (`Task.Run`), the baked maps are BC7, the URP setup uses SSAO, and the data is about 245 MB. All of those fit the web poorly. |
 | 14 | Touch input | Low | L | Med | No mobile target is planned. |
 
-## Proposed scope for this round
+## Round 1 scope
 
 Five items, in implementation order. Every change keeps `simcheck check` and the autopilot green,
 and the README is updated to match what actually shipped.
@@ -149,7 +149,7 @@ A–E. Display settings (#7) are small and can be pulled in if time allows.
 4. **Version and release:** the plan bumps the version to 0.2.0 and prepares zips. Nothing is pushed
    or published without your go-ahead.
 
-## Round 2 outcome (2026-10-06)
+## Round 1 results (2026-10-06)
 
 | Item | Commit | Verified by |
 | --- | --- | --- |
@@ -161,3 +161,57 @@ A–E. Display settings (#7) are small and can be pulled in if time allows.
 
 Screenshots: `docs/media/improvements/`. Deferred: gamepad / Steam Deck (#6) and display settings (#7).
 Blocked on the owner: Windows Build Support module, Mac signing and notarization, publishing a release.
+
+## Round 2 scope
+
+Started 2026-10-06 on `improvements-2`, from main after round 1 (8eea65e). Four items, in
+implementation order. Every item keeps `simcheck check`, `autopilot.sh`, `hintpilot.sh` and `tour.sh`
+green; screenshots go to `docs/media/improvements/round2/`.
+
+Also from round 1: the self-test scripts wrote to /tmp (a shared RAM disk here), and one hint run
+produced zero-byte screenshots under heavy load.
+
+### R2-A. Self-tests write inside the repo, and screenshots are checked (S)
+
+- `autopilot.sh`, `hintpilot.sh`, `tour.sh`, `shots.sh` default to `Logs/selftest/<name>/` (gitignored)
+  instead of /tmp, and cap the player log size.
+- `Shot()` waits until the PNG is on disk and non-empty, and logs a FAIL if it never appears.
+
+**Acceptance:** a full run of all four scripts leaves nothing new in /tmp and no zero-byte PNGs.
+**Verify:** run them all; `find /tmp -newer <stamp>` from this repo's tools is empty; `find Logs/selftest -size 0`.
+
+### R2-B. Gamepad and Steam Deck support (L, ranked #6)
+
+- A gamepad drives a virtual mouse: the stick moves a software cursor, and in the packing view the
+  d-pad steps it cell by cell. A = click / hold to paint, B = right click (put back, cancel), so
+  every mouse action (menus, shelf, box, toolbar, SEAL) works unchanged.
+- Shortcuts: X rotate, Y Ask Mabel, LB/RB previous/next material, LT undo, RT redo, Start pause.
+  Journey: A pause, B skip, d-pad left/right speed. Unboxing: A/B skip. Review: X repack, Y replay,
+  A next (the cursor also starts on NEXT).
+- The OS cursor hides while the pad is in use and comes back when the mouse moves.
+
+**Acceptance:** with only a gamepad, a player can go from the title screen through delivery 1 (pick,
+place, paint, seal, skip, next) and use rotate, dividers and undo on a later delivery, plus pause
+and settings. **Verify:** a new `Tools/padpilot.sh` (`-hwcPad`) adds a virtual `Gamepad` device and
+sends only gamepad events, asserting each step; screenshots at 1280×800 (Steam Deck). Not
+verifiable here: a physical Steam Deck or controller.
+
+### R2-C. Prompts follow the input device (S–M)
+
+- Key hints on buttons and the delivery-1 tutorial notes switch between keyboard/mouse wording and
+  gamepad buttons (A, X, Y...) depending on the last device used. The README controls table gains
+  a gamepad column.
+
+**Acceptance:** with a pad, the hints read pad buttons; with mouse and keyboard they're unchanged.
+**Verify:** padpilot and tour screenshots side by side.
+
+### R2-D. Display settings (S–M, ranked #7)
+
+- Frame-rate cap (30 / 60 / 120 / unlimited) and VSync, replacing the hard-coded 120; window size
+  presets (including 1280×800); pause and muffle the game when the window loses focus (on by default).
+  Settings are saved.
+
+**Acceptance:** each setting changes the game when clicked and survives a restart.
+**Verify:** the menu tour clicks them with real mouse events and logs `targetFrameRate`,
+`vSyncCount` and the window size; a `-hwcFps` run with the 30 cap stays at or under 30 fps. Focus loss is
+tested by calling the focus handler (a headless run can't take focus away from its own window).
