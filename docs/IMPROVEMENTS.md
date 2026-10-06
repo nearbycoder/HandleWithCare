@@ -148,3 +148,16 @@ A–E. Display settings (#7) are small and can be pulled in if time allows.
    Say so if hinted deliveries should be capped at 2★ instead.
 4. **Version and release:** the plan bumps the version to 0.2.0 and prepares zips. Nothing is pushed
    or published without your go-ahead.
+
+## Round 2 outcome (2026-10-06)
+
+| Item | Commit | Verified by |
+| --- | --- | --- |
+| A. Faster retry loop | f72dc20 | `tour.sh` drives R / Space / Enter / P with real key events (10 PASS); repeat unboxing 4.5 s → 2.3 s; hatch framing before/after shots |
+| B. Ask Mabel | 76bff86 | `simcheck check` (the full hint is 3★ on every delivery); `hintpilot.sh` clicks every stage and ships the ghosts: 25/25 three stars, hashes match |
+| C. Mabel's best + Prickly | aceab88 | `simcheck check` (expert packings valid, 3★, ≤ par); Prickly: one divider no longer exists, 0/400 random item-only deliveries, bubble wrap by the cactus pops |
+| D. Shift 5 Overtime | a4a639b | `simcheck check` ALL OK at 25; `explore` 0 deliveries for every new one; `autopilot.sh` 25/25; `shots.sh` contact sheet reviewed; finale routing checked |
+| E. macOS + packaging | dd17703 | Mac build succeeded; universal Mach-O, Info.plist and icon inspected on Linux; packaged Linux zip passes 25/25. **Not run on a Mac.** |
+
+Screenshots: `docs/media/improvements/`. Deferred: gamepad / Steam Deck (#6) and display settings (#7).
+Blocked on the owner: Windows Build Support module, Mac signing and notarization, publishing a release.
