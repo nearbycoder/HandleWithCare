@@ -48,27 +48,112 @@ namespace HWC.Gameplay
         public List<LevelRecord> Records = new List<LevelRecord>();
 
         static string PathOnDisk => System.IO.Path.Combine(Application.persistentDataPath, "save.json");
+        static string BackupPath => PathOnDisk + ".bak";
         public static bool Disabled;
+        public static bool LogWrites;   // the save test logs who wrote
 
+        /// <summary>What the last Load had to do about a damaged save (for a line on the title screen).</summary>
+        public enum LoadResult { Fresh, Loaded, RecoveredFromBackup, Lost }
+        public static LoadResult LastLoad { get; private set; } = LoadResult.Fresh;
+
+        /// <summary>
+        /// Reads save.json. A file that can't be read is moved aside (never deleted) and the backup from
+        /// the write before it is used instead.
+        /// </summary>
         public static SaveData Load()
         {
-            try
+            LastLoad = LoadResult.Fresh;
+            if (Disabled) return new SaveData();
+            var s = TryRead(PathOnDisk, out bool present);
+            if (s != null) { LastLoad = LoadResult.Loaded; return s; }
+            if (!present && !File.Exists(BackupPath)) return new SaveData();
+            if (present)
             {
-                if (!Disabled && File.Exists(PathOnDisk))
+                try
                 {
-                    var s = JsonUtility.FromJson<SaveData>(File.ReadAllText(PathOnDisk));
-                    if (s != null) return s;
+                    string aside = Path.Combine(Application.persistentDataPath, $"save.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+                    File.Move(PathOnDisk, aside);
+                    Debug.LogWarning("[Save] save.json could not be read; kept it as " + Path.GetFileName(aside));
                 }
+                catch (Exception e) { Debug.LogWarning("[Save] could not move the damaged save aside: " + e.Message); }
             }
-            catch (Exception e) { Debug.LogWarning("[Save] could not load: " + e.Message); }
+            var b = TryRead(BackupPath, out _);
+            if (b != null) { LastLoad = LoadResult.RecoveredFromBackup; Debug.LogWarning("[Save] recovered from the backup"); return b; }
+            LastLoad = LoadResult.Lost;
+            Debug.LogWarning("[Save] no usable backup: starting a new save");
             return new SaveData();
         }
 
+        static SaveData TryRead(string path, out bool present)
+        {
+            present = File.Exists(path);
+            if (!present) return null;
+            try
+            {
+                string text = File.ReadAllText(path);
+                if (!Complete(text)) { Debug.LogWarning($"[Save] {Path.GetFileName(path)} is cut short"); return null; }
+                var s = JsonUtility.FromJson<SaveData>(text);
+                if (s == null || s.Records == null || s.SeenTips == null) return null;
+                return s;
+            }
+            catch (Exception e) { Debug.LogWarning($"[Save] could not read {Path.GetFileName(path)}: {e.Message}"); return null; }
+        }
+
+        /// <summary>One whole JSON object: braces and brackets balance (outside strings) and nothing follows.
+        /// Don't rely on JsonUtility to reject a file that was cut off mid-write.</summary>
+        static bool Complete(string text)
+        {
+            int depth = 0; bool inString = false, esc = false, opened = false;
+            foreach (char c in text)
+            {
+                if (inString)
+                {
+                    if (esc) esc = false;
+                    else if (c == '\\') esc = true;
+                    else if (c == '"') inString = false;
+                    continue;
+                }
+                if (depth == 0 && opened && !char.IsWhiteSpace(c)) return false;
+                if (c == '"') inString = true;
+                else if (c == '{' || c == '[') { depth++; opened = true; }
+                else if (c == '}' || c == ']') { if (--depth < 0) return false; }
+                else if (depth == 0 && !char.IsWhiteSpace(c)) return false;
+            }
+            return opened && depth == 0 && !inString;
+        }
+
+        /// <summary>
+        /// Writes to a temporary file, then swaps it in with a rename, so a crash or power cut mid-write
+        /// leaves either the old save or the new one. The previous save stays as save.json.bak.
+        /// </summary>
         public void Write()
         {
             if (Disabled) return;
-            try { File.WriteAllText(PathOnDisk, JsonUtility.ToJson(this, true)); }
-            catch (Exception e) { Debug.LogWarning("[Save] could not write: " + e.Message); }
+            string tmp = PathOnDisk + ".tmp";
+            try
+            {
+                Directory.CreateDirectory(Application.persistentDataPath);
+                var bytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(this, true));
+                using (var f = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    f.Write(bytes, 0, bytes.Length);
+                    f.Flush(true);
+                }
+                if (File.Exists(PathOnDisk)) File.Replace(tmp, PathOnDisk, BackupPath);
+                else File.Move(tmp, PathOnDisk);
+                if (LogWrites)
+                {
+                    var st = new System.Diagnostics.StackTrace(1, false);
+                    var who = new List<string>();
+                    for (int i = 0; i < Math.Min(4, st.FrameCount); i++) who.Add(st.GetFrame(i).GetMethod()?.Name);
+                    Debug.Log($"[Save] wrote {bytes.Length} bytes from {string.Join(" < ", who)}");
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Save] could not write: " + e.Message);
+                try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
+            }
         }
 
         public LevelRecord Get(int number, bool create = false)

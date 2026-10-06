@@ -55,6 +55,7 @@ namespace HWC.Gameplay
         void Awake()
         {
             I = this;
+            if (AutoPilot.Requested) AutoPilot.IgnoreFocus();
             Save = SaveData.Load();
             BuildCore();
         }
@@ -110,6 +111,7 @@ namespace HWC.Gameplay
             Tutorial.Build(OverlayCanvas.transform);
             Hud.HookReveal(Reveal);
             PadInput.Create(transform);
+            Packing.Changed += () => { if (Phase == Phase.Packing) keepAt = Time.unscaledTime + KeepDelay; };
             ApplySettings();
         }
 
@@ -133,9 +135,34 @@ namespace HWC.Gameplay
             else Screen.fullScreenMode = FullScreenMode.Windowed;
         }
 
+        // ---- the box being packed is kept, not only the one that was sealed ---------------------------
+        float keepAt = -1f;
+        const float KeepDelay = 2f;   // seconds after the last change
+
+        /// <summary>Saves the unsealed packing of the delivery on the bench (if it changed).</summary>
+        public void KeepPacking()
+        {
+            keepAt = -1f;
+            if (Level == null || CurrentPacking == null || Packing == null || !Packing.Active) return;
+            var rec = Save.Get(Level.Number);
+            bool empty = CurrentPacking.Pieces.Count == 0 && CurrentPacking.Dividers.Count == 0 && CurrentPacking.Shelves.Count == 0;
+            if (rec == null && empty) return;
+            string s = SaveData.Serialize(CurrentPacking);
+            if (rec != null && rec.Packing == s) return;
+            Save.SetPacking(Level, CurrentPacking);
+        }
+
+        void Update()
+        {
+            if (keepAt > 0f && Time.unscaledTime >= keepAt) KeepPacking();
+        }
+
+        void OnApplicationQuit() => KeepPacking();
+
         /// <summary>Alt-tabbed away: pause a delivery in progress, or at least muffle the music.</summary>
         void OnApplicationFocus(bool focus)
         {
+            if (!focus) KeepPacking();
             if (Save == null || !Save.PauseInBackground || Hud == null) return;
             if (!focus)
             {
@@ -150,6 +177,7 @@ namespace HWC.Gameplay
             if (TrailerDirector.TryStart(this)) return;
             if (AutoPilot.TryStart(this))
             {
+                if (AutoPilot.SaveTest) { ShowTitle(); return; }   // the real save code, in the test's own folder
                 // self-tests run unfocused: never pause on focus loss
                 Save = new SaveData { SeenTips = new System.Collections.Generic.List<string> { "basics" }, PauseInBackground = false };
                 Autopilot = !System.Array.Exists(System.Environment.GetCommandLineArgs(), a => a == "-hwcMenus" || a == "-hwcPad");
@@ -162,6 +190,7 @@ namespace HWC.Gameplay
 
         public void ShowTitle()
         {
+            KeepPacking();
             Phase = Phase.Title;
             Journey.Stop();
             Reveal.Hide();
@@ -183,6 +212,7 @@ namespace HWC.Gameplay
 
         public void StartLevel(int number)
         {
+            KeepPacking();
             Menus.HideAll();
             Reveal.Hide();
             Level = Levels.Get(number);

@@ -112,7 +112,25 @@ namespace HWC.Gameplay
             }
             totalStars = Ui.Text(title, "stars", "", 28, Palette.Ink, Ui.Display, TextAlignmentOptions.Left);
             totalStars.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(88, 40), new Vector2(500, 40));
+            // a damaged save: say what happened (once, on the title screen after launch)
+            var note = Ui.Panel(title, "saveNote", Palette.Sticky, Ui.Rounded(4));
+            note.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(470, 30), new Vector2(560, 112));
+            note.rectTransform.localRotation = Quaternion.Euler(0, 0, 1.5f);
+            Ui.Shadow(note, 5, 0.25f);
+            saveNoteText = Ui.Text(note.transform, "t", "", 21, Palette.Ink, Ui.Italic, TextAlignmentOptions.TopLeft);
+            saveNoteText.rectTransform.Stretch(16, 16, 12, 30);
+            var sig = Ui.Text(note.transform, "sig", "\u2014 Mabel", 18, Palette.InkSoft, Ui.Bold, TextAlignmentOptions.BottomRight);
+            sig.rectTransform.Stretch(14, 14, 8, 8);
+            saveNoteText.enableAutoSizing = true; saveNoteText.fontSizeMin = 15; saveNoteText.fontSizeMax = 21;
+            saveNote = note.rectTransform;
+            note.gameObject.SetActive(false);
         }
+
+        RectTransform saveNote;
+        TextMeshProUGUI saveNoteText;
+        bool saveNoteDone;
+        public bool SaveNoteShowing => saveNote != null && saveNote.gameObject.activeInHierarchy;
+        public string SaveNoteText => saveNoteText != null ? saveNoteText.text : "";
 
         public void ShowTitle()
         {
@@ -124,6 +142,14 @@ namespace HWC.Gameplay
             totalStars.text = total > 0 ? $"{total} / {Levels.All.Count * 3} STARS EARNED" : "";
             bool started = G.Save.Records.Count > 0;
             continueLabel.text = started ? "CONTINUE" : "START SHIFT";
+            var load = SaveData.LastLoad;
+            bool damaged = !saveNoteDone && (load == SaveData.LoadResult.RecoveredFromBackup || load == SaveData.LoadResult.Lost);
+            saveNoteDone = true;
+            saveNote.gameObject.SetActive(damaged);
+            if (damaged)
+                saveNoteText.text = load == SaveData.LoadResult.RecoveredFromBackup
+                    ? "Your save file was damaged, so I opened the backup from just before it. You may have lost the last thing you did."
+                    : "Your save file was damaged and there was no backup, so this is a fresh start. The damaged file is still in the save folder.";
             AudioDirector.I?.PlayMusic("title");
         }
 

@@ -15,9 +15,11 @@ namespace HWC.Gameplay
     ///   -hwcShots DIR [-hwcLevel N] [-hwcWhich ref|ref3|naive]  one delivery: packing, sealing, journey, results
     ///   -hwcAutopilot DIR                                      every delivery with its reference packing:
     ///                                                           PASS/FAIL against the expected outcome + screenshots
-    /// Saves are disabled in these modes so a player's progress is never touched.
+    ///   -hwcSave DIR -hwcSaveStep N                            one launch of the save test (Tools/savepilot.sh)
+    /// Saves are disabled in these modes so a player's progress is never touched, except in the save
+    /// test, which refuses to run outside a Logs/selftest folder.
     /// </summary>
-    public sealed class AutoPilot : MonoBehaviour
+    public sealed partial class AutoPilot : MonoBehaviour
     {
         string dir;
         int level = 1;
@@ -30,6 +32,8 @@ namespace HWC.Gameplay
             var args = Environment.GetCommandLineArgs();
             if (Array.IndexOf(args, "-hwcFps") >= 0) g.gameObject.AddComponent<FrameProbe>();
             string shots = Arg(args, "-hwcShots"), auto = Arg(args, "-hwcAutopilot"), menus = Arg(args, "-hwcMenus"), hints = Arg(args, "-hwcHints"), pad = Arg(args, "-hwcPad");
+            string save = Arg(args, "-hwcSave");
+            if (save != null) { StartSaveTest(g, save, Arg(args, "-hwcSaveStep")); return true; }
             if (shots == null && auto == null && menus == null && hints == null && pad == null) return false;
             SaveData.Disabled = true;
             var ap = g.gameObject.AddComponent<AutoPilot>();
@@ -43,6 +47,20 @@ namespace HWC.Gameplay
             ap.which = Arg(args, "-hwcWhich") ?? "ref";
             Directory.CreateDirectory(ap.dir);
             return true;
+        }
+
+        static readonly string[] TestArgs = { "-hwcShots", "-hwcAutopilot", "-hwcMenus", "-hwcHints", "-hwcPad", "-hwcSave", "-hwcTrailer" };
+        public static bool Requested => Array.Exists(Environment.GetCommandLineArgs(), a => Array.IndexOf(TestArgs, a) >= 0);
+
+        /// <summary>
+        /// Self-tests send their own input events, often to a window that doesn't have focus (other
+        /// programs open windows too). From the first frame, keep every device listening without focus:
+        /// by default a focus loss disables the mouse, and later clicks are dropped.
+        /// </summary>
+        public static void IgnoreFocus()
+        {
+            InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+            foreach (var d in InputSystem.devices) if (!d.enabled) InputSystem.EnableDevice(d);
         }
 
         static string Arg(string[] args, string name)
@@ -296,6 +314,7 @@ namespace HWC.Gameplay
         {
             yield return null;
             yield return new WaitForSecondsRealtime(0.5f);
+            if (SaveTest) { yield return SaveTestRun(); yield break; }
             if (menus) { yield return MenuTour(); yield break; }
             if (pad)
             {
