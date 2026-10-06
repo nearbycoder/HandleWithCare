@@ -244,10 +244,11 @@ cover.
 
 Found while planning:
 
-- **Every self-test writes to the real config folder.** The player's own Unity prefs file
-  (`~/.config/unity3d/Mossbury Parcel Post/Handle With Care/prefs`, session counters and the quality
-  level) was last written by the round 2 test runs: `SaveData.Disabled` keeps `save.json` safe, but
-  Unity writes `prefs` on every launch.
+- **Every self-test writes to the real config folder.** `SaveData.Disabled` keeps `save.json` safe,
+  but the Unity player writes a prefs file on every launch (screen size defaults, session counters).
+  *Corrected while building:* the player writes it to the shared `~/.config/unity3d/unknown/unknown/prefs`,
+  not to the game's own folder; the game folder's `prefs` is rewritten by the Unity editor during a
+  batch build (with the same content).
 - **A damaged save loses everything.** `save.json` is rewritten in place. If the game is killed or
   the machine loses power mid-write, the next launch can't parse it, quietly starts a new game, and
   the first write after that overwrites the old file.
@@ -318,3 +319,44 @@ here:** running it on a Mac.
 Real alt-tab focus loss: there is no Xvfb, xdotool or nested compositor on this machine, and
 driving focus on the owner's KDE desktop would be intrusive, so the handler is still tested by a
 direct call. Physical controller and Steam Deck testing need the hardware.
+
+## Round 3 results (2026-10-06)
+
+| Item | Commit | Verified by |
+| --- | --- | --- |
+| R3-A. Self-tests keep the config in their own folder | a4d1dc4 | Every script sets `XDG_CONFIG_HOME` to `Logs/selftest/<name>/config` and checksums `~/.config/unity3d/Mossbury Parcel Post/` before and after: unchanged on every run this round. The player's prefs now land in the sandbox (`config/unity3d/unknown/unknown/prefs`) |
+| R3-B. Crash-safe saves | 1796b0c | `savepilot.sh`, 28/28 three runs in a row: a save cut in half loads the backup (progress, settings and the box from one write earlier), the damaged file is kept, the title note shows once; garbage with no backup starts fresh and saves again; no `.tmp` left behind |
+| R3-C. The unsealed box is kept | 1796b0c | `savepilot.sh`: Main Menu → CONTINUE restores the box; it is on disk 2 s after the last change; a piece placed 0.3 s before quitting is there after a restart. The same run checks that VSync off, the 60 fps limit, screen shake and background pause survive a real restart and are applied at launch (round 2 only checked this in memory) |
+| R3-D. The delivery log shows which star is missing | 6839d23 | `tour.sh`: a two-star card missing the budget star shows gold, gap, gold; pointing at it reads "best 6 / par 4", trips and "hinted"; card 3 shows "best 80% / 65%". `padpilot.sh`: from pause, the d-pad opens the log and walks to card 1, and the line follows |
+| R3-E. Local macOS build refreshed | (build only) | Built with 0 errors; universal x86_64 + arm64 Mach-O; `com.nearbycoder.handlewithcare`, 0.2.0; the new code is in `Assembly-CSharp.dll`. **Not run on a Mac.** |
+
+Found and fixed along the way (in the commits above):
+
+- **The d-pad did nothing in Settings or the Delivery Log opened from the pause menu.** The pause
+  menu stays paused underneath, and the pad looked for targets in the hidden pause panel. Round 2's
+  padpilot only pressed A and B there. padpilot now moves through both.
+- **The Last trip report showed an empty box instead of ✗** (visible in README screenshot 09), and
+  "✓ MATCHED" had the same problem: Fira Sans has no check or cross marks. They are now a
+  multiplication sign and a dot, which every UI font has (checked against each font's charset).
+- **Self-test clicks were sometimes dropped.** If the test window lost focus before the test
+  coroutine set the input background behaviour, the mouse was disabled and every later click was
+  ignored. Test runs now ignore focus from the first frame.
+- One padpilot run failed its paint sweep mid-way (load average was about 40); the next six runs
+  passed. The gamepad-only test now ignores the real mouse and keyboard and logs it when they move,
+  but none of those runs logged any, so the cause isn't confirmed.
+
+After the last commit: `simcheck check` ALL OK (25), `autopilot.sh` 25/25, `hintpilot.sh` 26/26,
+`padpilot.sh` 33/33, `tour.sh` 21 PASS, `savepilot.sh` 28/28 (three runs). Nothing new of ours in
+/tmp, no zero-byte screenshots. Screenshots: `docs/media/improvements/round3/`.
+
+Mistakes and limits:
+
+- One debug launch during R3-B ran without the sandbox. The game's folder was untouched (same
+  checksums as before the round), but that launch rewrote Unity's shared
+  `~/.config/unity3d/unknown/unknown/prefs`, as every self-test before this round did.
+- Batch builds aren't sandboxed: the Unity editor rewrites the game folder's `prefs` with the same
+  content. Sandboxing the editor's config would risk its licence and preferences, so it's left alone.
+
+Still not verified here: a physical controller or Steam Deck, real alt-tab focus loss, a power cut
+mid-write, and the Mac build on a Mac. Still for the owner: Windows Build Support, Mac signing and
+notarization, publishing a release, and a license.

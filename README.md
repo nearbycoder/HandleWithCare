@@ -154,10 +154,16 @@ and Mabel's own house move by catapult. Like the rest, each one is proven solvab
 and random item-only packings never get through.
 
 That's 19 item types, 3 kinds of padding plus dividers, shelves and straps, and six journey
-environments. There's also an onboarding tutorial and shift title cards, plus a delivery log with
-per-delivery stars, settings (volumes, screen shake, reduced motion, packing grid, fullscreen or a
+environments. There's also an onboarding tutorial and shift title cards, plus a delivery log
+(point at a card to see which of its three stars is missing, your best cost against par and your
+best care against the 65% line), settings (volumes, screen shake, reduced motion, packing grid, fullscreen or a
 window size, VSync and a frame-rate limit, a graphics quality switch, pausing when the window loses
 focus), pause, and a replay with three camera modes.
+
+Progress is saved as you go, including a box you haven't sealed yet: leave for the menu or quit, and
+it's on the bench when you come back. Saves are written to a temporary file and swapped in, with the
+previous one kept as a backup. If the save is ever damaged, the game loads the backup, keeps the
+damaged file, and Mabel leaves a note on the title screen saying so.
 
 ## Screenshots
 
@@ -247,13 +253,18 @@ Tools/autopilot.sh              # the built player plays all 25 references throu
 Tools/hintpilot.sh              # Ask Mabel on all 25: click through every hint, build what the ghosts show,
                                 # expect three stars and the validator's hash; then the finale opens Overtime
 Tools/padpilot.sh               # gamepad only (a virtual pad at 1280x800): title to delivery 2, dividers,
-                                # undo/redo, turning Ember, Ask Mabel, pause and settings
+                                # undo/redo, turning Ember, Ask Mabel, pause, settings and the delivery log
+Tools/savepilot.sh              # four launches on one save, saving switched on: settings, progress and an
+                                # unsealed box survive a restart; a half-written save comes back from the
+                                # backup; garbage with no backup starts fresh
 Tools/tour.sh                   # screenshots of the menus and a delivery played with real input events,
                                 # then the whole retry loop (R, Space, Enter, P) with the keyboard only
 ```
 
 The self-tests write their screenshots and player logs to `Logs/selftest/<name>/` (gitignored) and fail
-if a screenshot never reaches the disk.
+if a screenshot never reaches the disk. They also point `XDG_CONFIG_HOME` into that folder, so the
+player's Unity prefs and any save stay there, and they fail if the real
+`~/.config/unity3d/Mossbury Parcel Post/` changed during the run.
 
 **Recreate the trailer and README media.**
 
@@ -367,7 +378,10 @@ Overtime), every one validated solvable with three stars.
   packing may still exist.
 - **Input.** Mouse and keyboard, or a gamepad. The gamepad support is tested with a virtual pad
   (`Tools/padpilot.sh`, at the Steam Deck's 1280×800), not yet with a physical controller or on a
-  Steam Deck. There's no touch support.
+  Steam Deck. There's no touch support. Pausing when the window loses focus is tested by calling
+  the focus handler, not by really switching windows.
+- **Saves.** Crash safety is tested by damaging the save between launches (`Tools/savepilot.sh`), not
+  by cutting the power mid-write. Only the most recent backup is kept.
 
 ## License
 
