@@ -181,7 +181,8 @@ namespace HWC.Gameplay
             yield return AfterShot();
             g.Hud.SetPaused(false);
             yield return KeyboardRetryLoop();
-            Debug.Log("[AutoPilot] done");
+            yield return ShotsWritten();
+                Debug.Log("[AutoPilot] done");
             Application.Quit();
         }
 
@@ -263,6 +264,7 @@ namespace HWC.Gameplay
                 Shot("hints_log");
                 yield return AfterShot();
                 File.WriteAllText(Path.Combine(dir, "report.txt"), report.ToString());
+                yield return ShotsWritten();
                 Debug.Log("[AutoPilot] done");
                 yield return new WaitForSecondsRealtime(0.3f);
                 Application.Quit();
@@ -272,11 +274,13 @@ namespace HWC.Gameplay
             {
                 for (int n = 1; n <= Levels.All.Count; n++) yield return RunLevel(n, "ref", false);
                 File.WriteAllText(Path.Combine(dir, "report.txt"), report.ToString());
+                yield return ShotsWritten();
                 Debug.Log("[AutoPilot] done");
             }
             else
             {
                 yield return RunLevel(level, which, true);
+                yield return ShotsWritten();
                 Debug.Log("[AutoPilot] done");
             }
             yield return new WaitForSecondsRealtime(0.3f);
@@ -440,17 +444,51 @@ namespace HWC.Gameplay
         void Shot(string name)
         {
             var path = Path.Combine(dir, name + ".png");
+            if (File.Exists(path)) File.Delete(path);
             ScreenCapture.CaptureScreenshot(path);
             Debug.Log("[AutoPilot] shot " + path);
             shotFrame = Time.frameCount;
+            pendingShots.Add((path, Time.realtimeSinceStartup));
         }
 
         int shotFrame = -10;
+        readonly System.Collections.Generic.List<(string path, float t)> pendingShots = new System.Collections.Generic.List<(string, float)>();
 
-        /// <summary>Waits until the screenshot taken this frame has been written.</summary>
+        static bool Written(string path)
+        {
+            try { return File.Exists(path) && new FileInfo(path).Length > 0; } catch (IOException) { return false; }
+        }
+
+        /// <summary>Screenshots are written at the end of a frame, and under load sometimes later (or
+        /// not at all): drop the ones on disk, FAIL the ones still missing after 5 s.</summary>
+        void CheckShots()
+        {
+            for (int i = pendingShots.Count - 1; i >= 0; i--)
+            {
+                var (path, t) = pendingShots[i];
+                if (Written(path)) pendingShots.RemoveAt(i);
+                else if (Time.realtimeSinceStartup - t > 5f)
+                {
+                    Debug.Log("[AutoPilot] FAIL screenshot never written: " + path);
+                    pendingShots.RemoveAt(i);
+                }
+            }
+        }
+
+        void Update() => CheckShots();
+
+        /// <summary>Waits until the screenshot taken last has been written (or given up on).</summary>
         IEnumerator AfterShot()
         {
             while (Time.frameCount <= shotFrame + 1) yield return null;
+            string last = pendingShots.Count > 0 ? pendingShots[pendingShots.Count - 1].path : null;
+            while (last != null && pendingShots.Exists(p => p.path == last)) { CheckShots(); yield return null; }
+        }
+
+        /// <summary>Before quitting: every screenshot on disk (or reported missing).</summary>
+        IEnumerator ShotsWritten()
+        {
+            while (pendingShots.Count > 0) { CheckShots(); yield return null; }
         }
 
         static Packing NaivePacking(LevelDef lv)

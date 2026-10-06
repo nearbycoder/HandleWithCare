@@ -232,6 +232,9 @@ Tools/tour.sh                   # screenshots of the menus and a delivery played
                                 # then the whole retry loop (R, Space, Enter, P) with the keyboard only
 ```
 
+The self-tests write their screenshots and player logs to `Logs/selftest/<name>/` (gitignored) and fail
+if a screenshot never reaches the disk.
+
 **Recreate the trailer and README media.**
 
 ```sh

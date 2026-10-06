@@ -164,7 +164,8 @@ def text_mask(text, font="FiraSansCompressed-Heavy", width=1024, height=256, siz
     world.use_nodes = True
     world.node_tree.nodes["Background"].inputs[0].default_value = (0, 0, 0, 1)
     scene.world = world
-    path = "/tmp/hwc_text_render.png"
+    path = os.path.join(ROOT, "Logs", "hwc_text_render.png")   # Logs/ is gitignored; /tmp is a shared RAM disk
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     scene.render.filepath = path
     bpy.ops.render.render(write_still=True)
     img = bpy.data.images.load(path)

@@ -5,6 +5,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOTNET="${DOTNET:-$HOME/Unity/Hub/Editor/6000.6.2f1/Editor/Data/DotNetSdk/dotnet}"
+mkdir -p "$ROOT/Logs"
 export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1 DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
-"$DOTNET" build "$ROOT/Tools/SimCheck/SimCheck.csproj" -c Release -v q -nologo -clp:NoSummary > /tmp/simcheck-build.log 2>&1 || { cat /tmp/simcheck-build.log; exit 1; }
+"$DOTNET" build "$ROOT/Tools/SimCheck/SimCheck.csproj" -c Release -v q -nologo -clp:NoSummary > "$ROOT/Logs/simcheck-build.log" 2>&1 || { cat "$ROOT/Logs/simcheck-build.log"; exit 1; }
 exec "$DOTNET" "$ROOT/Tools/SimCheck/bin/Release/net8.0/SimCheck.dll" "$@"

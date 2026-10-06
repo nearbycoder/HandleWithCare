@@ -5,8 +5,9 @@
 #   Tools/autopilot.sh [OUTDIR]
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT="${1:-/tmp/hwc-autopilot}"
-rm -rf "$OUT"; mkdir -p "$OUT"
+. "$ROOT/Tools/selftest.inc.sh"
+OUT="$(selftest_out autopilot "${1:-}")"
 timeout 900 "$ROOT/Tools/play.sh" -logFile "$OUT/player.log" -hwcAutopilot "$OUT" > /dev/null 2>&1 || true
+cap_log "$OUT/player.log"
 grep -E "\[AutoPilot\] (PASS|FAIL|done)|Exception" "$OUT/player.log" || true
 ! grep -qE "\[AutoPilot\] FAIL|Exception" "$OUT/player.log" && grep -q "\[AutoPilot\] done" "$OUT/player.log"

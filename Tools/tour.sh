@@ -3,8 +3,9 @@
 #   Tools/tour.sh [OUTDIR]
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT="${1:-/tmp/hwc-tour}"
-rm -rf "$OUT"; mkdir -p "$OUT"
+. "$ROOT/Tools/selftest.inc.sh"
+OUT="$(selftest_out tour "${1:-}")"
 timeout 300 "$ROOT/Tools/play.sh" -logFile "$OUT/player.log" -hwcMenus "$OUT" > /dev/null 2>&1 || true
+cap_log "$OUT/player.log"
 grep -E "\[AutoPilot\]|Exception" "$OUT/player.log" | grep -v "shot " || true
 ls "$OUT"/*.png
