@@ -233,3 +233,88 @@ loss (the handler is called directly). The local macOS build wasn't rebuilt this
 
 Still for the owner: Windows Build Support, Mac signing and notarization, publishing a release,
 and a license.
+
+## Round 3 scope
+
+Started 2026-10-06 on `improvements-3`, from main after round 2 (63cea27). The ranked list is mostly
+done or blocked: #9 Windows needs the module, #10 performance needs a quiet machine or other hardware,
+#11 audio needs ears, #12 foliage is a 40-minute rebuild for background scenery, #13 and #14 are not
+planned. So this round goes after what a player can lose, and what the round-2 tests didn't really
+cover.
+
+Found while planning:
+
+- **Every self-test writes to the real config folder.** The player's own Unity prefs file
+  (`~/.config/unity3d/Mossbury Parcel Post/Handle With Care/prefs`, session counters and the quality
+  level) was last written by the round 2 test runs: `SaveData.Disabled` keeps `save.json` safe, but
+  Unity writes `prefs` on every launch.
+- **A damaged save loses everything.** `save.json` is rewritten in place. If the game is killed or
+  the machine loses power mid-write, the next launch can't parse it, quietly starts a new game, and
+  the first write after that overwrites the old file.
+- **An unsealed packing is thrown away.** The box is only saved when you seal it. Pause → Main Menu,
+  picking another delivery from the log, or quitting the game loses the layout you were building.
+- **The delivery log doesn't say which star is missing.** Cards fill stars left to right, so a
+  two-star delivery doesn't show whether the budget or the care star is the one to chase.
+
+Every item keeps `simcheck check`, `autopilot.sh`, `hintpilot.sh`, `padpilot.sh` and `tour.sh` green.
+Screenshots go to `docs/media/improvements/round3/`.
+
+### R3-A. Self-tests never touch the real config (S)
+
+- Every self-test script runs the player with `XDG_CONFIG_HOME` inside its `Logs/selftest/<name>/`
+  folder, so Unity's prefs and any save land there.
+- The scripts record a checksum of the real config folder before the run and fail if it changed.
+
+**Acceptance:** a full round of self-tests leaves `~/.config/unity3d/Mossbury Parcel Post/` byte for
+byte unchanged. **Verify:** checksums before and after every script; the sandbox folders contain the
+prefs the player wrote.
+
+### R3-B. Crash-safe saves (S–M)
+
+- Saves are written to a temporary file and swapped in with a rename, keeping the previous save as
+  `save.json.bak`.
+- If `save.json` can't be read, it is moved aside (`save.corrupt-<time>.json`, never deleted) and
+  the backup is loaded. The title screen says so in one line, or says the progress couldn't be
+  recovered when there is no usable backup.
+
+**Acceptance:** a truncated `save.json` comes back from the backup with progress intact; garbage with
+no backup starts a new game without an exception and keeps the damaged file. **Verify:** a new
+multi-launch self-test, `Tools/savepilot.sh`, which runs the player with saving switched on (only
+inside its sandbox; the test mode refuses any other location), damages the save between launches and
+checks what the next launch loads.
+
+### R3-C. The box you were packing is kept (S)
+
+- The unsealed packing is saved when you leave the packing screen (main menu, delivery log, another
+  delivery), when the game quits or loses focus, and a couple of seconds after the last change. Coming
+  back to the delivery restores it. Sealing still saves as before.
+
+**Acceptance:** place pieces, go to the main menu and continue: same layout; place more, quit, launch
+again: same layout. **Verify:** `savepilot.sh` across real restarts. The same test checks that round
+2's display settings (VSync, frame-rate limit) and the other settings survive a real restart, which
+round 2 only checked in memory.
+
+### R3-D. The delivery log shows which star is missing (S)
+
+- The three stars on each card stand for Delivered, Under budget and Handled with care, in that order,
+  so a missing one shows as a gap.
+- Hovering a card (mouse or gamepad cursor) shows a detail line on the board: each goal with your
+  best (cost against par, peak jolt against the 65% line), Mabel's best, attempts, and hints used.
+
+**Acceptance:** a two-star delivery missing only the budget star shows ★ ☆ ★ and names the best cost
+against par. **Verify:** tour screenshots of the log with a seeded save (in the sandbox), with the mouse
+and the pad cursor on a card.
+
+### R3-E. Refresh the local macOS build (S)
+
+- Rebuild `Builds/Mac/HandleWithCare.app` from this branch, so it includes rounds 2 and 3.
+
+**Acceptance:** the build succeeds with 0 errors and is still a universal binary with the right
+bundle id and version. **Verify:** build log, `file` on the binary, Info.plist. **Not verifiable
+here:** running it on a Mac.
+
+### Not in this round
+
+Real alt-tab focus loss: there is no Xvfb, xdotool or nested compositor on this machine, and
+driving focus on the owner's KDE desktop would be intrusive, so the handler is still tested by a
+direct call. Physical controller and Steam Deck testing need the hardware.
