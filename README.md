@@ -115,7 +115,10 @@ log just pencils in "hinted".
 **Watch the trip.** Seal the box and the journey plays out with a director camera that knows the
 future: it slows down and leans in just before something goes wrong, and shakes on the big hits.
 Every bump the box takes (brake, pothole, cobbles, belt drop, robot arm, chute, stairs, a courier's
-toss, waves, an air pocket, a catapult launch) is exactly what the contents feel.
+toss, waves, an air pocket, a catapult launch) is exactly what the contents feel. In the corner, a
+care meter for each item fills with its worst knock so far against its limit, with the 65% line of
+the "handled with care" star marked; it turns amber past the line and names the failure (SHATTERED,
+WIDE AWAKE) the moment it happens, and ends exactly where the review does. The replay rewinds it.
 
 <img src="docs/media/screenshots/05-box-on-fire.jpg" alt="Ember sneezes at the hard brake and sets the cardboard box on fire" width="100%">
 
@@ -262,13 +265,17 @@ Tools/simcheck.sh check         # every delivery: reference packing valid, deliv
                                 # deterministic; an items-only packing must fail; the full hint is 3-star;
                                 # Mabel's best is a stored 3-star packing at or under par; the budget hints
                                 # match her packing; a packing that misses only the budget star (24 of 25;
-                                # on the 25th, everything on offer costs par)
+                                # on the 25th, everything on offer costs par); the trip's care meters end
+                                # where the review does
+Tools/simcheck.sh hashes        # the trip hash of every delivery's stored packings (a change that must not
+                                # alter any trip leaves these exactly as they were)
 Tools/simcheck.sh hints         # print Mabel's hint notes for every delivery
 Tools/simcheck.sh map 3 "t..." "vb.." "vppp"   # simulate any packing and print the timeline
 Tools/simcheck.sh solve 7       # parallel local search for cheap / three-star packings (used to set pars)
 Tools/simcheck.sh explore 21    # random item-only packings: how many get delivered (should be none)
 Tools/autopilot.sh              # the built player plays all 25 references through the real packing code
-                                # and checks each outcome and hash against the validator
+                                # and checks each outcome and hash against the validator, and the trip's
+                                # care meters against the review
 Tools/hintpilot.sh              # Ask Mabel on all 25: click through every hint, build what the ghosts show,
                                 # expect three stars and the validator's hash; ship an over-budget packing on
                                 # 24 and check the report and the budget hints; then the finale opens Overtime
@@ -289,11 +296,13 @@ Tools/savepilot.sh              # seven launches on one save, saving switched on
 Tools/tour.sh                   # screenshots of the menus and a delivery played with real input events,
                                 # then the whole retry loop (R, Space, Enter, P) with the keyboard only,
                                 # undo/redo with German, French and Russian key labels swapped in,
-                                # Esc backing out of every menu, WATCH / NEXT TROUBLE from the bench, and
-                                # the review's new star and NEW TAPE sticker (T puts the tape on)
+                                # Esc backing out of every menu, WATCH / NEXT TROUBLE from the bench (and
+                                # the care meters as the replay is scrubbed), and the review's new star and
+                                # NEW TAPE sticker (T puts the tape on)
 Tools/layoutpilot.sh            # every bench at 1920x1080, 1280x800, 2560x1080 and 1600x1200, on a first visit
                                 # and on a retry (LAST TRIP report, Mabel's tallest note), LARGER TEXT off and
-                                # on: no box cell or shelf cubby under a HUD panel, and the cells' size
+                                # on: no box cell or shelf cubby under a HUD panel, and the cells' size;
+                                # the trip's care meters clear of the journey's controls
 ```
 
 The self-tests write their screenshots and player logs to `Logs/selftest/<name>/` (gitignored) and fail

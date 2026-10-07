@@ -43,6 +43,7 @@ namespace HWC.Sim
         public sbyte ToppleDir;
         public float Roll;
         public float Jolt;          // jolt this frame (max over the frame's ticks), for juice
+        public float Care;          // worst fraction of any limit reached so far (the care meters; the last frame's is the outcome's)
     }
 
     public struct BodyInfo

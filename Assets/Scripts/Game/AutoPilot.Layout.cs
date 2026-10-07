@@ -139,6 +139,29 @@ namespace HWC.Gameplay
                     Check2(afterCovered == 0 && minRatio >= 0.75f, "layout", $"{what}: nothing under the HUD ({beforeCovered} before), cells at least 75% of before (smallest {minRatio * 100:0}%, {minAt}{(minRatio < 0.8f ? ", under the 80% aim" : "")})");
                 }
             }
+            // the trip's care meters, on the delivery with the most items: clear of the journey's controls
+            LevelDef most = Levels.All[0];
+            foreach (var lv in Levels.All) if (lv.Items.Length > most.Items.Length) most = lv;
+            foreach (bool larger in new[] { false, true })
+            {
+                TextScale.Set(larger);
+                g.Save.Records.Clear();
+                g.LastRun = Simulator.Run(most, NaivePacking(most));
+                g.StartLevel(most.Number);
+                yield return new WaitForSecondsRealtime(0.35f);
+                g.WatchLastTrip();
+                yield return new WaitForSecondsRealtime(0.6f);
+                var clash = g.Hud.CareMeterClashes();
+                var mr = g.Hud.CareMetersRect;
+                string what = $"{res} larger text {(larger ? "on" : "off")}";
+                Check2(g.Phase == Phase.Journey && g.Hud.CareMetersShown && clash.Count == 0, "layout",
+                       $"{what}: the care meters on #{most.Number} ({most.Items.Length} items, {mr.rect.width:0}x{mr.rect.height:0} units) clear of the journey's controls{(clash.Count > 0 ? ": under " + string.Join(", ", clash) : "")}");
+                Shot($"layout_{res}_{(larger ? "larger" : "normal")}_meters");
+                yield return AfterShot();
+                g.Journey.Skip();
+                float t0 = Time.realtimeSinceStartup;
+                while (g.Phase != Phase.Packing && Time.realtimeSinceStartup - t0 < 5f) yield return null;
+            }
             TextScale.Set(false);
         }
     }

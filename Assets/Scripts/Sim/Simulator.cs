@@ -98,7 +98,7 @@ namespace HWC.Sim
                 f[i] = new BodyFrame
                 {
                     Pos = b.Pos, Half = b.Half, State = b.State, Facing = (sbyte)b.Facing, ToppleDir = (sbyte)b.ToppleDir,
-                    Roll = b.RollAngle, Jolt = jolt[i],
+                    Roll = b.RollAngle, Jolt = jolt[i], Care = b.PeakJoltRatio,
                 };
             }
             return f;
@@ -131,9 +131,11 @@ namespace HWC.Sim
             return o;
         }
 
-        static ItemStatus StatusOf(Body b)
+        static ItemStatus StatusOf(Body b) => StatusOf(b.State, b.PeakJoltRatio);
+
+        /// <summary>An item's status from its state and its care so far (the review's, or a recorded frame's).</summary>
+        public static ItemStatus StatusOf(BodyState s, float care)
         {
-            var s = b.State;
             if ((s & BodyState.Stuck) != 0) return ItemStatus.Stuck;
             if ((s & BodyState.Squished) != 0) return ItemStatus.Squished;
             if ((s & BodyState.Broken) != 0) return ItemStatus.Broken;
@@ -144,7 +146,7 @@ namespace HWC.Sim
             if ((s & BodyState.Scorched) != 0) return ItemStatus.Scorched;
             if ((s & BodyState.Chilled) != 0) return ItemStatus.Chilled;
             if ((s & BodyState.Burned) != 0) return ItemStatus.Burned;
-            return b.PeakJoltRatio < SimConst.CareFraction ? ItemStatus.Perfect : ItemStatus.Fine;
+            return care < SimConst.CareFraction ? ItemStatus.Perfect : ItemStatus.Fine;
         }
     }
 }

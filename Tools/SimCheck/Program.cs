@@ -27,6 +27,7 @@ static class Program
                 case "map": return RunMap(args);
                 case "route": return PrintRoute(int.Parse(args[1]));
                 case "hints": return PrintHints();
+                case "hashes": return PrintHashes();
                 case "debug":
                 {
                     var lv = Levels.Get(int.Parse(args[1]));
@@ -43,6 +44,22 @@ static class Program
             Console.Error.WriteLine(e);
             return 1;
         }
+    }
+
+    /// <summary>The trip hash of every delivery's reference, three-star, expert and items-only packing
+    /// (to show that a change leaves every trip exactly as it was).</summary>
+    static int PrintHashes()
+    {
+        foreach (var lv in Levels.All)
+        {
+            var parts = new List<string> { $"ref {Simulator.Run(lv, lv.ReferencePacking(), false).Hash:x16}" };
+            var pk3 = lv.Reference3Packing();
+            if (pk3 != null) parts.Add($"ref3 {Simulator.Run(lv, pk3, false).Hash:x16}");
+            parts.Add($"expert {Simulator.Run(lv, lv.ExpertPacking(), false).Hash:x16}");
+            parts.Add($"naive {Simulator.Run(lv, Naive(lv), false).Hash:x16}");
+            Console.WriteLine($"#{lv.Number,2} " + string.Join("  ", parts));
+        }
+        return 0;
     }
 
     static Packing Which(LevelDef lv, string which)
@@ -100,6 +117,7 @@ static class Program
                 if (!rec.Outcome.UnderBudget) problems.Add($"reference cost {rec.Outcome.Cost} > par {lv.Par}");
                 var rec2 = Simulator.Run(lv, pk);
                 if (rec2.Hash != rec.Hash) problems.Add("NOT deterministic");
+                Meters(rec, "reference", problems);
                 Console.Write($"#{lv.Number,2} {lv.Title,-28} ref: {Stars(rec.Outcome)} cost {rec.Outcome.Cost,2}/{lv.Par,-2} care {rec.Outcome.WorstCare,4:0.00} ({simMs,4:0}ms, {lv.Kinematics.Duration,4:0.0}s)");
             }
             else Console.Write($"#{lv.Number,2} {lv.Title,-28} ref: INVALID");
@@ -112,6 +130,7 @@ static class Program
                 else
                 {
                     var r3 = Simulator.Run(lv, pk3);
+                    Meters(r3, "ref3", problems);
                     Console.Write($"  ref3: {Stars(r3.Outcome)} cost {r3.Outcome.Cost}, care {r3.Outcome.WorstCare:0.00}");
                     if (r3.Outcome.Stars < 3) problems.Add("ref3 is not three stars: " + Describe(r3));
                 }
@@ -156,7 +175,9 @@ static class Program
             }
             else
             {
-                var ro = Simulator.Run(lv, over, false).Outcome;
+                var rov = Simulator.Run(lv, over);
+                Meters(rov, "over-budget", problems);
+                var ro = rov.Outcome;
                 Console.Write($"  over budget: {Stars(ro)} {ro.Cost}/{lv.Par}");
                 if (over.Validate(lv) != null || !ro.Delivered || !ro.Careful || ro.UnderBudget) problems.Add("over-budget sample isn't one");
             }
@@ -165,6 +186,7 @@ static class Program
             {
                 var naive = Naive(lv);
                 var rn = Simulator.Run(lv, naive);
+                Meters(rn, "naive", problems);
                 Console.Write($"  naive: {(rn.Outcome.Delivered ? "DELIVERED" : "fails")}");
                 if (rn.Outcome.Delivered) problems.Add("naive packing (no materials) is delivered");
             }
@@ -172,8 +194,32 @@ static class Program
             foreach (var p in problems) Console.WriteLine("     !! " + p);
             failures += problems.Count;
         }
+        Console.WriteLine($"care meters: {metersChecked} item trips end where their review does");
         Console.WriteLine(failures == 0 ? $"ALL OK ({sw.Elapsed.TotalSeconds:0.0}s)" : $"{failures} PROBLEM(S)");
         return failures == 0 ? 0 : 1;
+    }
+
+    /// <summary>The trip's care meters end where the review does: each item's last recorded care is its
+    /// outcome's, and its last recorded state gives the same status.</summary>
+    static int metersChecked;
+    static void Meters(Recording rec, string what, List<string> problems)
+    {
+        var last = rec.Frames[rec.Frames.Count - 1];
+        foreach (var it in rec.Outcome.Items)
+        {
+            metersChecked++;
+            var fr = last[it.Body];
+            if (fr.Care != it.Care) problems.Add($"{what}: {it.Kind}'s meter ends at {fr.Care:0.000}, the review says {it.Care:0.000}");
+            var st = Simulator.StatusOf(fr.State, fr.Care);
+            if (st != it.Status) problems.Add($"{what}: {it.Kind}'s meter ends {st}, the review says {it.Status}");
+            // the meter never goes down during the trip
+            float prev = 0f;
+            foreach (var f in rec.Frames)
+            {
+                if (f[it.Body].Care < prev) { problems.Add($"{what}: {it.Kind}'s meter goes down"); break; }
+                prev = f[it.Body].Care;
+            }
+        }
     }
 
     /// <summary>Everything the hints show at the final stage, assembled into a packing.</summary>

@@ -11,7 +11,7 @@ using UnityEngine.UI;
 namespace HWC.Gameplay
 {
     /// <summary>All in-game screens: packing HUD, journey HUD, results, pause.</summary>
-    public sealed class Hud : MonoBehaviour
+    public sealed partial class Hud : MonoBehaviour
     {
         public bool Paused;
         public bool Cinematic;      // trailer capture: no skip buttons or timeline
@@ -1027,6 +1027,7 @@ namespace HWC.Gameplay
             G.Journey.Caption += OnCaption;
             G.Journey.IncidentHappened -= OnIncident;
             G.Journey.IncidentHappened += OnIncident;
+            BuildCareMeters(lv, rec);
             AudioDirector.I?.PlayMusic("journey");
         }
 
@@ -1491,6 +1492,7 @@ namespace HWC.Gameplay
                 legT += dt;
                 float ly = legT < 0.3f ? Mathf.Lerp(120, -26, legT / 0.3f) : (legT > 2.6f ? Mathf.Lerp(-26, 120, (legT - 2.6f) / 0.3f) : -26);
                 legRt.anchoredPosition = new Vector2(0, ly);
+                UpdateCareMeters();
             }
 
             for (int i = popups.Count - 1; i >= 0; i--)

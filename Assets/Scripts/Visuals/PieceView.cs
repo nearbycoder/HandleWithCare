@@ -212,6 +212,7 @@ namespace HWC.Visuals
             var go = ModelLibrary.Spawn(id, rollT);
             if (go == null) return;
             currentModel = id;
+            model.SetParent(null, false);   // out of the renderers collected below (Destroy waits for the frame's end)
             Destroy(model.gameObject);
             model = go.transform;
             model.localScale = new Vector3(Facing, 1, 1);
@@ -287,6 +288,9 @@ namespace HWC.Visuals
         {
             if (currentModel != null)
             {
+                // detach the swapped model first: Destroy waits for the end of the frame, and its renderers
+                // must not be collected below (a later reset would touch them once they are gone)
+                model.SetParent(null, false);
                 Destroy(model.gameObject);
                 model = ModelLibrary.SpawnPiece(Kind, rollT).transform;
                 model.localScale = new Vector3(Facing, 1, 1);

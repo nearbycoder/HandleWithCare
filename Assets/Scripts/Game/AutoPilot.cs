@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Linq;
 using System.Text;
 using HWC.Sim;
 using HWC.UI;
@@ -386,6 +387,7 @@ namespace HWC.Gameplay
             yield return Key(UnityEngine.InputSystem.Key.P);
             yield return new WaitForSecondsRealtime(0.2f);
             Check(g.Phase == Phase.Journey && g.Journey.IsReplay && g.Journey.Rec == trip && g.Hud.TroubleButton.isActiveAndEnabled, "P on the bench replays the last trip");
+            yield return CareMetersInReplay(trip);
             int troubles = 0; foreach (var inc in trip.Incidents) if (inc.IsFailure) troubles++;
             for (int i = 0; i < Mathf.Min(3, troubles + 1); i++)
             {
@@ -416,6 +418,67 @@ namespace HWC.Gameplay
             yield return Key(UnityEngine.InputSystem.Key.Z);
             Check(g.Packing.UndoDepth == undo - 1 && SaveData.Serialize(g.CurrentPacking) != box, "Z still undoes the paper placed before watching");
         }
+
+        /// <summary>
+        /// The care meters in a replay: one per item, clear of the timeline, the replay buttons and the leg
+        /// banner; at the end they read what the review says; scrubbing back to the start lowers them and
+        /// clears the failures; just before the first trouble its item hasn't failed yet. Leaves the replay
+        /// at the start.
+        /// </summary>
+        IEnumerator CareMetersInReplay(Recording trip)
+        {
+            var g = Game.I;
+            yield return null;
+            var clash = g.Hud.CareMeterClashes();
+            Check(g.Hud.CareMetersShown && clash.Count == 0, $"the replay shows the care meters, clear of the other controls{(clash.Count > 0 ? ": under " + string.Join(", ", clash) : "")}");
+            g.Journey.UserPaused = true;
+            // (scrubbing right to the end finishes the replay: stop a moment short of it)
+            g.Journey.Seek(g.Journey.Duration - 0.05f);
+            yield return null; yield return null;
+            var end = g.Hud.CareMeterReadings();
+            string atEnd = g.Hud.CheckCareMeters(trip, out int rows);
+            var final = g.Hud.CareMeterReadings();
+            bool same = end.Count == final.Count;
+            for (int i = 0; i < end.Count && same; i++) same = end[i].text == final[i].text;
+            Check(g.Phase == Phase.Journey && atEnd == null && same && rows > 0, $"at the end of the trip the {rows} meters read what the review says ({Readings(end)}){(atEnd != null ? ": " + atEnd : "")}{(same ? "" : "; at the last frame: " + Readings(final))}");
+            Shot("A1_meters_end");
+            yield return AfterShot();
+            if (g.Phase != Phase.Journey) yield break;
+            g.Journey.Seek(0f);
+            yield return null; yield return null;
+            var start = g.Hud.CareMeterReadings();
+            bool lower = start.Count == end.Count, someLower = false, noFailures = true;
+            for (int i = 0; i < start.Count && lower; i++)
+            {
+                lower &= start[i].care <= end[i].care;
+                someLower |= start[i].care < end[i].care;
+                noFailures &= !start[i].text.Any(char.IsLetter) || start[i].text == "no limit";
+            }
+            Check(lower && someLower && noFailures, $"scrubbing back to the start lowers them and clears the failures ({Readings(start)})");
+            // just before the first trouble, its item is still in one piece
+            Incident first = default; bool any = false;
+            foreach (var inc in trip.Incidents) if (inc.IsFailure && (!any || inc.Time < first.Time)) { first = inc; any = true; }
+            if (any)
+            {
+                g.Journey.Seek(Mathf.Max(0f, first.Time - 0.2f));
+                yield return null; yield return null;
+                var before = g.Hud.CareMeterReadings();
+                int row = g.Hud.CareMeterBodies().IndexOf(first.Body);
+                g.Journey.Seek(Mathf.Min(g.Journey.Duration, first.Time + 0.1f));
+                yield return null; yield return null;
+                var after = g.Hud.CareMeterReadings();
+                Check(row >= 0 && before[row].text.EndsWith("%") && !after[row].text.EndsWith("%"),
+                      $"the {trip.Bodies[first.Body].Kind}'s meter turns at {first.Time:0.00}s: \"{(row >= 0 ? before[row].text : "?")}\" then \"{(row >= 0 ? after[row].text : "?")}\"");
+                Shot("A2_meters_trouble");
+                yield return AfterShot();
+            }
+            g.Journey.Seek(0f);
+            g.Journey.UserPaused = false;
+            yield return null;
+        }
+
+        static string Readings(List<(PieceKind kind, float care, string text)> list) =>
+            string.Join(", ", list.Select(r => $"{r.kind} {r.text}"));
 
         static UiButton ButtonNamed(Transform root, string name)
         {
@@ -689,8 +752,10 @@ namespace HWC.Gameplay
 
             var got = g.LastRun;
             bool same = got.Hash == expected.Hash && got.Outcome.Stars == expected.Outcome.Stars;
-            string line = $"#{n:00} {lv.Title}: stars {got.Outcome.Stars} delivered {got.Outcome.Delivered} cost {got.Outcome.Cost}/{lv.Par} care {got.Outcome.WorstCare:0.00} hash {(same ? "match" : "MISMATCH")}";
-            bool pass = same && (whichPacking != "ref" || got.Outcome.Delivered);
+            // the trip's care meters end where the review does
+            string meters = g.Hud.CheckCareMeters(got, out int meterRows);
+            string line = $"#{n:00} {lv.Title}: stars {got.Outcome.Stars} delivered {got.Outcome.Delivered} cost {got.Outcome.Cost}/{lv.Par} care {got.Outcome.WorstCare:0.00} hash {(same ? "match" : "MISMATCH")} meters {(meters == null ? $"{meterRows} match" : "MISMATCH " + meters)}";
+            bool pass = same && meters == null && (whichPacking != "ref" || got.Outcome.Delivered);
             Debug.Log($"[AutoPilot] {(pass ? "PASS" : "FAIL")} {line}");
             report.AppendLine((pass ? "PASS " : "FAIL ") + line);
             if (!tour && n % 4 == 1) Shot($"auto_L{n:00}_results");
