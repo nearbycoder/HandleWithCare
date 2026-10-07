@@ -55,10 +55,11 @@ Pick an item off the shelf, drop it in the box, paint padding around it, seal, a
 | `Z` / `Y` (or `Shift`+`Z`) | Undo / redo (the keys labelled Z and Y, so QWERTZ and AZERTY keyboards work too) |
 | MY BEST (above EMPTY BOX) | Put your best packing of this delivery back in the box (`Z` undoes it) |
 | `Space` / `Enter` | Seal & ship, once every item is packed |
+| `P` or WATCH (on the LAST TRIP report) | Watch the last trip again, then come back to the box as it was |
 | ASK MABEL (under her note) | After a trip that missed a star: one more hint per click |
 | `Esc` | Drop what you are holding, or pause; in Settings, the delivery log and the credits, go back |
 | During the journey | `Space` pause, `Enter` skip, `1`–`4` playback speed |
-| Replay | Click the timeline to jump, speed buttons, `C` or the CAM button cycles director / close-up / wide |
+| Replay | Click the timeline to jump, `N` or NEXT TROUBLE jumps to just before the next red mark, speed buttons, `C` or the CAM button cycles director / close-up / wide |
 | Unboxing | `Enter`, `Space` or `Esc` skips to the review |
 | Review | `R` repack, `P` replay, `Enter` next delivery |
 
@@ -78,7 +79,7 @@ DualShock or DualSense. If a pad shows the wrong ones, Settings > GAMEPAD BUTTON
 | LT / RT | Undo / redo |
 | View | Seal & ship |
 | Start | Put down the material in hand, or pause |
-| During the journey | A pause, B skip, X speed, Y camera |
+| During the journey | A pause, B skip, X speed, Y camera; in a replay RB jumps to the next trouble |
 | Unboxing / review | A or B skip / X repack, Y replay, A on NEXT |
 
 There is no touch support.

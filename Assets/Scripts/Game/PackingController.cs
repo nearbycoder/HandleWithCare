@@ -61,16 +61,17 @@ namespace HWC.Gameplay
 
         // ---- Lifecycle -------------------------------------------------------------------------
 
-        public void Begin(LevelDef lv, Packing pk, Recording last)
+        public void Begin(LevelDef lv, Packing pk, Recording last, bool keepHistory = false)
         {
+            // back from watching the last trip: the same box, so undo and redo still apply
+            bool same = keepHistory && Level == lv && Pk == pk;
             Level = lv;
             Pk = pk;
             Box = G.Station.Box;
             lastRun = last;
             Active = true;
             Tool = Tool.None;
-            undo.Clear();
-            redo.Clear();
+            if (!same) { undo.Clear(); redo.Clear(); }
             RebuildViews(true);
             RebuildTray();
             if (trails == null) trails = new GameObject("Trails").AddComponent<TrailOverlay>();
@@ -83,6 +84,7 @@ namespace HWC.Gameplay
 
         /// <summary>The last trip arrived after the bench opened (simulated again): show its trails.</summary>
         public Recording LastRunShown => lastRun;
+        public int UndoDepth => undo.Count;
         public void ShowLastRun(Recording last)
         {
             lastRun = last;

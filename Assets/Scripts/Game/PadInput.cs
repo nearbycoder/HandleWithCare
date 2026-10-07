@@ -232,6 +232,7 @@ namespace HWC.Gameplay
                     if (a && !OverUi()) { j.UserPaused = !j.UserPaused; left = false; }
                     if (x) j.Speed = j.Speed >= 2f ? 0.25f : j.Speed * 2f;
                     if (y) j.CameraMode = (j.CameraMode + 1) % 3;
+                    if (j.IsReplay && pad.rightShoulder.wasPressedThisFrame) j.NextTrouble();
                     break;
                 }
                 case Phase.Reveal:

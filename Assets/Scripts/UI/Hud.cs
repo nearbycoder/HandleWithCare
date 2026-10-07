@@ -388,6 +388,11 @@ namespace HWC.Gameplay
             lth.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(18, -10), new Vector2(480, 28));
             lastTripText = Ui.Text(lastTrip, "t", "", 20, Palette.Ink, Ui.Body, TextAlignmentOptions.TopLeft);
             lastTripText.rectTransform.Stretch(18, 14, 40, 10);
+            // watch the last trip again without shipping (P, like REPLAY on the results)
+            watchBtn = Ui.Button(lastTrip, "watch", "WATCH  ▶", () => G.WatchLastTrip(), Palette.Ink, Palette.Cream, 20);
+            watchBtn.Image.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-10, -7), new Vector2(150, 34));
+            watchBtn.Label.rectTransform.Stretch(26, 6, 0, 0);
+            KeyHint(watchBtn, "P", "", 13f);
             newBadge = Ui.Panel(sticky.transform, "new", Palette.PostalRed, Ui.Rounded(10));
             newBadge.rectTransform.Place(new Vector2(0, 1), new Vector2(0.5f, 0.5f), new Vector2(18, -4), new Vector2(84, 34));
             var nb = Ui.Text(newBadge.transform, "t", "NEW!", 24, Palette.Cream, Ui.Display);
@@ -400,7 +405,8 @@ namespace HWC.Gameplay
         }
 
         RectTransform lastTrip, orderCard;
-        UiButton hintBtn;
+        UiButton hintBtn, watchBtn;
+        public UiButton WatchButton => watchBtn;
         TextMeshProUGUI expertText, resExpert;
         Image hintBadge;
         TextMeshProUGUI hintBadgeText;
@@ -882,25 +888,34 @@ namespace HWC.Gameplay
                 var b = Ui.Button(replayBar, "sp" + i, spd[i], () => { if (v < 0) G.Journey.UserPaused = !G.Journey.UserPaused; else { G.Journey.Speed = v; G.Journey.UserPaused = false; } }, Palette.Cream, Palette.Ink, 26, Ui.Bold);
                 b.Image.rectTransform.Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(i * 96, 0), new Vector2(88, 52));
             }
-            var done = Ui.Button(replayBar, "done", "DONE", () => G.Journey.Skip(), Palette.PostalRed, Palette.Cream, 28);
+            var done = replayDone = Ui.Button(replayBar, "done", "DONE", () => G.Journey.Skip(), Palette.PostalRed, Palette.Cream, 28);
             done.Image.rectTransform.Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), Vector2.zero, new Vector2(150, 52));
             camBtn = Ui.Button(replayBar, "cam", "CAM: DIRECTOR", null, Palette.Teal, Palette.Cream, 22);
             camBtn.OnClick = () => { G.Journey.CameraMode = (G.Journey.CameraMode + 1) % 3; camBtn.Label.text = "CAM: " + JourneyPlayer.CameraModeNames[G.Journey.CameraMode]; };
             camBtn.Image.rectTransform.Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-160, 0), new Vector2(190, 52));
+            // jump to just before the next red mark (N, or RB on a pad)
+            troubleBtn = Ui.Button(replayBar, "trouble", "NEXT TROUBLE", () => G.Journey.NextTrouble(), Palette.PostalRed, Palette.Cream, 22);
+            troubleBtn.Image.rectTransform.Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(5 * 96 + 8, 0), new Vector2(200, 52));
+            KeyHint(troubleBtn, "N", "RB", 13f);
             var hint = Ui.Text(replayBar, "hint", "Click the timeline to jump  ·  red marks = trouble", 20, Palette.Cream, Ui.Bold, TextAlignmentOptions.Center);
-            hint.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(40, 0), new Vector2(420, 40));
+            hint.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 50), new Vector2(600, 32));
             hint.enableAutoSizing = true; hint.fontSizeMax = 20; hint.fontSizeMin = 14;
             hint.gameObject.AddComponent<Shadow>();
         }
 
         RectTransform replayBar;
-        UiButton skipBtn, camBtn;
+        UiButton skipBtn, camBtn, troubleBtn, replayDone;
+        public UiButton ReplayDoneButton => replayDone;
+        public UiButton TroubleButton => troubleBtn;
 
         public void ShowJourney(LevelDef lv, Recording rec, bool replay = false)
         {
             HideAll();
             journeyRoot.gameObject.SetActive(true);
             replayBar.gameObject.SetActive(replay);
+            bool trouble = false;
+            foreach (var inc in rec.Incidents) trouble |= inc.IsFailure;
+            troubleBtn.gameObject.SetActive(trouble);
             skipBtn.gameObject.SetActive(!replay && !Cinematic);
             timeline.gameObject.SetActive(replay || !Cinematic);
             timeText.gameObject.SetActive(replay || !Cinematic);
@@ -1084,6 +1099,10 @@ namespace HWC.Gameplay
             if (G.Phase == Phase.Reveal && revealRoot.gameObject.activeSelf && revealSkip.gameObject.activeSelf)
             {
                 if (enter || kb.spaceKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame) revealSkip.Press();
+            }
+            else if (G.Phase == Phase.Packing && packRoot.gameObject.activeSelf && G.Packing.Tool == Tool.None)
+            {
+                if (Shortcuts.Pressed(kb, 'p') && lastTrip.gameObject.activeSelf) watchBtn.Press();
             }
             else if (G.Phase == Phase.Results && resultsRoot.gameObject.activeSelf)
             {

@@ -281,7 +281,9 @@ namespace HWC.Gameplay
             EnterPacking();
         }
 
-        public void EnterPacking()
+        public void EnterPacking() => EnterPacking(false);
+
+        void EnterPacking(bool keepHistory)
         {
             Phase = Phase.Packing;
             Journey.Stop();
@@ -289,7 +291,7 @@ namespace HWC.Gameplay
             Post.SetDof(0f, 2f);
             Station.gameObject.SetActive(true);
             Station.SetupFor(Level);
-            Packing.Begin(Level, CurrentPacking, LastRun);
+            Packing.Begin(Level, CurrentPacking, LastRun, keepHistory);
             Hud.ShowPacking(Level);
             Tutorial.MaybeStart(Level);
         }
@@ -386,6 +388,25 @@ namespace HWC.Gameplay
                 return;
             }
             StartLevel(n);
+        }
+
+        /// <summary>From the bench: replay the last trip, then come back to the box as it was.</summary>
+        public void WatchLastTrip()
+        {
+            if (Phase != Phase.Packing || Hud.Paused || Menus.Open) return;
+            FinishRestore();
+            if (LastRun == null || LastRun.Level != Level) return;
+            KeepPacking();
+            Packing.End();
+            Tutorial.Stop();
+            var box = Station.Box;
+            box.ShowGrid(false);
+            box.SetFlaps(1f, true);
+            box.SetTape(1f, true);
+            Post.SetDof(0f, 2f);
+            Phase = Phase.Journey;
+            Hud.ShowJourney(Level, LastRun, true);
+            Journey.Play(LastRun, box, () => EnterPacking(true), true);
         }
 
         public void Replay()

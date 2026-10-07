@@ -212,6 +212,7 @@ namespace HWC.Gameplay
             yield return AfterShot();
             g.Hud.SetPaused(false);
             yield return KeyboardRetryLoop();
+            yield return WatchFromBench();
             yield return KeyboardLayouts();
             yield return EscapeMenus();
             yield return ShotsWritten();
@@ -339,6 +340,81 @@ namespace HWC.Gameplay
             Check(g.Phase == Phase.Packing && g.Level.Number == 2, "Enter on Results goes to the next delivery (and doesn't seal it)");
         }
 
+        /// <summary>Where NextTrouble should land from time t (the same rule, worked out from the recording).</summary>
+        static float ExpectedTrouble(Recording rec, float t)
+        {
+            float first = -1f, next = -1f;
+            foreach (var inc in rec.Incidents)
+            {
+                if (!inc.IsFailure) continue;
+                float at = Mathf.Max(0f, inc.Time - JourneyPlayer.TroubleLead);
+                if (first < 0f || at < first) first = at;
+                if (at > t + 0.1f && (next < 0f || at < next)) next = at;
+            }
+            return next >= 0f ? next : first;
+        }
+
+        /// <summary>
+        /// A failed trip on delivery 5, then from the bench: P replays it, N jumps to just before each
+        /// trouble, Enter comes back to the same box with its undo history; the WATCH button, NEXT
+        /// TROUBLE and DONE do the same with the mouse.
+        /// </summary>
+        IEnumerator WatchFromBench()
+        {
+            var g = Game.I;
+            yield return RunLevel(5, "naive", false);
+            var trip = g.LastRun;
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return Key(UnityEngine.InputSystem.Key.R);
+            yield return new WaitForSecondsRealtime(0.5f);
+            // change the box a little, so there is something to undo afterwards
+            bool placed = false;
+            for (int y = 0; y < g.CurrentPacking.H && !placed; y++)
+                for (int x = 0; x < g.CurrentPacking.W && !placed; x++)
+                    if (g.CurrentPacking.CanPlace(new Placement(PieceKind.Paper, x, y))) placed = g.Packing.DebugPlace(new Placement(PieceKind.Paper, x, y));
+            g.Packing.DropTool();
+            yield return new WaitForSecondsRealtime(0.3f);
+            string box = SaveData.Serialize(g.CurrentPacking);
+            int undo = g.Packing.UndoDepth;
+            string report = g.Hud.LastTripText;
+            Check(placed && g.Phase == Phase.Packing && g.Hud.WatchButton.isActiveAndEnabled && report.Length > 0, "the bench after a failed trip: the LAST TRIP report with a WATCH button");
+            Shot("W1_bench_watch");
+            yield return AfterShot();
+
+            yield return Key(UnityEngine.InputSystem.Key.P);
+            yield return new WaitForSecondsRealtime(0.2f);
+            Check(g.Phase == Phase.Journey && g.Journey.IsReplay && g.Journey.Rec == trip && g.Hud.TroubleButton.isActiveAndEnabled, "P on the bench replays the last trip");
+            int troubles = 0; foreach (var inc in trip.Incidents) if (inc.IsFailure) troubles++;
+            for (int i = 0; i < Mathf.Min(3, troubles + 1); i++)
+            {
+                float want = ExpectedTrouble(trip, g.Journey.T);
+                yield return Key(UnityEngine.InputSystem.Key.N);
+                float got = g.Journey.T;
+                Check(Mathf.Abs(got - want) < 0.4f && !g.Journey.UserPaused, $"N jumps to just before a trouble: {got:0.00}s (expected {want:0.00}s; {troubles} red marks)");
+                if (i == 0) { yield return new WaitForSecondsRealtime(0.9f); Shot("W2_replay_next_trouble"); yield return AfterShot(); }
+                else yield return new WaitForSecondsRealtime(0.3f);
+            }
+            float want2 = ExpectedTrouble(trip, g.Journey.T);
+            yield return ClickAt(ButtonScreen(g.Hud.TroubleButton));
+            Check(Mathf.Abs(g.Journey.T - want2) < 0.4f, $"the NEXT TROUBLE button does the same ({g.Journey.T:0.00}s, expected {want2:0.00}s)");
+            yield return new WaitForSecondsRealtime(0.3f);
+            yield return Key(UnityEngine.InputSystem.Key.Enter);
+            yield return WaitPhase(Phase.Packing, 3f);
+            yield return new WaitForSecondsRealtime(0.3f);
+            Check(g.Phase == Phase.Packing && SaveData.Serialize(g.CurrentPacking) == box && g.Packing.UndoDepth == undo && g.Hud.LastTripText == report && g.Packing.LastRunShown == trip,
+                  $"Enter ends it: back at the bench with the same box, report and trails, and undo still there ({g.Packing.UndoDepth} steps)");
+
+            yield return ClickAt(ButtonScreen(g.Hud.WatchButton));
+            yield return new WaitForSecondsRealtime(0.3f);
+            Check(g.Phase == Phase.Journey && g.Journey.IsReplay && g.Journey.Rec == trip, "clicking WATCH replays it too");
+            yield return ClickAt(ButtonScreen(g.Hud.ReplayDoneButton));
+            yield return WaitPhase(Phase.Packing, 3f);
+            yield return new WaitForSecondsRealtime(0.3f);
+            Check(g.Phase == Phase.Packing && SaveData.Serialize(g.CurrentPacking) == box, "DONE goes back to the bench, same box");
+            yield return Key(UnityEngine.InputSystem.Key.Z);
+            Check(g.Packing.UndoDepth == undo - 1 && SaveData.Serialize(g.CurrentPacking) != box, "Z still undoes the paper placed before watching");
+        }
+
         static UiButton ButtonNamed(Transform root, string name)
         {
             foreach (var b in root.GetComponentsInChildren<UiButton>(true)) if (b.name == name) return b;
@@ -456,6 +532,7 @@ namespace HWC.Gameplay
             if (pad)
             {
                 yield return PadTour();
+                yield return PadWatch();
                 yield return LargerTextTour();
                 yield return NoteFitCheck();
                 yield return PlayStationPrompts();
@@ -1136,6 +1213,34 @@ namespace HWC.Gameplay
             yield return PadButton(GamepadButton.East);
             yield return new WaitForSecondsRealtime(0.2f);
             PadCheck(!g.Hud.Paused, "B resumes");
+        }
+
+        /// <summary>With the pad: after a failed trip, the cursor onto WATCH and A replays it, RB jumps to the
+        /// trouble, B comes back to the same box.</summary>
+        IEnumerator PadWatch()
+        {
+            var g = Game.I;
+            yield return RunLevel(5, "naive", false);
+            var trip = g.LastRun;
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return PadButton(GamepadButton.West);           // X: repack
+            yield return new WaitForSecondsRealtime(0.6f);
+            string box = SaveData.Serialize(g.CurrentPacking);
+            PadCheck(g.Phase == Phase.Packing && g.Hud.WatchButton.isActiveAndEnabled, "X repacks; the LAST TRIP report has WATCH");
+            yield return PadOnto(g.Hud.WatchButton.Image.rectTransform);
+            yield return PadButton(GamepadButton.South);
+            yield return new WaitForSecondsRealtime(0.3f);
+            PadCheck(g.Phase == Phase.Journey && g.Journey.IsReplay && g.Journey.Rec == trip, "the d-pad onto WATCH and A replays the last trip");
+            float want = ExpectedTrouble(trip, g.Journey.T);
+            yield return PadButton(GamepadButton.RightShoulder);
+            PadCheck(Mathf.Abs(g.Journey.T - want) < 0.4f, $"RB jumps to just before the trouble ({g.Journey.T:0.00}s, expected {want:0.00}s)");
+            yield return new WaitForSecondsRealtime(0.8f);
+            Shot("P9_replay_trouble");
+            yield return AfterShot();
+            yield return PadButton(GamepadButton.East);
+            yield return WaitPhase(Phase.Packing, 3f);
+            yield return new WaitForSecondsRealtime(0.3f);
+            PadCheck(g.Phase == Phase.Packing && SaveData.Serialize(g.CurrentPacking) == box, "B ends the replay: back at the bench, same box");
         }
 
         static Vector2 ButtonScreen(UiButton b)

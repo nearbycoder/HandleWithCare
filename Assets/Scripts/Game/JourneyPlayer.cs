@@ -157,7 +157,9 @@ namespace HWC.Gameplay
                 if (kb.digit3Key.wasPressedThisFrame) Speed = 1f;
                 if (kb.digit4Key.wasPressedThisFrame) Speed = 2f;
                 if (Shortcuts.Pressed(kb, 'c')) CameraMode = (CameraMode + 1) % 3;
+                if (IsReplay && Shortcuts.Pressed(kb, 'n')) NextTrouble();
             }
+            if (!Playing || Rec == null) return;   // Enter skipped it, and the bench may already have stopped it
 
             SlowMo = DirectorScale(out bool focusing);
             focusWeight = Mathf.MoveTowards(focusWeight, focusing ? 1f : 0f, Clock.UnscaledDelta * 3f);
@@ -188,6 +190,33 @@ namespace HWC.Gameplay
             Playing = false;
             Time.timeScale = 1f;
             onDone?.Invoke();
+        }
+
+        /// <summary>How far before a trouble NextTrouble lands, so the moment itself plays.</summary>
+        public const float TroubleLead = 1.5f;
+
+        /// <summary>Replay: jump to just before the next red mark (after the last one, back to the first).
+        /// False when the trip had no trouble.</summary>
+        public bool NextTrouble()
+        {
+            if (Rec == null) return false;
+            float first = -1f, next = -1f;
+            foreach (var inc in Rec.Incidents)
+            {
+                if (!inc.IsFailure) continue;
+                float at = Mathf.Max(0f, inc.Time - TroubleLead);
+                if (first < 0f || at < first) first = at;
+                if (at > T + 0.1f && (next < 0f || at < next)) next = at;
+            }
+            if (first < 0f) return false;
+            Seek(next >= 0f ? next : first);
+            UserPaused = false;
+            return true;
+        }
+
+        public bool HasTrouble
+        {
+            get { if (Rec != null) foreach (var inc in Rec.Incidents) if (inc.IsFailure) return true; return false; }
         }
 
         public void Seek(float t)
