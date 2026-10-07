@@ -841,3 +841,81 @@ Still not verified here: a physical controller (Xbox-style or PlayStation) or St
 non-US keyboard, real alt-tab focus loss, a power cut mid-write, and the Mac build on a Mac. Still for
 the owner: Windows Build Support, Mac signing and notarization, publishing a release, a license, and
 re-cutting the trailer.
+
+## Round 8 scope
+
+Started 2026-10-07 on `improvements-8`, from main after round 7 (53d66c2). The ranked list is still
+done or blocked (#9 Windows module, #10 a quiet machine or other hardware, #11 human ears, #12 a
+40-minute art rebuild, #13 and #14 not planned). This round is about reading a trip: why it went
+wrong, and how to fix it. Found while planning, from the code and the round 7 screenshots:
+
+- **The care star can't be seen during the trip.** "Handled with care" needs every item under 65% of
+  its limit, but nothing on screen says how close an item came until the review ("58% / 65%"). The
+  journey shows captions and SMASH! pops, not how hard each knock was, and the replay's red marks only
+  show failures, not the near misses that cost the care star.
+- **Hint ghosts don't say what you've already matched.** Mabel's ghosts are drawn over the box as it
+  is, in one tint, so a player copying her packing (14 pieces on The Vase and the Dragon) can't tell
+  which ghosts they've matched and which of their own pieces are in the way. A budget hint shows her
+  padding over yours, but not which of yours is the extra (round 6 noted the overlap). Stage 2's note
+  ("Here's exactly where I'd put the vase.") also drops what stage 1 said about where it sits.
+- **The bench's trouble marks are anonymous.** After a bad trip the box shows trails and red crosses,
+  and the LAST TRIP report lists up to three failures, but nothing ties a cross or a trail to an item
+  (Museum Piece: six crosses, three lines). Hovering an item shows its card, which says nothing about
+  what happened to it last trip.
+- **Rounds 6–7 B/C commits weren't built on their own.** This round builds and tests every commit on
+  its own before the next item starts.
+
+Every item keeps `simcheck check`, `autopilot.sh`, `hintpilot.sh`, `padpilot.sh`, `tour.sh`,
+`savepilot.sh` and `layoutpilot.sh` green, and every self-test still leaves the real config folder
+unchanged. No new delivery this round. Screenshots go to `docs/media/improvements/round8/`.
+
+### R8-A. Care meters on the trip (M)
+
+- During the journey and the replay, a small panel lists each item that has a limit (fragile, sleepy,
+  squishable, or able to topple) with its icon and a bar: the worst knock so far as a share of its
+  limit, with the 65% line marked. The bar turns amber past 65% and red when the item fails, with the
+  failure word. Scrubbing or NEXT TROUBLE in the replay rewinds it. Hidden in the trailer's cinematic
+  mode.
+- The simulation records the running care value per frame, so the meter shows exactly what the
+  review will judge; the trip itself is unchanged (same hashes).
+
+**Acceptance:** at the end of every trip each bar equals the review's care value for that item; the
+same packing gives the same hash as before; scrubbing back shows lower values; the panel stays clear
+of the timeline, the leg banner and the replay buttons at 1920×1080, 1280×800, 2560×1080 and
+1600×1200. **Verify:** `simcheck check` (the last frame's care equals the outcome's for every
+reference, items-only and over-budget packing, and hashes are unchanged); `autopilot.sh` logs the
+meters at the end of all 25 trips against the outcome; `tour.sh` seeks the replay back and forth and
+checks the bars, plus screenshots; a layout check of the panel at four sizes.
+
+### R8-B. Hint ghosts show what's in place (M)
+
+- A ghost that your box already matches (same piece, spot, turn and strap; same divider or shelf)
+  fades to a faint outline with a check, and the note counts them ("In place: 5 of 9"). A ghost
+  whose spot is taken by something else is drawn in red. With budget hints, your padding that isn't
+  in her packing is tinted as the extra. Updated on every change, undo and redo included.
+- Stage 2's note keeps where the item sits ("Here's exactly where I'd put the vase: on top of foam.").
+
+**Acceptance:** building a hint's ghosts one by one counts up to "N of N"; an off-by-one piece is not
+counted and shows red; the budget hint marks exactly the padding that differs from hers; every hint
+note still fits at a readable size. **Verify:** `hintpilot.sh` logs the count after every piece it
+places from the ghosts (all 25 deliveries) and, on the over-budget runs, checks the extra pieces
+against SimCheck's diff; `padpilot.sh` still checks all hint notes' size; screenshots.
+
+### R8-C. Item cards remember the last trip (S–M)
+
+- Pointing at an item (on the shelf or in the box) or at a red cross on the bench shows its card with
+  a LAST TRIP line: what happened, where, and the jolt ("Shattered at the hard brake · jolt 13.7 / 9"),
+  or how close it came ("Rattled: 72% at the pothole", "Perfect: 41%"). Its trail and crosses
+  brighten while the card shows.
+
+**Acceptance:** after a failed trip, the card of each item says the same as the report and the
+review for that item; a cross shows the card of the item that failed there; with no last trip the
+card is as before. **Verify:** `tour.sh` with real mouse moves over a shelf item, a box piece and a
+cross; `padpilot.sh` with the cursor; screenshots.
+
+### Not in this round
+
+Moving the shelf art to gain more room in the tightest bench (round 7; only the 6×4 boxes at
+1920×1080 with LARGER TEXT and the longest report are under 80%, and every bench and the trailer's
+shots would move). Rumble, a physical controller or Steam Deck, a real non-US keyboard, real alt-tab
+focus loss, the Mac build on a Mac.
