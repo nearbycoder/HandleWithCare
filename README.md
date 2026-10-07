@@ -392,14 +392,16 @@ Overtime), every one validated solvable with three stars.
   longer has a divider (one divider used to solve it): the wall between the spikes and the balloon
   has to be spike-proof padding. Mabel's best comes from a randomised local search, so a cheaper
   packing may still exist.
-- **Input.** Mouse and keyboard, or a gamepad. Esc and the pad's B back out of every menu. The gamepad support is tested with a virtual pad
-  (`Tools/padpilot.sh`, at the Steam Deck's 1280×800), not yet with a physical controller or on a
-  Steam Deck. PlayStation prompts are tested with the Input System's DualShock 4 layout on a virtual
-  device; how a real DualShock or DualSense reports itself on Linux depends on the driver, so AUTO may
-  still show Xbox letters there (GAMEPAD BUTTON ICONS fixes that). There's no touch support. Pausing when the window loses focus is tested by calling
-  the focus handler, not by really switching windows. Letter shortcuts follow the keyboard layout's
-  labels. That is tested by swapping in German, French and Russian labels (`Tools/tour.sh`), not
-  with a real non-US keyboard; this Linux player does report the layout ('us') and the key names.
+- **Input.** Mouse and keyboard, or a gamepad. Esc and the pad's B back out of every menu. The
+  gamepad support is tested with a virtual pad (`Tools/padpilot.sh`, at the Steam Deck's 1280×800),
+  not yet with a physical controller or on a Steam Deck. PlayStation prompts are tested with the
+  Input System's DualShock 4 layout on a virtual device; how a real DualShock or DualSense reports
+  itself on Linux depends on the driver, so AUTO may still show Xbox letters there (GAMEPAD BUTTON
+  ICONS fixes that). There's no touch support. Pausing when the window loses focus is tested by
+  calling the focus handler, not by really switching windows. Letter shortcuts follow the keyboard
+  layout's labels. That is tested by swapping in German, French and Russian labels
+  (`Tools/tour.sh`), not with a real non-US keyboard; this Linux player does report the layout
+  ('us') and the key names.
 - **Text size.** LARGER TEXT grows small text by up to 30%, but only as far as its box allows. Mabel's
   sticky note is the exception: it gets taller instead, so her hints are never smaller than 19 units
   (about 25 with LARGER TEXT). A tall note can overlap the top-right shelf cubby at 16:9; it lets
