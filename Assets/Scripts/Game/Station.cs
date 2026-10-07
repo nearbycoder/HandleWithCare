@@ -96,6 +96,15 @@ namespace HWC.Gameplay
             }
         }
 
+        /// <summary>Screen rectangles (pixels) of the HUD panels drawn over the bench, from the HUD.</summary>
+        public System.Func<List<Rect>> KeepOut;
+        /// <summary>Self-test: frame the bench as before round 7 (box and shelf fitted to the whole screen).</summary>
+        public bool LegacyFrame;
+        /// <summary>The last framing: how much it had to pull back (1 = the plain fit) and the shift in pixels.</summary>
+        public float FrameScale { get; private set; } = 1f;
+        public Vector2 FrameShift { get; private set; }
+        public bool FrameClear { get; private set; } = true;
+
         public void Frame(LevelDef lv, bool snap)
         {
             var rig = Game.I.Rig;
@@ -116,9 +125,139 @@ namespace HWC.Gameplay
             float dist = Mathf.Max(distH, distW) * 1.18f + 0.3f;
             var target = new Vector3(cx, cy + 0.05f, 0);
             var pos = target + new Vector3(0, dist * 0.2f, -dist);
+            FrameScale = 1f; FrameShift = Vector2.zero; FrameClear = true;
+            var keep = LegacyFrame ? null : KeepOut?.Invoke();
+            if (keep != null && keep.Count > 0) FitAroundHud(lv, keep, target, dist, fov, ref pos, ref target);
             rig.LookAt(pos, target, fov);
             rig.PosSharpness = 5f;
             if (snap) rig.Snap();
+        }
+
+        // ---- keeping the box and the shelf clear of the HUD -----------------------------------------------
+
+        const float HudMargin = 10f;   // pixels between a panel and the box or the shelf
+
+        /// <summary>The box's cells (with its walls) and the shelf's cubbies, as world-space quads (4 corners each).</summary>
+        public List<Vector3[]> FramedQuads(LevelDef lv)
+        {
+            var quads = new List<Vector3[]>();
+            float wc = BoxView.Wall / BoxView.Cell;
+            quads.Add(new[] { Box.CellToWorld(-wc, -wc), Box.CellToWorld(lv.W + wc, -wc), Box.CellToWorld(lv.W + wc, lv.H + wc), Box.CellToWorld(-wc, lv.H + wc) });
+            int n = lv.Items.Length, cols = n > 3 ? 2 : 1, rows = (n + cols - 1) / cols;
+            quads.Add(new[]
+            {
+                ItemShelf.TransformPoint(new Vector3(0, 0, -0.03f)), ItemShelf.TransformPoint(new Vector3(cols * Slot, 0, -0.03f)),
+                ItemShelf.TransformPoint(new Vector3(cols * Slot, rows * Slot, -0.03f)), ItemShelf.TransformPoint(new Vector3(0, rows * Slot, -0.03f)),
+            });
+            return quads;
+        }
+
+        /// <summary>Screen pixels of a world point for a camera that isn't there yet.</summary>
+        static Vector2 Project(Vector3 p, Vector3 camPos, Quaternion camRot, float tanHalf, float aspect, float sw, float sh)
+        {
+            var v = Quaternion.Inverse(camRot) * (p - camPos);
+            float z = Mathf.Max(0.01f, v.z);
+            return new Vector2((v.x / (z * tanHalf * aspect) * 0.5f + 0.5f) * sw, (v.y / (z * tanHalf) * 0.5f + 0.5f) * sh);
+        }
+
+        static Rect Bounds(Vector3[] quad, Vector3 camPos, Quaternion camRot, float tanHalf, float aspect, float sw, float sh)
+        {
+            Vector2 mn = new Vector2(float.MaxValue, float.MaxValue), mx = new Vector2(float.MinValue, float.MinValue);
+            foreach (var p in quad)
+            {
+                var s = Project(p, camPos, camRot, tanHalf, aspect, sw, sh);
+                mn = Vector2.Min(mn, s); mx = Vector2.Max(mx, s);
+            }
+            return Rect.MinMaxRect(mn.x, mn.y, mx.x, mx.y);
+        }
+
+        static bool Clear(List<Rect> rects, List<Rect> keep, Vector2 shift, float margin, float sw, float sh)
+        {
+            foreach (var r0 in rects)
+            {
+                var r = new Rect(r0.position + shift, r0.size);
+                if (r.xMin < margin || r.yMin < margin || r.xMax > sw - margin || r.yMax > sh - margin) return false;
+                foreach (var k in keep)
+                    if (r.xMin < k.xMax + margin && r.xMax > k.xMin - margin && r.yMin < k.yMax + margin && r.yMax > k.yMin - margin) return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Pulls the camera back as little as possible, and slides the shot as little as possible, until the
+        /// box and the shelf are clear of every HUD panel (and on screen). Falls back to the plain fit if
+        /// nothing works (a window too small for the HUD).
+        /// </summary>
+        void FitAroundHud(LevelDef lv, List<Rect> keep, Vector3 target0, float dist0, float fov, ref Vector3 pos, ref Vector3 target)
+        {
+            var cam = Game.I.Rig.Cam;
+            float sw = cam.pixelWidth, sh = cam.pixelHeight, aspect = sw / Mathf.Max(1f, sh);
+            float tanHalf = Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad);
+            var quads = FramedQuads(lv);
+            var rects = new List<Rect>(quads.Count);
+            for (float k = 1f; k <= 2.0001f; k += 0.01f)
+            {
+                float d = dist0 * k;
+                var camPos = target0 + new Vector3(0, d * 0.2f, -d);
+                var camRot = Quaternion.LookRotation(target0 - camPos, Vector3.up);
+                float depth = (Quaternion.Inverse(camRot) * (target0 - camPos)).z;
+                float perPx = 2f * depth * tanHalf / sh;
+                var p = camPos;
+                Vector2 total = Vector2.zero;
+                // a slide moves points at other depths a little differently: slide, measure again, twice more
+                for (int pass = 0; pass < 3; pass++)
+                {
+                    rects.Clear();
+                    foreach (var q in quads) rects.Add(Bounds(q, p, camRot, tanHalf, aspect, sw, sh));
+                    if (Clear(rects, keep, Vector2.zero, HudMargin * 0.5f, sw, sh) && (pass > 0 || total == Vector2.zero))
+                    {
+                        pos = p; target = p + (target0 - camPos);
+                        FrameScale = k; FrameShift = total;
+                        return;
+                    }
+                    if (!NearestClearSlide(rects, keep, sw, sh, out var slide)) break;
+                    // aim the camera the other way by the same amount at the box's depth
+                    p += -(camRot * Vector3.right) * slide.x * perPx - (camRot * Vector3.up) * slide.y * perPx;
+                    total += slide;
+                }
+            }
+            FrameClear = false;
+            Debug.LogWarning($"[Station] delivery {lv.Number}: no framing keeps the bench clear of the HUD at {sw}x{sh}");
+        }
+
+        readonly List<float> slideXs = new List<float>(), slideYs = new List<float>();
+
+        /// <summary>
+        /// The smallest slide of the image (pixels) that takes every rect clear of the panels and keeps it on
+        /// screen. Each panel rules out a rectangle of slides, so the nearest allowed one has its x and y on
+        /// one of those rectangles' edges (or at 0): every pair is tried.
+        /// </summary>
+        bool NearestClearSlide(List<Rect> rects, List<Rect> keep, float sw, float sh, out Vector2 slide)
+        {
+            var xs = slideXs; var ys = slideYs;
+            xs.Clear(); ys.Clear(); xs.Add(0f); ys.Add(0f);
+            foreach (var r in rects)
+            {
+                xs.Add(HudMargin - r.xMin); xs.Add(sw - HudMargin - r.xMax);
+                ys.Add(HudMargin - r.yMin); ys.Add(sh - HudMargin - r.yMax);
+                foreach (var kp in keep)
+                {
+                    xs.Add(kp.xMin - HudMargin - r.xMax - 0.01f); xs.Add(kp.xMax + HudMargin - r.xMin + 0.01f);
+                    ys.Add(kp.yMin - HudMargin - r.yMax - 0.01f); ys.Add(kp.yMax + HudMargin - r.yMin + 0.01f);
+                }
+            }
+            float best = float.MaxValue; slide = default;
+            foreach (float sy in ys)
+            {
+                if (sy * sy >= best) continue;
+                foreach (float sx in xs)
+                {
+                    float c = sx * sx + sy * sy;
+                    if (c >= best || !Clear(rects, keep, new Vector2(sx, sy), HudMargin - 0.005f, sw, sh)) continue;
+                    best = c; slide = new Vector2(sx, sy);
+                }
+            }
+            return best < float.MaxValue;
         }
 
         /// <summary>Title backdrop: a sealed parcel on the bench, the shelf hidden.</summary>

@@ -33,13 +33,14 @@ namespace HWC.Gameplay
         {
             var args = Environment.GetCommandLineArgs();
             if (Array.IndexOf(args, "-hwcFps") >= 0) g.gameObject.AddComponent<FrameProbe>();
-            string shots = Arg(args, "-hwcShots"), auto = Arg(args, "-hwcAutopilot"), menus = Arg(args, "-hwcMenus"), hints = Arg(args, "-hwcHints"), pad = Arg(args, "-hwcPad");
+            string shots = Arg(args, "-hwcShots"), auto = Arg(args, "-hwcAutopilot"), menus = Arg(args, "-hwcMenus"), hints = Arg(args, "-hwcHints"), pad = Arg(args, "-hwcPad"), layout = Arg(args, "-hwcLayout");
             string save = Arg(args, "-hwcSave");
             if (save != null) { StartSaveTest(g, save, Arg(args, "-hwcSaveStep")); return true; }
-            if (shots == null && auto == null && menus == null && hints == null && pad == null) return false;
+            if (shots == null && auto == null && menus == null && hints == null && pad == null && layout == null) return false;
             SaveData.Disabled = true;
             var ap = g.gameObject.AddComponent<AutoPilot>();
-            ap.dir = shots ?? auto ?? menus ?? hints ?? pad;
+            ap.dir = shots ?? auto ?? menus ?? hints ?? pad ?? layout;
+            ap.layout = layout != null;
             ap.pad = pad != null;
             ap.all = auto != null;
             ap.hints = hints != null;
@@ -51,7 +52,7 @@ namespace HWC.Gameplay
             return true;
         }
 
-        static readonly string[] TestArgs = { "-hwcShots", "-hwcAutopilot", "-hwcMenus", "-hwcHints", "-hwcPad", "-hwcSave", "-hwcTrailer" };
+        static readonly string[] TestArgs = { "-hwcShots", "-hwcAutopilot", "-hwcMenus", "-hwcHints", "-hwcPad", "-hwcSave", "-hwcTrailer", "-hwcLayout" };
         public static bool Requested => Array.Exists(Environment.GetCommandLineArgs(), a => Array.IndexOf(TestArgs, a) >= 0);
 
         /// <summary>
@@ -71,7 +72,7 @@ namespace HWC.Gameplay
             return null;
         }
 
-        bool menus, hints, pad;
+        bool menus, hints, pad, layout;
 
         // ---- real input events (exercise the same path as a player's mouse) -------------------
 
@@ -529,6 +530,15 @@ namespace HWC.Gameplay
             yield return new WaitForSecondsRealtime(0.5f);
             if (SaveTest) { yield return SaveTestRun(); yield break; }
             if (menus) { yield return MenuTour(); yield break; }
+            if (layout)
+            {
+                yield return LayoutCheck();
+                yield return ShotsWritten();
+                Debug.Log("[AutoPilot] done");
+                yield return new WaitForSecondsRealtime(0.3f);
+                Application.Quit();
+                yield break;
+            }
             if (pad)
             {
                 yield return PadTour();

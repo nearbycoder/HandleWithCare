@@ -288,6 +288,9 @@ Tools/tour.sh                   # screenshots of the menus and a delivery played
 
 The self-tests write their screenshots and player logs to `Logs/selftest/<name>/` (gitignored) and fail
 if a screenshot never reaches the disk. They also point `XDG_CONFIG_HOME` into that folder, so the
+Tools/layoutpilot.sh            # every bench at 1920x1080, 1280x800, 2560x1080 and 1600x1200, on a first visit
+                                # and on a retry (LAST TRIP report, Mabel's tallest note), LARGER TEXT off and
+                                # on: no box cell or shelf cubby under a HUD panel, and the cells' size
 player's Unity prefs and any save stay there, and they fail if the real
 `~/.config/unity3d/Mossbury Parcel Post/` changed during the run.
 
@@ -413,9 +416,14 @@ Overtime), every one validated solvable with three stars.
   ('us') and the key names.
 - **Text size.** LARGER TEXT grows small text by up to 30%, but only as far as its box allows. Mabel's
   sticky note is the exception: it gets taller instead, so her hints are never smaller than 19 units
-  (about 25 with LARGER TEXT). At 16:9 the tallest note and ASK MABEL under it reach about 100 px
-  over the right edge of the top-right shelf cubby; the note lets clicks through and fades while the
-  pointer is over it. At 21:9 and 4:3 the bench and the HUD fit.
+  (about 25 with LARGER TEXT).
+- **Bench framing.** The bench camera keeps the box and the shelf clear of the HUD (the order card, the
+  LAST TRIP report, the meter, Mabel's note and ASK MABEL, the toolbar and the buttons), pulling back
+  and sliding only as far as it has to (`Tools/layoutpilot.sh`, at 16:9, 16:10, 21:9 and 4:3). On a first
+  visit the box is as big as before. In the tightest case, a 6×4 box at 1920×1080 with LARGER TEXT, a
+  three-line report that wraps and Mabel's tallest note, its cells are about 76% of the size they used
+  to be, when a third of them used to be under the report. When the note or the report grows (ASK
+  MABEL, LARGER TEXT), the camera glides to fit.
 - **Saves.** Crash safety is tested by damaging the save between launches (`Tools/savepilot.sh`), not
   by cutting the power mid-write. Only the most recent backup is kept. A bench brings its last trip
   back by simulating the last box shipped on a worker thread; the report and trails appear a fraction

@@ -491,6 +491,70 @@ namespace HWC.Gameplay
             mabelText.ForceMeshUpdate();
         }
 
+        // ---- the bench camera keeps the box and the shelf clear of the HUD -----------------------------------
+        /// <summary>Room kept for the LAST TRIP report while a delivery has a last trip (three lines), so the
+        /// shot doesn't move when the report fills in. A taller report re-frames.</summary>
+        public const float ReportRoom = 142f;
+        readonly List<Rect> framedFor = new List<Rect>(), keepNow = new List<Rect>();
+        UiButton[] cornerButtons;
+        Vector2Int framedScreen;
+
+        /// <summary>The panels drawn over the bench, in screen pixels, at their resting size (no pop or hover scale).</summary>
+        public List<Rect> BenchKeepOut() => BenchKeepOut(new List<Rect>());
+
+        List<Rect> BenchKeepOut(List<Rect> list)
+        {
+            list.Clear();
+            if (!packRoot.gameObject.activeSelf) return list;
+            list.Add(PanelRect(orderCard));
+            if (lastTrip.gameObject.activeSelf || G.RestoringLastTrip) list.Add(PanelRect(lastTrip, ReportRoom));
+            list.Add(PanelRect(BudgetRect));
+            list.Add(PanelRect(sticky.rectTransform));
+            if (hintBtn.gameObject.activeSelf) list.Add(PanelRect(hintBtn.Image.rectTransform));
+            list.Add(PanelRect(slots[0].btn.transform.parent as RectTransform));
+            list.Add(PanelRect(sealBtn.Image.rectTransform));
+            list.Add(PanelRect(sealHint.rectTransform));
+            if (cornerButtons == null) cornerButtons = new[] { undoBtn, redoBtn, clearBtn, bestBtn };
+            foreach (var b in cornerButtons)
+                if (b.gameObject.activeSelf) list.Add(PanelRect(b.Image.rectTransform));
+            return list;
+        }
+
+        /// <summary>Screen pixels of a panel, ignoring its own scale (pops, hover); at least minHeight tall, growing down.</summary>
+        static Rect PanelRect(RectTransform rt, float minHeight = 0f)
+        {
+            var r = rt.rect;
+            if (minHeight > r.height) r.yMin = r.yMax - minHeight;
+            var m = rt.parent.localToWorldMatrix * Matrix4x4.TRS(rt.localPosition, rt.localRotation, Vector3.one);
+            Vector2 a = m.MultiplyPoint3x4(new Vector2(r.xMin, r.yMin)), b = m.MultiplyPoint3x4(new Vector2(r.xMax, r.yMin));
+            Vector2 c = m.MultiplyPoint3x4(new Vector2(r.xMax, r.yMax)), d = m.MultiplyPoint3x4(new Vector2(r.xMin, r.yMax));
+            Vector2 mn = Vector2.Min(Vector2.Min(a, b), Vector2.Min(c, d)), mx = Vector2.Max(Vector2.Max(a, b), Vector2.Max(c, d));
+            return Rect.MinMaxRect(mn.x, mn.y, mx.x, mx.y);
+        }
+
+        bool KeepOutChanged()
+        {
+            if (framedScreen.x != Screen.width || framedScreen.y != Screen.height) return true;
+            var now = BenchKeepOut(keepNow);
+            if (now.Count != framedFor.Count) return true;
+            for (int i = 0; i < now.Count; i++)
+            {
+                Rect a = now[i], b = framedFor[i];
+                if (Mathf.Abs(a.xMin - b.xMin) > 1.5f || Mathf.Abs(a.xMax - b.xMax) > 1.5f || Mathf.Abs(a.yMin - b.yMin) > 1.5f || Mathf.Abs(a.yMax - b.yMax) > 1.5f) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Frames the bench for the panels as they are now (gliding, unless the bench just opened).</summary>
+        public void FrameBench(bool snap)
+        {
+            Canvas.ForceUpdateCanvases();
+            framedFor.Clear();
+            framedFor.AddRange(BenchKeepOut());
+            framedScreen = new Vector2Int(Screen.width, Screen.height);
+            if (G.Level != null) G.Station.Frame(G.Level, snap);
+        }
+
         CanvasGroup stickyFade;
         /// <summary>The note fades while the pointer is over it, so a shelf item behind a tall note stays in view.</summary>
         void PeekUnderSticky(float dt)
@@ -685,6 +749,10 @@ namespace HWC.Gameplay
             G.Packing.Feedback -= ShowFeedback;
             G.Packing.Feedback += ShowFeedback;
             RefreshPacking();
+            // the camera keeps the box and the shelf clear of the panels, as they are now
+            G.Station.KeepOut = BenchKeepOut;
+            FitSticky();
+            FrameBench(true);
             AudioDirector.I?.PlayMusic("packing");
             AudioDirector.I?.Loop(null, 0);
         }
@@ -1267,6 +1335,7 @@ namespace HWC.Gameplay
             if (packRoot.gameObject.activeSelf)
             {
                 FitSticky();
+                if (G.Phase == Phase.Packing && G.Level != null && KeepOutChanged()) FrameBench(packT < 0.2f);
                 PeekUnderSticky(dt);
                 packT += dt;
                 float s = packT < 0.25f ? Mathf.Lerp(0.85f, 1f, 1f - Mathf.Pow(1f - packT / 0.25f, 3f)) : 1f;
