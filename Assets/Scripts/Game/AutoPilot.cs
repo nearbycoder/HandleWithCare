@@ -469,6 +469,9 @@ namespace HWC.Gameplay
             {
                 InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
                 for (int n = 1; n <= Levels.All.Count; n++) yield return RunHinted(n, n == 18);
+                int budgetRuns = 0;
+                for (int n = 1; n <= Levels.All.Count; n++) yield return RunBudgetHinted(n, n == 18, () => budgetRuns++);
+                Debug.Log($"[AutoPilot] {(budgetRuns >= 21 ? "PASS" : "FAIL")} budget hints: {budgetRuns} deliveries shipped over budget and hinted about money (SimCheck finds a sample on 21)");
                 // the story finale: Next after The Dragon Egg rolls credits and opens Overtime
                 var g = Game.I;
                 g.StartLevel(20);
@@ -1193,6 +1196,68 @@ namespace HWC.Gameplay
             string line = $"hints #{n:00} {lv.Title}: stars {got.Outcome.Stars} hash {(got.Hash == expected.Hash ? "match" : "MISMATCH")} note \"{Hints.Note(lv, 1, (PieceKind)Math.Max(0, rec.HintFocus))}\"";
             Debug.Log($"[AutoPilot] {(pass ? "PASS" : "FAIL")} {line}");
             report.AppendLine((pass ? "PASS " : "FAIL ") + line);
+        }
+
+        /// <summary>
+        /// Ship a packing that only misses the budget star (Hints.OverBudgetSample), then: the LAST TRIP report
+        /// names the cost, and Ask Mabel's hints, clicked with real mouse events, are about money: her costs,
+        /// then her padding, then her dividers and shelves, then her whole packing.
+        /// </summary>
+        IEnumerator RunBudgetHinted(int n, bool shots, Action ran)
+        {
+            var g = Game.I;
+            var lv = Levels.Get(n);
+            var sample = Hints.OverBudgetSample(lv);
+            if (sample == null) { Debug.Log($"[AutoPilot] budget #{n:00}: no over-budget sample (SimCheck finds none either)"); yield break; }
+            var old = g.Save.Get(n);
+            if (old != null) g.Save.Records.Remove(old);   // a fresh record: no stars yet
+            g.StartLevel(n);
+            g.Packing.ClearAll();
+            var order = sample.Clone();
+            order.Pieces.Sort((a, b) => a.Y != b.Y ? a.Y.CompareTo(b.Y) : a.X.CompareTo(b.X));
+            foreach (int d in order.Dividers) g.Packing.DebugAddDivider(d);
+            foreach (var sh in order.Shelves) g.Packing.DebugAddShelf(sh);
+            var pending = new System.Collections.Generic.List<Placement>(order.Pieces);
+            while (pending.Count > 0)
+            {
+                int before = pending.Count;
+                for (int i = 0; i < pending.Count; i++) if (g.Packing.DebugPlace(pending[i])) pending.RemoveAt(i--);
+                if (pending.Count == before) { Fail(n, $"budget: could not place {pending[0].Kind} at {pending[0].X},{pending[0].Y}"); yield break; }
+            }
+            yield return new WaitForSecondsRealtime(0.1f);
+            var expected = Simulator.Run(lv, sample, false);
+            g.SealAndShip();
+            while (g.Phase == Phase.Sealing) yield return null;
+            g.Journey.Skip();
+            while (g.Phase != Phase.Results) yield return null;
+            var got = g.LastRun.Outcome;
+            if (g.LastRun.Hash != expected.Hash || !got.Delivered || !got.Careful || got.UnderBudget) { Fail(n, $"budget: the over-budget trip came out {got.Stars} stars, cost {got.Cost}/{lv.Par}, hash {(g.LastRun.Hash == expected.Hash ? "match" : "MISMATCH")}"); yield break; }
+            yield return new WaitForSecondsRealtime(0.1f);
+            g.Repack();
+            yield return new WaitForSecondsRealtime(shots ? 0.6f : 0.2f);
+            string report = g.Hud.LastTripText;
+            if (!report.Contains($"Over budget: materials cost {got.Cost}, par {lv.Par}")) { Fail(n, "budget: the LAST TRIP report doesn't name the cost: " + report); yield break; }
+            var rec = g.Save.Get(n);
+            var btn = g.Hud.HintButton;
+            if (!btn.gameObject.activeInHierarchy) { Fail(n, "budget: no ASK MABEL after a two-star trip"); yield break; }
+            var src = Hints.Source(lv);
+            int padding = 0; foreach (var p in src.Pieces) if (p.Def.IsPadding) padding++;
+            mousePos = ButtonScreen(btn) + new Vector2(0, -200);
+            for (int st = 1; st <= Hints.MaxStage; st++)
+            {
+                yield return ClickAt(ButtonScreen(btn));
+                yield return new WaitForSecondsRealtime(shots ? 0.5f : 0.05f);
+                if (rec.HintStage != st || rec.HintFocus != Hints.BudgetFocus) { Fail(n, $"budget: click {st}: stage {rec.HintStage}, focus {rec.HintFocus}"); yield break; }
+                bool padOnly = true; foreach (var p in g.Packing.HintPieces) padOnly &= p.Def.IsPadding;
+                bool ok = st == 1 ? g.Hud.NoteText.StartsWith($"Mine costs {src.Cost} (par {lv.Par})") && g.Packing.HintPieces.Count == 0
+                        : st == 2 ? padOnly && g.Packing.HintPieces.Count == padding && g.Packing.HintDividers.Count + g.Packing.HintShelves.Count == 0
+                        : st == 3 ? padOnly && g.Packing.HintPieces.Count == padding && g.Packing.HintDividers.Count == src.Dividers.Count && g.Packing.HintShelves.Count == src.Shelves.Count
+                        : g.Packing.HintPieces.Count == src.Pieces.Count;
+                if (!ok) { Fail(n, $"budget: stage {st} shows {g.Packing.HintPieces.Count} pieces, note \"{g.Hud.NoteText}\""); yield break; }
+                if (shots) { Shot($"budget_L{n:00}_stage{st}"); yield return AfterShot(); }
+            }
+            ran();
+            Debug.Log($"[AutoPilot] PASS budget #{n:00} {lv.Title}: shipped at {got.Cost}/{lv.Par} (2 stars, hash match); report and hints about the budget: \"{Hints.Note(lv, 1, lv.Items[0], true)}\"");
         }
 
         void Fail(int n, string why)

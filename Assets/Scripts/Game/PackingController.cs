@@ -118,11 +118,11 @@ namespace HWC.Gameplay
         }
 
         /// <summary>Shows the hint ghosts for a stage (0 or hidden = none).</summary>
-        public void ShowHints(int stage, PieceKind focus, bool visible)
+        public void ShowHints(int stage, PieceKind focus, bool visible, bool budget = false)
         {
             ClearHints();
             if (!Active || stage <= 0) return;
-            HintPieces.AddRange(Hints.Pieces(Level, stage, focus));
+            HintPieces.AddRange(Hints.Pieces(Level, stage, focus, budget));
             var src = Hints.Source(Level);
             if (Hints.ShowsStatics(stage)) { HintDividers.AddRange(src.Dividers); HintShelves.AddRange(src.Shelves); }
             if (!visible) return;

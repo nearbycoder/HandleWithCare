@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Self-test of Ask Mabel with the built player: on every delivery, clicks the hint button through
 # every stage with real mouse events, builds exactly what the hint ghosts show, ships it and expects
-# three stars with the validator's hash. Screenshots of each stage on delivery 18, then checks
-# that finishing delivery 20 rolls the credits and opens Overtime.
+# three stars with the validator's hash. Then, on every delivery where SimCheck's sample exists, ships
+# a packing that only misses the budget star and checks that the LAST TRIP report and every hint stage
+# are about the budget. Screenshots of each stage on delivery 18, then checks that finishing delivery
+# 20 rolls the credits and opens Overtime.
 #   Tools/hintpilot.sh [OUTDIR]
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

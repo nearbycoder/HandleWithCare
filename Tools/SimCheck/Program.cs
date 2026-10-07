@@ -138,6 +138,23 @@ static class Program
             else if (Simulator.Run(lv, hinted, false).Outcome.Stars < 3) problems.Add("hint packing is not three stars");
             else Console.Write("  hints: 3★");
 
+            // budget hints: her costs as the note says, under par, and her padding at stage 2
+            var src = Hints.Source(lv);
+            string bnote = Hints.Note(lv, 1, lv.Items[0], true);
+            if (!bnote.StartsWith($"Mine costs {src.Cost} (par {lv.Par})") || src.Cost > lv.Par) problems.Add("budget note wrong: " + bnote);
+            var b2 = Hints.Pieces(lv, 2, lv.Items[0], true);
+            if (b2.Count != src.Pieces.Count(p => p.Def.IsPadding) || b2.Any(p => !p.Def.IsPadding)) problems.Add("budget stage 2 isn't exactly her padding");
+            if (Hints.Pieces(lv, Hints.MaxStage, lv.Items[0], true).Count != src.Pieces.Count) problems.Add("budget stage 4 isn't her whole packing");
+            // a packing that misses only the budget star (the self-test ships it), when one exists
+            var over = Hints.OverBudgetSample(lv);
+            if (over == null) Console.Write("  over budget: none");
+            else
+            {
+                var ro = Simulator.Run(lv, over, false).Outcome;
+                Console.Write($"  over budget: {Stars(ro)} {ro.Cost}/{lv.Par}");
+                if (over.Validate(lv) != null || !ro.Delivered || !ro.Careful || ro.UnderBudget) problems.Add("over-budget sample isn't one");
+            }
+
             if (lv.Number > 1)
             {
                 var naive = Naive(lv);
@@ -171,6 +188,8 @@ static class Program
             foreach (var focus in lv.Items.Distinct())
                 Console.WriteLine($"     [{focus}] {Hints.Note(lv, 1, focus)}");
             for (int st = 2; st <= Hints.MaxStage; st++) Console.WriteLine($"     {st}: {Hints.Note(lv, st, lv.Items[0])}");
+            Console.WriteLine($"     [budget] {Hints.Note(lv, 1, lv.Items[0], true)}");
+            Console.WriteLine($"     2: {Hints.Note(lv, 2, lv.Items[0], true)}");
         }
         return 0;
     }

@@ -414,7 +414,7 @@ namespace HWC.Gameplay
             if (rec.HintStage < Hints.MaxStage)
             {
                 G.FinishRestore();   // the hint is about the last trip: wait for it if it is still coming back
-                if (rec.HintStage == 0 || rec.HintFocus < 0) rec.HintFocus = (int)Hints.Focus(lv, G.LastRun);
+                if (rec.HintStage == 0 || rec.HintFocus == -1) rec.HintFocus = Hints.FocusId(lv, G.LastRun);
                 rec.HintStage++;
                 rec.HintsHidden = false;
                 Sfx("note", 0.8f);
@@ -440,11 +440,12 @@ namespace HWC.Gameplay
                 return;
             }
             var focus = rec.HintFocus >= 0 ? (PieceKind)rec.HintFocus : lv.Items[0];
+            bool budget = rec.HintFocus == Hints.BudgetFocus;   // the last trip only missed the budget star
             newBadge.gameObject.SetActive(false);
             hintBadgeText.text = $"HINT {stage}/{Hints.MaxStage}";
-            mabelText.text = Hints.Note(lv, stage, focus);
+            mabelText.text = Hints.Note(lv, stage, focus, budget);
             hintBtn.Label.text = stage < Hints.MaxStage ? "ANOTHER HINT" : (rec.HintsHidden ? "SHOW HINTS" : "HIDE HINTS");
-            G.Packing.ShowHints(stage, focus, !rec.HintsHidden);
+            G.Packing.ShowHints(stage, focus, !rec.HintsHidden, budget);
         }
         // ---- Mabel's note grows to fit -------------------------------------------------------------------
         const float NoteW = 330f, NoteH = 150f, NoteTop = -166f, NoteToButton = 16f;
@@ -608,10 +609,17 @@ namespace HWC.Gameplay
                     lines.Add($"<color=#B07A1A>!</color> {Catalog.Get(it.Kind).Name} rattled ({it.Care * 100:0}%) at {EventName(rec, it.PeakLeg, it.PeakEvent)}");
                 }
                 if (lines.Count == 0) lines.Add($"{Glyphs.Check} Everything arrived calm and happy.");
+                // it arrived: say so if the budget star is the one that got away
+                var o = rec.Outcome;
+                if (!o.UnderBudget) lines.Add($"<color=#B07A1A>!</color> Over budget: materials cost {o.Cost}, par {o.Par}");
             }
             lastTrip.gameObject.SetActive(true);
             lastTripText.text = string.Join("\n", lines);
-            lastTrip.sizeDelta = new Vector2(520, 52 + lines.Count * 30);
+            // as tall as the text, wrapped lines included
+            var tr = lastTripText.rectTransform;
+            float textW = 520f - tr.offsetMin.x + tr.offsetMax.x;
+            float textH = lastTripText.GetPreferredValues(lastTripText.text, textW, 0).y;
+            lastTrip.sizeDelta = new Vector2(520, Mathf.Max(52 + lines.Count * 30, Mathf.Ceil(textH) + tr.offsetMin.y - tr.offsetMax.y + 6));
         }
 
         static string StatusWordForIncident(IncidentKind k)

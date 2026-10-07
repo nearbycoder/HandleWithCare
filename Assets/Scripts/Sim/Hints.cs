@@ -8,11 +8,25 @@ namespace HWC.Sim
     ///   2  that item's exact spot (a ghost in the box)
     ///   3  Mabel's dividers and shelves
     ///   4  the whole packing
+    /// After a trip that only missed the budget star, the hints are about money instead:
+    ///   1  what her packing costs and what it uses (and leaves out)
+    ///   2  where her padding goes
+    ///   3  her dividers and shelves too
+    ///   4  the whole packing
     /// Pure C# so SimCheck can prove that the final stage is a three-star packing for every delivery.
     /// </summary>
     public static class Hints
     {
         public const int MaxStage = 4;
+        /// <summary>The saved hint focus for budget hints (item hints store a PieceKind).</summary>
+        public const int BudgetFocus = -2;
+
+        /// <summary>The trip arrived safely and gently, but cost more than par: only the budget star is missing.</summary>
+        public static bool OnlyOverBudget(LevelDef lv, Recording last) =>
+            last != null && last.Outcome != null && last.Level == lv && last.Outcome.Delivered && last.Outcome.Careful && !last.Outcome.UnderBudget;
+
+        /// <summary>The hint focus to save when Mabel is first asked: the budget, or an item.</summary>
+        public static int FocusId(LevelDef lv, Recording last) => OnlyOverBudget(lv, last) ? BudgetFocus : (int)Focus(lv, last);
 
         /// <summary>The packing hints are drawn from (the separate three-star one when there is one).</summary>
         public static Packing Source(LevelDef lv) => lv.Reference3Packing() ?? lv.ReferencePacking();
@@ -42,29 +56,119 @@ namespace HWC.Sim
         }
 
         /// <summary>The ghost pieces shown at a stage (dividers and shelves come from <see cref="Statics"/>).</summary>
-        public static List<Placement> Pieces(LevelDef lv, int stage, PieceKind focus)
+        public static List<Placement> Pieces(LevelDef lv, int stage, PieceKind focus, bool budget = false)
         {
             var list = new List<Placement>();
             if (stage < 2) return list;
             foreach (var p in Source(lv).Pieces)
-                if (stage >= 4 || p.Kind == focus) list.Add(p);
+                if (stage >= 4 || (budget ? p.Def.IsPadding : p.Kind == focus)) list.Add(p);
             return list;
         }
 
         public static bool ShowsStatics(int stage) => stage >= 3;
 
-        public static string Note(LevelDef lv, int stage, PieceKind focus)
+        public static string Note(LevelDef lv, int stage, PieceKind focus, bool budget = false)
         {
             var src = Source(lv);
             switch (stage)
             {
-                case 1: return Describe(src, focus);
-                case 2: return $"Here's exactly where I'd put {Article(focus)}.";
+                case 1: return budget ? Budget(lv, src) : Describe(src, focus);
+                case 2:
+                    if (!budget) return $"Here's exactly where I'd put {Article(focus)}.";
+                    return src.UsedMaterials().Paper + src.UsedMaterials().Bubble + src.UsedMaterials().Foam == 0
+                        ? "No padding at all in mine. The box does the work." : "Here's where my padding goes. Nothing more.";
                 case 3:
                     return src.Dividers.Count + src.Shelves.Count == 0
                         ? "No dividers or shelves in mine. Padding does the work."
                         : $"And here {Count(src.Dividers.Count, "divider")}{(src.Dividers.Count > 0 && src.Shelves.Count > 0 ? " and " : "")}{Count(src.Shelves.Count, "shelf", "shelves")} go{(src.Dividers.Count + src.Shelves.Count == 1 ? "es" : "")}.";
                 default: return "That's my whole packing. Copy it and it'll arrive perfect.";
+            }
+        }
+
+        /// <summary>Budget stage 1: what her packing costs, what it uses and what it leaves out.</summary>
+        static string Budget(LevelDef lv, Packing src)
+        {
+            var m = src.UsedMaterials();
+            var used = new List<string>();
+            var unused = new List<string>();
+            foreach (MaterialSlot s in System.Enum.GetValues(typeof(MaterialSlot)))
+            {
+                int n = m.Get(s);
+                if (n > 0) used.Add(MaterialCount(s, n));
+                else if (lv.Materials.Get(s) > 0) unused.Add(MaterialName(s, 2));
+            }
+            string uses = used.Count == 0 ? "nothing at all" : Join(used);
+            string none = unused.Count == 0 ? "" : " No " + Join(unused, "or") + ".";
+            return $"Mine costs {m.Cost} (par {lv.Par}): {uses}.{none}";
+        }
+
+        static string MaterialCount(MaterialSlot s, int n)
+        {
+            if (s == MaterialSlot.Paper || s == MaterialSlot.Bubble || s == MaterialSlot.Foam) return $"{n} {MaterialName(s, n)}";
+            return n == 1 ? "a " + MaterialName(s, 1) : $"{n} {MaterialName(s, n)}";
+        }
+
+        static string MaterialName(MaterialSlot s, int n)
+        {
+            switch (s)
+            {
+                case MaterialSlot.Paper: return "paper";
+                case MaterialSlot.Bubble: return "bubble wrap";
+                case MaterialSlot.Foam: return "foam";
+                case MaterialSlot.Divider: return n == 1 ? "divider" : "dividers";
+                case MaterialSlot.Shelf: return n == 1 ? "shelf" : "shelves";
+                default: return n == 1 ? "strap" : "straps";
+            }
+        }
+
+        static string Join(List<string> parts, string and = "and") =>
+            parts.Count == 1 ? parts[0] : string.Join(", ", parts.GetRange(0, parts.Count - 1)) + $" {and} " + parts[parts.Count - 1];
+
+        /// <summary>
+        /// For the self-tests: Mabel's packing made dearer (cheap padding swapped for dearer padding, then
+        /// extra padding in empty spots) until it costs more than par, keeping the first one that still
+        /// arrives safely and gently. Null when none turns up: that delivery can't miss only the budget star
+        /// this way.
+        /// </summary>
+        public static Packing OverBudgetSample(LevelDef lv, int maxTries = 60)
+        {
+            int tries = 0;
+            foreach (var pk in Dearer(lv, Source(lv)))
+            {
+                if (tries++ >= maxTries) break;
+                var o = Simulator.Run(lv, pk, false).Outcome;
+                if (o.Delivered && o.Careful && !o.UnderBudget) return pk;
+            }
+            return null;
+        }
+
+        static IEnumerable<Packing> Dearer(LevelDef lv, Packing src)
+        {
+            // swaps, one piece at a time: paper or bubble wrap -> foam, then paper -> bubble wrap
+            foreach (var (from, to) in new[] { (PieceKind.Paper, PieceKind.Foam), (PieceKind.Bubble, PieceKind.Foam), (PieceKind.Paper, PieceKind.Bubble) })
+            {
+                var pk = src.Clone();
+                for (int i = 0; i < pk.Pieces.Count; i++)
+                {
+                    if (pk.Pieces[i].Kind != from) continue;
+                    var p = pk.Pieces[i]; p.Kind = to; pk.Pieces[i] = p;
+                    if (pk.Validate(lv) != null) break;   // out of that material
+                    if (pk.Cost > lv.Par) { yield return pk.Clone(); }
+                }
+            }
+            // extra padding, bottom-up, in spots where it can rest
+            foreach (var kind in new[] { PieceKind.Paper, PieceKind.Bubble, PieceKind.Foam })
+            {
+                var pk = src.Clone();
+                for (int y = 0; y < pk.H; y++)
+                    for (int x = 0; x < pk.W; x++)
+                    {
+                        var p = new Placement(kind, x, y);
+                        if (!pk.CanPlace(p)) continue;
+                        pk.Pieces.Add(p);
+                        if (pk.Validate(lv) != null) { pk.Pieces.RemoveAt(pk.Pieces.Count - 1); continue; }
+                        if (pk.Cost > lv.Par) yield return pk.Clone();
+                    }
             }
         }
 
