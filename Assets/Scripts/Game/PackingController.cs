@@ -526,7 +526,8 @@ namespace HWC.Gameplay
             }
         }
 
-        /// <summary>The recorded body whose failure mark (from the last trip) is under this cell point, or -1.</summary>
+        /// <summary>The recorded body whose mark from the last trip (a red cross, or an amber near miss) is under
+        /// this cell point, or -1.</summary>
         public int HoverTroubleBody { get; private set; } = -1;
         const float TroubleReach = 0.4f;   // cells from the cross's centre
 
@@ -534,11 +535,11 @@ namespace HWC.Gameplay
         {
             if (lastRun == null || lastRun.Level != Level) return -1;
             int best = -1; float bestD = TroubleReach * TroubleReach;
-            foreach (var inc in lastRun.Incidents)
+            foreach (var tr in lastRun.Troubles)
             {
-                if (!inc.IsFailure || inc.Body < 0) continue;
-                float dx = cell.x - inc.Where.x, dy = cell.y - inc.Where.y, d = dx * dx + dy * dy;
-                if (d < bestD) { bestD = d; best = inc.Body; }
+                if (tr.Body < 0) continue;
+                float dx = cell.x - tr.Where.x, dy = cell.y - tr.Where.y, d = dx * dx + dy * dy;
+                if (d < bestD) { bestD = d; best = tr.Body; }
             }
             return best;
         }
@@ -549,6 +550,7 @@ namespace HWC.Gameplay
             if (trails != null) trails.Highlight(lastRun, kind, body);
         }
         public int TripMarksHighlighted => trails != null ? trails.HighlightedMarks() : 0;
+        public int NearMissMarksShown => trails != null ? trails.NearMarks : 0;
 
         TrayItem TrayUnder(Ray ray)
         {

@@ -96,6 +96,9 @@ namespace HWC.Sim
         public Outcome Outcome;
         public ulong Hash;
         public float Duration => Frames.Count * SimConst.FrameEvery * SimConst.Dt;
+        List<Trouble> troubles;
+        /// <summary>Its failures and near misses in time order (<see cref="Sim.Troubles"/>), worked out once.</summary>
+        public List<Trouble> Troubles => troubles ?? (troubles = Sim.Troubles.Of(this));
 
         /// <summary>Frame index for a route tick.</summary>
         public static int FrameOfTick(int tick) => tick / SimConst.FrameEvery;

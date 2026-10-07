@@ -1011,13 +1011,18 @@ namespace HWC.Gameplay
             troubleBtn = Ui.Button(replayBar, "trouble", "NEXT TROUBLE", () => G.Journey.NextTrouble(), Palette.PostalRed, Palette.Cream, 22);
             troubleBtn.Image.rectTransform.Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(5 * 96 + 8, 0), new Vector2(200, 52));
             KeyHint(troubleBtn, "N", "RB", 13f);
-            var hint = Ui.Text(replayBar, "hint", "Click the timeline to jump  ·  red marks = trouble", 20, Palette.Cream, Ui.Bold, TextAlignmentOptions.Center);
-            hint.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 50), new Vector2(600, 32));
+            var hint = troubleHint = Ui.Text(replayBar, "hint", "Click the timeline to jump  ·  red marks = trouble", 20, Palette.Cream, Ui.Bold, TextAlignmentOptions.Center);
+            hint.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 50), new Vector2(780, 32));
             hint.enableAutoSizing = true; hint.fontSizeMax = 20; hint.fontSizeMin = 14;
             hint.gameObject.AddComponent<Shadow>();
         }
 
         RectTransform replayBar;
+        TextMeshProUGUI troubleHint;
+        int nearMarks;
+        /// <summary>For the self-tests: the amber marks on the timeline.</summary>
+        public int NearMissMarks => nearMarks;
+        public string TroubleHintText => troubleHint.text;
         UiButton skipBtn, camBtn, troubleBtn, replayDone;
         public UiButton ReplayDoneButton => replayDone;
         public UiButton TroubleButton => troubleBtn;
@@ -1027,23 +1032,36 @@ namespace HWC.Gameplay
             HideAll();
             journeyRoot.gameObject.SetActive(true);
             replayBar.gameObject.SetActive(replay);
-            bool trouble = false;
-            foreach (var inc in rec.Incidents) trouble |= inc.IsFailure;
-            troubleBtn.gameObject.SetActive(trouble);
+            troubleBtn.gameObject.SetActive(rec.Troubles.Count > 0);
             skipBtn.gameObject.SetActive(!replay && !Cinematic);
             timeline.gameObject.SetActive(replay || !Cinematic);
             timeText.gameObject.SetActive(replay || !Cinematic);
             foreach (var m in markers) Destroy(m);
             markers.Clear();
-            foreach (var inc in rec.Incidents)
-            {
-                if (!inc.IsFailure) continue;
-                var mk = Ui.Panel(timeline, "mark", Palette.Bad, Ui.Rounded(8));
-                float x = inc.Time / rec.Duration;
-                mk.rectTransform.anchorMin = mk.rectTransform.anchorMax = new Vector2(x, 0.5f);
-                mk.rectTransform.sizeDelta = new Vector2(14, 34);
-                markers.Add(mk.gameObject);
-            }
+            // red marks for failures, amber for near misses (an item that arrived but cost the care star there);
+            // the red ones are drawn last, on top
+            nearMarks = 0;
+            foreach (bool failures in new[] { false, true })
+                foreach (var tr in rec.Troubles)
+                {
+                    if (tr.Failure != failures) continue;
+                    // amber needs an ink edge to show on the timeline's yellow fill
+                    var mk = Ui.Panel(timeline, failures ? "mark" : "nearMark", failures ? Palette.Bad : Palette.Ink, Ui.Rounded(8));
+                    float x = tr.Time / rec.Duration;
+                    mk.rectTransform.anchorMin = mk.rectTransform.anchorMax = new Vector2(x, 0.5f);
+                    mk.rectTransform.sizeDelta = new Vector2(14, 34);
+                    if (!failures)
+                    {
+                        var face = Ui.Panel(mk.transform, "face", Amber, Ui.Rounded(6));
+                        face.rectTransform.Stretch(3, 3, 3, 3);
+                        face.raycastTarget = false;
+                    }
+                    mk.raycastTarget = false;
+                    markers.Add(mk.gameObject);
+                    if (!failures) nearMarks++;
+                }
+            troubleHint.text = nearMarks > 0 ? "Click the timeline to jump  ·  <color=#F07A6A>red</color> = trouble  ·  <color=#F5A833>amber</color> = near miss"
+                                             : "Click the timeline to jump  ·  red marks = trouble";
             // leg separators
             var kin = rec.Kin;
             legCuts.Clear();

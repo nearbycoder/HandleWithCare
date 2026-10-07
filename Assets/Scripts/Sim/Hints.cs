@@ -211,6 +211,78 @@ namespace HWC.Sim
         }
 
         /// <summary>
+        /// For the self-tests: Mabel's packing made careless (padding taken away, or swapped for a cheaper kind,
+        /// one piece, then two, then seeded random changes) until it still arrives, under par, but rattles
+        /// something past the care line: a trip that misses only the care star. Null when none turns up.
+        /// </summary>
+        public static Packing CarelessSample(LevelDef lv, int maxTries = 120)
+        {
+            int tries = 0;
+            foreach (var pk in Careless(lv, Source(lv)))
+            {
+                if (tries++ >= maxTries) break;
+                var o = Simulator.Run(lv, pk, false).Outcome;
+                if (o.Delivered && !o.Careful && o.UnderBudget) return pk;
+            }
+            return null;
+        }
+
+        static IEnumerable<Packing> Careless(LevelDef lv, Packing src)
+        {
+            var pads = new List<int>();
+            for (int i = 0; i < src.Pieces.Count; i++) if (src.Pieces[i].Def.IsPadding) pads.Add(i);
+            // one piece of padding cheaper, then one taken away
+            foreach (var (from, to) in new[] { (PieceKind.Foam, PieceKind.Paper), (PieceKind.Bubble, PieceKind.Paper), (PieceKind.Foam, PieceKind.Bubble) })
+                foreach (int i in pads)
+                {
+                    if (src.Pieces[i].Kind != from) continue;
+                    var pk = src.Clone();
+                    var p = pk.Pieces[i]; p.Kind = to; pk.Pieces[i] = p;
+                    if (pk.Validate(lv) == null) yield return pk;
+                }
+            foreach (int i in pads)
+            {
+                var pk = src.Clone();
+                pk.Pieces.RemoveAt(i);
+                if (pk.Validate(lv) == null) yield return pk;
+            }
+            // two taken away
+            for (int a = 0; a < pads.Count; a++)
+                for (int b = a + 1; b < pads.Count; b++)
+                {
+                    var pk = src.Clone();
+                    pk.Pieces.RemoveAt(pads[b]);
+                    pk.Pieces.RemoveAt(pads[a]);
+                    if (pk.Validate(lv) == null) yield return pk;
+                }
+            // seeded random: a few pieces of padding cheaper or gone, a divider or a shelf gone
+            uint state = lv.Seed * 2246822519u + 777u;
+            int Next(int n) { state = state * 1664525u + 1013904223u; return (int)((state >> 8) % (uint)n); }
+            for (int attempt = 0; attempt < 2000; attempt++)
+            {
+                var pk = src.Clone();
+                int steps = 1 + Next(4);
+                for (int s = 0; s < steps; s++)
+                {
+                    int op = Next(4);
+                    if (op == 3 && pk.Dividers.Count + pk.Shelves.Count > 0)
+                    {
+                        int j = Next(pk.Dividers.Count + pk.Shelves.Count);
+                        if (j < pk.Dividers.Count) pk.Dividers.RemoveAt(j); else pk.Shelves.RemoveAt(j - pk.Dividers.Count);
+                        continue;
+                    }
+                    var idx = new List<int>();
+                    for (int i = 0; i < pk.Pieces.Count; i++) if (pk.Pieces[i].Def.IsPadding) idx.Add(i);
+                    if (idx.Count == 0) continue;
+                    int k = idx[Next(idx.Count)];
+                    if (op == 0) pk.Pieces.RemoveAt(k);
+                    else { var p = pk.Pieces[k]; p.Kind = p.Kind == PieceKind.Foam && op == 1 ? PieceKind.Bubble : PieceKind.Paper; pk.Pieces[k] = p; }
+                }
+                if (pk.Validate(lv) == null) yield return pk;
+            }
+        }
+
+        /// <summary>
         /// Her packing with a few random changes until it costs more than par: padding swapped for a dearer
         /// kind, extra padding wherever it can rest, or a strap on a piece. Deterministic (seeded).
         /// </summary>

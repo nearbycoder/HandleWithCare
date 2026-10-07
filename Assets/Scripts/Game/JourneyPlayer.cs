@@ -195,16 +195,15 @@ namespace HWC.Gameplay
         /// <summary>How far before a trouble NextTrouble lands, so the moment itself plays.</summary>
         public const float TroubleLead = 1.5f;
 
-        /// <summary>Replay: jump to just before the next red mark (after the last one, back to the first).
-        /// False when the trip had no trouble.</summary>
+        /// <summary>Replay: jump to just before the next mark, red (a failure) or amber (a near miss that cost the
+        /// care star); after the last one, back to the first. False when the trip had neither.</summary>
         public bool NextTrouble()
         {
             if (Rec == null) return false;
             float first = -1f, next = -1f;
-            foreach (var inc in Rec.Incidents)
+            foreach (var tr in Rec.Troubles)
             {
-                if (!inc.IsFailure) continue;
-                float at = Mathf.Max(0f, inc.Time - TroubleLead);
+                float at = Mathf.Max(0f, tr.Time - TroubleLead);
                 if (first < 0f || at < first) first = at;
                 if (at > T + 0.1f && (next < 0f || at < next)) next = at;
             }
@@ -216,7 +215,7 @@ namespace HWC.Gameplay
 
         public bool HasTrouble
         {
-            get { if (Rec != null) foreach (var inc in Rec.Incidents) if (inc.IsFailure) return true; return false; }
+            get { return Rec != null && Rec.Troubles.Count > 0; }
         }
 
         public void Seek(float t)

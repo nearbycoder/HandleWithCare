@@ -8,7 +8,7 @@ using HWC.Sim;
 /// <summary>
 /// Validates every delivery with the exact simulation code the game ships:
 ///   check            all levels: reference valid + delivered + under par, 3-star ref, naive fails, deterministic
-///   run N [which]    timeline + per-item results for level N (which = ref | ref3 | naive | empty)
+///   run N [which]    timeline + per-item results for level N (which = ref | ref3 | naive | empty | careless)
 ///   trace N [which]  positions every 0.25 s
 ///   map N "row" ...  run an ad-hoc map against level N (dividers via --div 2,3, shelves via --shelf 1@0, mods via --mods "x,y:S")
 /// </summary>
@@ -70,6 +70,7 @@ static class Program
             case "ref3": return lv.Reference3Packing() ?? lv.ReferencePacking();
             case "naive": return Naive(lv);
             case "empty": return Naive(lv);
+            case "careless": return Hints.CarelessSample(lv) ?? throw new ArgumentException("no careless sample for this delivery");
         }
         throw new ArgumentException(which);
     }
@@ -201,6 +202,21 @@ static class Program
                 Console.Write($" (extra {extras.Count}, in place {inPlace}/{srcPad.Count})");
             }
 
+            // a packing that misses only the care star (the self-tests ship it): its near misses
+            var careless = Hints.CarelessSample(lv);
+            if (careless == null) Console.Write("  careless: none found");
+            else
+            {
+                var rc = Simulator.Run(lv, careless);
+                Meters(rc, "careless", problems);
+                var oc = rc.Outcome;
+                int near = Troubles.NearMisses(rc).Count;
+                Console.Write($"  careless: {Stars(oc)} care {oc.WorstCare:0.00}, {near} near miss{(near == 1 ? "" : "es")}");
+                if (careless.Validate(lv) != null || !oc.Delivered || oc.Careful || !oc.UnderBudget) problems.Add("careless sample isn't one");
+                if (near == 0) problems.Add("careless sample has no near miss");
+                carelessFound++;
+            }
+
             if (lv.Number > 1)
             {
                 var naive = Naive(lv);
@@ -215,15 +231,21 @@ static class Program
         }
         Console.WriteLine($"care meters: {metersChecked} item trips end where their review does");
         Console.WriteLine($"hint ghosts: {ghostChecks} ghosts matched against her packing and an empty box");
+        Console.WriteLine($"troubles: {troubleTrips} trips checked, {nearMisses} near misses; a careless sample (only the care star missed) on {carelessFound} deliveries");
         Console.WriteLine(failures == 0 ? $"ALL OK ({sw.Elapsed.TotalSeconds:0.0}s)" : $"{failures} PROBLEM(S)");
         return failures == 0 ? 0 : 1;
     }
 
     /// <summary>The trip's care meters end where the review does: each item's last recorded care is its
     /// outcome's, and its last recorded state gives the same status.</summary>
-    static int metersChecked, ghostChecks;
+    static int metersChecked, ghostChecks, troubleTrips, nearMisses, carelessFound;
     static void Meters(Recording rec, string what, List<string> problems)
     {
+        // and its near misses (the replay's amber marks) follow their rules
+        troubleTrips++;
+        nearMisses += Troubles.NearMisses(rec).Count;
+        string tc = Troubles.Check(rec);
+        if (tc != null) problems.Add($"{what}: troubles: {tc}");
         var last = rec.Frames[rec.Frames.Count - 1];
         foreach (var it in rec.Outcome.Items)
         {

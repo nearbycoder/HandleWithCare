@@ -6,7 +6,8 @@ namespace HWC.Visuals
 {
     /// <summary>
     /// After a journey, the packing view shows each item's path from the last run as a faint
-    /// trail, plus a marker where something went wrong. Makes failures legible and fixable.
+    /// trail, plus a red cross where something went wrong, and an amber "!" where an item that still
+    /// arrived went past the care line (a near miss). Makes failures legible and fixable.
     /// </summary>
     public sealed class TrailOverlay : MonoBehaviour
     {
@@ -21,6 +22,7 @@ namespace HWC.Visuals
             objects.Clear();
             lines.Clear();
             marks.Clear();
+            NearMarks = 0;
         }
 
         /// <summary>An item's trails and crosses stand out while its card shows (every item of that kind, or
@@ -37,6 +39,9 @@ namespace HWC.Visuals
             foreach (var (_, m) in marks) if (m != null && m.localScale.x > 1.01f) n++;
             return n;
         }
+        /// <summary>For the self-tests: the amber near-miss marks shown.</summary>
+        public int NearMarks { get; private set; }
+        public static readonly Color NearColor = new Color(0.96f, 0.62f, 0.12f, 0.95f);
 
         public void Show(BoxView box, Recording rec)
         {
@@ -46,7 +51,8 @@ namespace HWC.Visuals
             transform.localPosition = new Vector3(0, 0, -BoxView.Depth * 0.5f - 0.01f);
             transform.localRotation = Quaternion.identity;
             var failedBodies = new HashSet<int>();
-            foreach (var inc in rec.Incidents) if (inc.IsFailure) failedBodies.Add(inc.Body);
+            var nearBodies = new HashSet<int>();
+            foreach (var tr in rec.Troubles) (tr.Failure ? failedBodies : nearBodies).Add(tr.Body);
 
             for (int b = 0; b < rec.Bodies.Length; b++)
             {
@@ -66,9 +72,9 @@ namespace HWC.Visuals
                     pts.Add(new Vector3(p.x * BoxView.Cell, p.y * BoxView.Cell, 0));
                 }
                 if (pts.Count < 2) continue;
-                bool failed = failedBodies.Contains(b);
-                var col = failed ? new Color(0.95f, 0.3f, 0.25f, 0.85f) : Palette.ItemColor(info.Kind);
-                col.a = failed ? 0.85f : 0.5f;
+                bool failed = failedBodies.Contains(b), near = !failed && nearBodies.Contains(b);
+                var col = failed ? new Color(0.95f, 0.3f, 0.25f, 0.85f) : near ? NearColor : Palette.ItemColor(info.Kind);
+                col.a = failed ? 0.85f : near ? 0.75f : 0.5f;
                 var go = new GameObject("trail_" + info.Kind);
                 go.transform.SetParent(transform, false);
                 var lr = go.AddComponent<LineRenderer>();
@@ -103,6 +109,36 @@ namespace HWC.Visuals
                 }
                 objects.Add(go);
                 marks.Add((inc.Body, go.transform));
+            }
+
+            // near-miss markers: a little amber warning sign (a diamond with "!") where the knock happened,
+            // outlined in ink so it reads over any item
+            NearMarks = 0;
+            var ink = Mat.Unlit(new Color(0.16f, 0.12f, 0.1f, 0.92f), true);
+            var amber = Mat.Unlit(NearColor, true);
+            foreach (var tr in rec.Troubles)
+            {
+                if (tr.Failure) continue;
+                var go = new GameObject("nearMarker");
+                go.transform.SetParent(transform, false);
+                go.transform.localPosition = new Vector3(tr.Where.x * BoxView.Cell, tr.Where.y * BoxView.Cell, -0.006f);
+                var edge = MeshGen.Make("edge", MeshGen.Quad(), ink, go.transform, Vector3.zero, false);
+                edge.transform.localScale = new Vector3(0.1f, 0.1f, 1f);
+                edge.transform.localRotation = Quaternion.Euler(0, 0, 45);
+                var face = MeshGen.Make("face", MeshGen.Quad(), amber, go.transform, new Vector3(0, 0, -0.004f), false);
+                face.transform.localScale = new Vector3(0.08f, 0.08f, 1f);
+                face.transform.localRotation = Quaternion.Euler(0, 0, 45);
+                // (well in front: the bench camera looks down, and transparent quads sort by distance)
+                var bar = MeshGen.Make("bar", MeshGen.Quad(), ink, go.transform, new Vector3(0, 0.009f, -0.012f), false);
+                bar.transform.localScale = new Vector3(0.016f, 0.046f, 1f);
+                var dot = MeshGen.Make("dot", MeshGen.Quad(), ink, go.transform, new Vector3(0, -0.028f, -0.012f), false);
+                dot.transform.localScale = new Vector3(0.016f, 0.015f, 1f);
+                // and drawn in order whatever the distance
+                face.GetComponent<Renderer>().sortingOrder = 1;
+                bar.GetComponent<Renderer>().sortingOrder = dot.GetComponent<Renderer>().sortingOrder = 2;
+                objects.Add(go);
+                marks.Add((tr.Body, go.transform));
+                NearMarks++;
             }
         }
     }

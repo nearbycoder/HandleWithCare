@@ -215,6 +215,7 @@ namespace HWC.Gameplay
             g.Hud.SetPaused(false);
             yield return KeyboardRetryLoop();
             yield return WatchFromBench();
+            yield return NearMissTour();
             yield return KeyboardLayouts();
             yield return EscapeMenus();
             yield return EarnedOnReview();
@@ -343,14 +344,14 @@ namespace HWC.Gameplay
             Check(g.Phase == Phase.Packing && g.Level.Number == 2, "Enter on Results goes to the next delivery (and doesn't seal it)");
         }
 
-        /// <summary>Where NextTrouble should land from time t (the same rule, worked out from the recording).</summary>
+        /// <summary>Where NextTrouble should land from time t (the same rule, worked out from the failures and the
+        /// near misses SimCheck checks).</summary>
         static float ExpectedTrouble(Recording rec, float t)
         {
             float first = -1f, next = -1f;
-            foreach (var inc in rec.Incidents)
+            foreach (var tr in Troubles.Of(rec))
             {
-                if (!inc.IsFailure) continue;
-                float at = Mathf.Max(0f, inc.Time - JourneyPlayer.TroubleLead);
+                float at = Mathf.Max(0f, tr.Time - JourneyPlayer.TroubleLead);
                 if (first < 0f || at < first) first = at;
                 if (at > t + 0.1f && (next < 0f || at < next)) next = at;
             }
@@ -388,7 +389,7 @@ namespace HWC.Gameplay
             yield return new WaitForSecondsRealtime(0.2f);
             Check(g.Phase == Phase.Journey && g.Journey.IsReplay && g.Journey.Rec == trip && g.Hud.TroubleButton.isActiveAndEnabled, "P on the bench replays the last trip");
             yield return CareMetersInReplay(trip);
-            int troubles = 0; foreach (var inc in trip.Incidents) if (inc.IsFailure) troubles++;
+            int troubles = Troubles.Of(trip).Count;
             for (int i = 0; i < Mathf.Min(3, troubles + 1); i++)
             {
                 float want = ExpectedTrouble(trip, g.Journey.T);
@@ -418,6 +419,78 @@ namespace HWC.Gameplay
             yield return Key(UnityEngine.InputSystem.Key.Z);
             Check(g.Packing.UndoDepth == undo - 1 && SaveData.Serialize(g.CurrentPacking) != box, "Z still undoes the paper placed before watching");
             yield return TripCards(trip, report);
+        }
+
+        /// <summary>The careless sample's delivery the near-miss tests ship (two near misses of one item).</summary>
+        const int CarelessLevel = 16;
+
+        /// <summary>
+        /// A trip that arrives but misses the care star (SimCheck's careless sample): on the bench an amber mark
+        /// for each near miss, and pointing at one shows its item's card ("Rattled"); P replays it with amber
+        /// marks on the timeline, NEXT TROUBLE showing, and N landing just before each near miss in turn.
+        /// </summary>
+        IEnumerator NearMissTour()
+        {
+            var g = Game.I;
+            yield return RunLevel(CarelessLevel, "careless", false);
+            var trip = g.LastRun;
+            var near = Troubles.NearMisses(trip);
+            Check2(trip.Outcome.Delivered && !trip.Outcome.Careful && trip.Outcome.UnderBudget && near.Count >= 2,
+                   "near", $"the careless packing of delivery {CarelessLevel} arrives under par but misses the care star ({trip.Outcome.WorstCare * 100:0}%), with {near.Count} near misses");
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return Key(UnityEngine.InputSystem.Key.R);
+            yield return new WaitForSecondsRealtime(0.8f);
+            string report = Plain(g.Hud.LastTripText);
+            Check2(g.Phase == Phase.Packing && g.Packing.NearMissMarksShown == near.Count && report.Contains("rattled"),
+                   "near", $"the bench shows {g.Packing.NearMissMarksShown} amber marks (expected {near.Count}) and the report says \"{report.Replace("\n", " / ")}\"");
+            // pointing at each amber mark: its item's card, rattled, and its marks stand out
+            for (int i = 0; i < near.Count; i++)
+            {
+                var tr = near[i];
+                yield return MoveMouse(CellScreen(tr.Where.x, tr.Where.y));
+                yield return null; yield return null;
+                var kind = trip.Bodies[tr.Body].Kind;
+                string card = Plain(g.Hud.ItemCardTrip);
+                Check2(g.Hud.ItemCardShown && g.Hud.ItemCardName == Catalog.Get(kind).Name.ToUpperInvariant() && card.Contains("Rattled")
+                       && g.Packing.HoverTroubleBody == tr.Body && g.Packing.TripMarksHighlighted >= 1,
+                       "near", $"pointing at the amber mark at {tr.Where.x:0.0},{tr.Where.y:0.0}: the {kind}'s card (\"{card}\"), {g.Packing.TripMarksHighlighted} mark(s) stand out");
+                if (i == 0) { Shot("N1_bench_near_miss_card"); yield return AfterShot(); }
+            }
+            yield return MoveMouse(new Vector2(UnityEngine.Screen.width * 0.5f, UnityEngine.Screen.height * 0.88f));
+            yield return null; yield return null;
+
+            yield return Key(UnityEngine.InputSystem.Key.P);
+            yield return new WaitForSecondsRealtime(0.3f);
+            Check2(g.Phase == Phase.Journey && g.Journey.IsReplay && g.Journey.Rec == trip && g.Hud.TroubleButton.isActiveAndEnabled
+                   && g.Hud.NearMissMarks == near.Count && g.Hud.TroubleHintText.Contains("near miss"),
+                   "near", $"P replays it: NEXT TROUBLE shows, {g.Hud.NearMissMarks} amber marks on the timeline (expected {near.Count}), the hint explains them");
+            for (int i = 0; i < near.Count + 1; i++)
+            {
+                float want = ExpectedTrouble(trip, g.Journey.T);
+                yield return Key(UnityEngine.InputSystem.Key.N);
+                float got = g.Journey.T;
+                Check2(Mathf.Abs(got - want) < 0.4f && !g.Journey.UserPaused, "near", $"N jumps to just before a near miss: {got:0.00}s (expected {want:0.00}s)");
+                if (i == 0)
+                {
+                    // let the knock play: the item's meter turns amber
+                    float until = near[0].Time + 0.4f;
+                    float t0 = Time.unscaledTime;
+                    while (g.Phase == Phase.Journey && g.Journey.T < until && Time.unscaledTime - t0 < 6f) yield return null;
+                    g.Journey.UserPaused = true;
+                    yield return null; yield return null;
+                    int row = g.Hud.CareMeterBodies().IndexOf(near[0].Body);
+                    var rd = g.Hud.CareMeterReadings();
+                    Check2(row >= 0 && rd[row].care >= SimConst.CareFraction, "near", $"after the first near miss the {trip.Bodies[near[0].Body].Kind}'s meter is past the line ({(row >= 0 ? rd[row].text : "?")})");
+                    Shot("N2_replay_near_miss");
+                    yield return AfterShot();
+                    g.Journey.UserPaused = false;
+                }
+                else yield return new WaitForSecondsRealtime(0.3f);
+            }
+            yield return Key(UnityEngine.InputSystem.Key.Enter);
+            yield return WaitPhase(Phase.Packing, 3f);
+            yield return new WaitForSecondsRealtime(0.3f);
+            Check2(g.Phase == Phase.Packing, "near", "Enter goes back to the bench");
         }
 
         /// <summary>The words after an item's name on its LAST TRIP report line ("shattered at the hard brake
@@ -753,7 +826,9 @@ namespace HWC.Gameplay
             yield return new WaitForSecondsRealtime(tour ? 1.0f : 0.3f);
             if (tour) Shot($"L{n:00}_1_empty");
 
-            var pk = whichPacking == "ref3" ? (lv.Reference3Packing() ?? lv.ReferencePacking()) : whichPacking == "expert" ? lv.ExpertPacking() : (whichPacking == "naive" ? NaivePacking(lv) : lv.ReferencePacking());
+            var pk = whichPacking == "ref3" ? (lv.Reference3Packing() ?? lv.ReferencePacking()) : whichPacking == "expert" ? lv.ExpertPacking()
+                   : whichPacking == "careless" ? Hints.CarelessSample(lv) : (whichPacking == "naive" ? NaivePacking(lv) : lv.ReferencePacking());
+            if (pk == null) { Fail(n, $"no {whichPacking} packing"); yield break; }
             // place pieces through the controller, bottom-up, like a player would
             var order = pk.Clone();
             order.Pieces.Sort((a, b) => a.Y != b.Y ? a.Y.CompareTo(b.Y) : a.X.CompareTo(b.X));
@@ -1412,6 +1487,35 @@ namespace HWC.Gameplay
                 PadCheck(g.Hud.ItemCardShown && card.StartsWith("LAST TRIP") && card.Contains("hattered"), $"the d-pad onto the vase: its card says \"{card}\"");
             }
             else PadCheck(false, "no vase in the box after the failed trip");
+            yield return PadNearMiss();
+        }
+
+        /// <summary>A trip that only missed the care star, with the pad: WATCH, then RB stops at each near miss.</summary>
+        IEnumerator PadNearMiss()
+        {
+            var g = Game.I;
+            yield return RunLevel(CarelessLevel, "careless", false);
+            var trip = g.LastRun;
+            int near = Troubles.NearMisses(trip).Count;
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return PadButton(GamepadButton.West);           // X: repack
+            yield return new WaitForSecondsRealtime(0.6f);
+            yield return PadOnto(g.Hud.WatchButton.Image.rectTransform);
+            yield return PadButton(GamepadButton.South);
+            yield return new WaitForSecondsRealtime(0.3f);
+            PadCheck(g.Phase == Phase.Journey && g.Journey.IsReplay && g.Journey.Rec == trip && g.Hud.NearMissMarks == near && near > 0,
+                     $"a careless trip (care star missed): A on WATCH replays it with {g.Hud.NearMissMarks} amber marks (expected {near})");
+            for (int i = 0; i < near; i++)
+            {
+                float want = ExpectedTrouble(trip, g.Journey.T);
+                yield return PadButton(GamepadButton.RightShoulder);
+                PadCheck(Mathf.Abs(g.Journey.T - want) < 0.4f, $"RB jumps to just before a near miss ({g.Journey.T:0.00}s, expected {want:0.00}s)");
+                yield return new WaitForSecondsRealtime(0.3f);
+            }
+            yield return PadButton(GamepadButton.East);
+            yield return WaitPhase(Phase.Packing, 3f);
+            yield return new WaitForSecondsRealtime(0.3f);
+            PadCheck(g.Phase == Phase.Packing, "B ends the replay");
         }
 
         static Vector2 ButtonScreen(UiButton b)
