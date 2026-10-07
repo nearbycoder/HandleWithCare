@@ -413,6 +413,7 @@ namespace HWC.Gameplay
             var rec = G.Save.Get(lv.Number, true);
             if (rec.HintStage < Hints.MaxStage)
             {
+                G.FinishRestore();   // the hint is about the last trip: wait for it if it is still coming back
                 if (rec.HintStage == 0 || rec.HintFocus < 0) rec.HintFocus = (int)Hints.Focus(lv, G.LastRun);
                 rec.HintStage++;
                 rec.HintsHidden = false;
@@ -581,6 +582,10 @@ namespace HWC.Gameplay
             }
             return "the trip";
         }
+
+        /// <summary>The last trip, simulated again after the bench opened: its report.</summary>
+        public void ShowLastTrip(Recording rec) => FillLastTrip(rec);
+        public void RefreshBestButton() { if (G.Packing.Level != null) RefreshBest(G.Packing.Level); }
 
         void FillLastTrip(Recording rec)
         {

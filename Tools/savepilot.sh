@@ -6,10 +6,13 @@
 #   3  save.json cut in half: the backup loads, the damaged file is kept, the title screen says so
 #   4  garbage and no backup: a fresh save without an exception, both damaged files kept; then
 #      delivery 1 with three stars
-#   5  restart: a failed trip, then MY BEST brings the three-star packing back (undo, redo, ship it)
-#   6  Settings > START OVER: cancel changes nothing; confirm clears progress, keeps the settings and
-#      a copy of the old save
-#   7  a save in v0.1.0's format: the last box shipped becomes MY BEST if it still delivers
+#   5  restart: a failed trip, then MY BEST brings the three-star packing back (undo, redo, ship it);
+#      then a failed trip on delivery 5, and back to it through the main menu
+#   6  restart: delivery 5's last trip comes back (report, trails, hash, Ask Mabel's focus) while the
+#      bench is already open; then Settings > START OVER: cancel changes nothing; confirm clears
+#      progress, keeps the settings and a copy of the old save
+#   7  a save in v0.1.0's format: the last box shipped becomes MY BEST if it still delivers, checked
+#      on a worker thread when each bench opens
 #   Tools/savepilot.sh [OUTDIR]
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -406,6 +406,7 @@ namespace HWC.Gameplay
             G.Packing.End();               // the box on the bench is part of the progress: don't keep it
             if (!G.Save.StartOver()) { confirm.gameObject.SetActive(false); return; }
             G.Level = null;
+            G.LastRun = null;              // nor the last trip
             G.Hud.Sfx("clear");
             G.ShowTitle();
         }

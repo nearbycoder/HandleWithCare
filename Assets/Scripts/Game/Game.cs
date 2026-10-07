@@ -157,6 +157,60 @@ namespace HWC.Gameplay
         void Update()
         {
             if (keepAt > 0f && Time.unscaledTime >= keepAt) KeepPacking();
+            if (restoring != null && restoring.IsCompleted) FinishRestore();
+        }
+
+        // ---- the last trip comes back when a bench opens ----------------------------------------------
+        System.Threading.Tasks.Task<Recording> restoring;
+        System.Diagnostics.Stopwatch restoreClock;
+
+        /// <summary>A bench is open and its last trip is still being simulated again.</summary>
+        public bool RestoringLastTrip => restoring != null;
+
+        /// <summary>
+        /// Opening a bench with no trip in memory: the last box shipped is simulated again on a worker
+        /// thread (the simulation is deterministic), so the trip report, the trails and Ask Mabel's focus
+        /// come back without the bench waiting. A box from a v0.1.0 save is checked as MY BEST on the way.
+        /// </summary>
+        void BeginRestore()
+        {
+            restoring = null;
+            var rec = Save.Get(Level.Number);
+            if (rec == null || string.IsNullOrEmpty(rec.LastShipped)) return;
+            restoreClock = System.Diagnostics.Stopwatch.StartNew();
+            var pk = Save.LastShippedPacking(Level);
+            if (pk == null) { Save.AdoptLastBox(Level, null); return; }
+            var lvl = Level;
+            _ = lvl.Kinematics;   // built here, not on two threads at once
+            RestoreSetupMs = restoreClock.Elapsed.TotalMilliseconds;
+            restoring = System.Threading.Tasks.Task.Run(() => Simulator.Run(lvl, pk));
+        }
+
+        /// <summary>For the save test: the main thread's share of the last restore (reading and checking the box).</summary>
+        public double RestoreSetupMs { get; private set; }
+
+        /// <summary>Hands a finished restore to the bench. Ask Mabel and sealing call it first and wait for it
+        /// (a journey simulates in tens of milliseconds).</summary>
+        public void FinishRestore()
+        {
+            var task = restoring;
+            if (task == null) return;
+            restoring = null;
+            try { task.Wait(); }
+            catch (System.Exception e) { Debug.LogException(e); return; }
+            var run = task.Result;
+            if (Level == null || run.Level != Level) return;   // the player has moved on
+            double ms = restoreClock.Elapsed.TotalMilliseconds;
+            var rec = Save.Get(Level.Number);
+            bool adopted = Save.AdoptLastBox(Level, run.Outcome, ms);
+            string hash = run.Hash.ToString("x16");
+            string shipped = rec?.LastShippedHash;
+            Debug.Log($"[Game] delivery {Level.Number}: last trip back in {ms:0} ms, {RestoreSetupMs:0.0} ms of it on the main thread ({run.Outcome.Stars} stars, " +
+                      (string.IsNullOrEmpty(shipped) ? "no hash stored)" : shipped == hash ? "hash as shipped)" : $"hash now {hash}, shipped {shipped})"));
+            if (LastRun != null) return;   // a newer trip is already here
+            LastRun = run;
+            if (Phase == Phase.Packing && Packing.Active) { Packing.ShowLastRun(run); Hud.ShowLastTrip(run); }
+            if (adopted && Phase == Phase.Packing) Hud.RefreshBestButton();
         }
 
         void OnApplicationQuit() => KeepPacking();
@@ -219,9 +273,11 @@ namespace HWC.Gameplay
             Reveal.Hide();
             Level = Levels.Get(number);
             Save.LastLevel = number;
-            Save.AdoptLastBox(Level);   // a v0.1.0 save: the last box shipped may become MY BEST
             CurrentPacking = Save.GetPacking(Level) ?? new Packing(Level.W, Level.H);
-            LastRun = null;
+            // the trip in memory if it was this delivery's, else the last one shipped, simulated again
+            restoring = null;
+            if (LastRun != null && LastRun.Level != Level) LastRun = null;
+            if (LastRun == null) BeginRestore();
             EnterPacking();
         }
 
@@ -242,6 +298,7 @@ namespace HWC.Gameplay
         {
             if (Phase != Phase.Packing) return;
             if (!CurrentPacking.AllItemsPlaced(Level)) return;
+            FinishRestore();   // a v0.1.0 box still being checked keeps its MY BEST
             StartCoroutine(SealRoutine());
         }
 
@@ -291,7 +348,7 @@ namespace HWC.Gameplay
 
         void OnJourneyDone()
         {
-            Save.Record(Level, LastRun.Outcome, LastRun.Packing);
+            Save.Record(Level, LastRun.Outcome, LastRun.Packing, LastRun.Hash);
             if (SkipReveal) { ShowResultsNow(); return; }
             Phase = Phase.Reveal;
             Hud.ShowReveal();

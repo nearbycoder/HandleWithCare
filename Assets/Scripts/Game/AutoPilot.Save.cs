@@ -232,6 +232,9 @@ namespace HWC.Gameplay
 
         IEnumerator SaveStep6(Game g)
         {
+            yield return LastTripAfterRestart(g);
+            g.ShowTitle();
+            yield return new WaitForSecondsRealtime(0.3f);
             var m = g.Menus;
             SaveCheck(g.Save.IsDelivered(1) && g.Save.Records.Count > 0, "progress to clear: delivery 1 is delivered");
             m.ShowSettings(g.ShowTitle);
@@ -306,17 +309,23 @@ namespace HWC.Gameplay
             g.StartLevel(2);
             float ms2 = (Time.realtimeSinceStartup - t0) * 1000f;
             yield return new WaitForSecondsRealtime(0.4f);
+            while (g.RestoringLastTrip) yield return null;
             SaveCheck(!sim2.Outcome.Delivered && string.IsNullOrEmpty(r2.BestPacking) && !r2.CheckLastBox && r2.Stars == 1,
                       "delivery 2: a last box that wouldn't deliver is not kept (the star stays)");
             g.StartLevel(3);
             yield return new WaitForSecondsRealtime(0.4f);
             SaveCheck(string.IsNullOrEmpty(r3.BestPacking), "delivery 3: never delivered, so no best packing");
-            int rest = 0; float worst = 0f;
+            int rest = 0; float worst = 0f, worstFrame = 0f, worstWait = 0f, worstSetup = 0f;
             for (int n = 4; n <= 20; n++)
             {
                 t0 = Time.realtimeSinceStartup;
                 g.StartLevel(n);
                 worst = Mathf.Max(worst, (Time.realtimeSinceStartup - t0) * 1000f);
+                worstSetup = Mathf.Max(worstSetup, (float)g.RestoreSetupMs);
+                // the check runs on a worker thread: the bench keeps drawing frames meanwhile
+                float waited = 0f;
+                while (g.RestoringLastTrip && waited < 5f) { yield return null; waited += Time.unscaledDeltaTime; worstFrame = Mathf.Max(worstFrame, Time.unscaledDeltaTime * 1000f); }
+                worstWait = Mathf.Max(worstWait, waited * 1000f);
                 yield return null;
                 var r = g.Save.Get(n);
                 if (r != null && r.BestPacking == r.Packing && r.BestPackingStars == 3 && !r.CheckLastBox) rest++;
@@ -325,12 +334,16 @@ namespace HWC.Gameplay
             g.StartLevel(18);                                 // already checked: the bench alone, for comparison
             float plain = (Time.realtimeSinceStartup - t0) * 1000f;
             yield return null;
-            Debug.Log($"[AutoPilot] save 7: opening a bench that checks its last box took {ms2:0} ms (delivery 2), at most {worst:0} ms (4-20); without the check {plain:0} ms (18)");
+            while (g.RestoringLastTrip) yield return null;
+            Debug.Log($"[AutoPilot] save 7: opening a bench that checks its last box took {ms2:0} ms on the main thread (delivery 2), at most {worst:0} ms (4-20), " +
+                      $"the check finished within {worstWait:0} ms, longest frame meanwhile {worstFrame:0} ms; opening 18 again {plain:0} ms");
             SaveCheck(rest == 17, $"deliveries 4-20: {rest} of 17 three-star boxes kept as best packings when their bench opens");
+            SaveCheck(worstSetup < 30f, $"no pause for the check: at most {worstSetup:0.0} ms of it on the main thread; the simulation runs on a worker (each bench opened in {worst:0} ms or less, with its models)");
             t0 = Time.realtimeSinceStartup;
             g.StartLevel(1);
             float ms1 = (Time.realtimeSinceStartup - t0) * 1000f;
             yield return new WaitForSecondsRealtime(0.6f);
+            while (g.RestoringLastTrip) yield return null;
             SaveCheck(r1.BestPacking == ref1 && r1.BestPackingStars == sim1.Outcome.Stars && r1.BestPackingCost == sim1.Outcome.Cost && sim1.Outcome.Stars == 3,
                       $"delivery 1: its last shipped box becomes the best packing with the simulation's result ({r1.BestPackingStars} stars, cost {r1.BestPackingCost}; bench opened in {ms1:0} ms)");
             var bestBtn = g.Hud.BestButton;
@@ -402,6 +415,82 @@ namespace HWC.Gameplay
             yield return WaitPhase(Phase.Results, 5f);
             SaveCheck(g.Phase == Phase.Results && g.LastRun.Outcome.Stars == 3 && g.LastRun.Hash == expected.Hash,
                       $"shipped from MY BEST: {g.LastRun.Outcome.Stars} stars, hash {(g.LastRun.Hash == expected.Hash ? "matches" : "DIFFERS")}");
+
+            // a failed trip on delivery 5: the vase breaks, and the order's first item is Snoozles
+            var lv5 = Levels.Get(5);
+            yield return RunLevel(5, "naive", false);
+            var failRun = g.LastRun;
+            yield return Key(UnityEngine.InputSystem.Key.R);
+            yield return new WaitForSecondsRealtime(0.6f);
+            string report = g.Hud.LastTripText;
+            var focus = Hints.Focus(lv5, failRun);
+            SaveCheck(!failRun.Outcome.Delivered && focus != lv5.Items[0] && report.Contains(Catalog.Get(focus).Name) && g.Save.Get(5)?.LastShippedHash == failRun.Hash.ToString("x16"),
+                      $"a failed trip on delivery 5 is saved as the last one shipped; the report reads: {report.Replace('\n', ' ')}");
+            File.WriteAllText(ExpectedFile("lasttrip"), failRun.Hash.ToString("x16") + "\n" + (int)focus + "\n" + report);
+            g.ShowTitle();
+            yield return new WaitForSecondsRealtime(0.4f);
+            g.StartLevel(5);
+            yield return new WaitForSecondsRealtime(0.4f);
+            SaveCheck(g.LastRun == failRun && !g.RestoringLastTrip && g.Hud.LastTripText == report && g.Packing.LastRunShown == failRun,
+                      "Main Menu and back to delivery 5: the same trip (kept in memory), report and trails");
+        }
+
+        /// <summary>
+        /// After a restart, delivery 5's bench simulates its last box again off the main thread: the report,
+        /// the trails and Ask Mabel's focus come back, with the trip's hash as shipped.
+        /// </summary>
+        IEnumerator LastTripAfterRestart(Game g)
+        {
+            var lines = File.Exists(ExpectedFile("lasttrip")) ? File.ReadAllText(ExpectedFile("lasttrip")).Split(new[] { '\n' }, 3) : null;
+            if (lines == null || lines.Length < 3) { SaveCheck(false, "launch 5 left the expected last trip"); yield break; }
+            string hash = lines[0], report = lines[2];
+            var focus = (PieceKind)int.Parse(lines[1]);
+            yield return new WaitForSecondsRealtime(0.9f);
+            // a bench with no trip to bring back, for comparison
+            float t0 = Time.realtimeSinceStartup;
+            g.StartLevel(3);
+            float plain = (Time.realtimeSinceStartup - t0) * 1000f;
+            yield return new WaitForSecondsRealtime(0.4f);
+            SaveCheck(g.LastRun == null && !g.RestoringLastTrip && g.Hud.LastTripText == "", "delivery 3 (never shipped): no last trip");
+            // another bench opened for the first time, with nothing to restore: its slowest frame, for comparison
+            g.StartLevel(4);
+            float plainFrame = 0f;
+            for (float w = 0f; w < 0.7f; w += Time.unscaledDeltaTime) { yield return null; plainFrame = Mathf.Max(plainFrame, Time.unscaledDeltaTime * 1000f); }
+            t0 = Time.realtimeSinceStartup;
+            g.StartLevel(5);
+            float open = (Time.realtimeSinceStartup - t0) * 1000f;
+            bool waiting = g.RestoringLastTrip && g.LastRun == null && g.Phase == Phase.Packing;
+            float worstFrame = 0f, waited = 0f;
+            while (g.RestoringLastTrip && waited < 5f) { yield return null; waited += Time.unscaledDeltaTime; worstFrame = Mathf.Max(worstFrame, Time.unscaledDeltaTime * 1000f); }
+            Debug.Log($"[AutoPilot] save 6: opening delivery 5's bench took {open:0} ms on the main thread (the first bench of the launch, nothing to restore: {plain:0} ms); the trip came back after {waited * 1000f:0} ms, longest frame meanwhile {worstFrame:0} ms " +
+                      $"(delivery 4's first bench, nothing to restore: longest frame {plainFrame:0} ms in 0.7 s)");
+            SaveCheck(waiting && g.RestoreSetupMs < 30, $"the bench opens without waiting: the trip is simulated on a worker thread ({g.RestoreSetupMs:0.0} ms on the main thread to read the box)");
+            yield return new WaitForSecondsRealtime(0.3f);
+            var run = g.LastRun;
+            SaveCheck(run != null && run.Hash.ToString("x16") == hash && g.Hud.LastTripText == report && g.Packing.LastRunShown == run,
+                      "after a restart: the same LAST TRIP report and trails, the trip's hash as shipped");
+            Shot("S6_last_trip_back");
+            yield return AfterShot();
+            var rec = g.Save.Get(5);
+            SaveCheck(g.Hud.HintButton.isActiveAndEnabled && rec.HintStage == 0, "ASK MABEL is there (a trip missed a star)");
+            yield return ClickButton(g.Hud.HintButton);
+            yield return new WaitForSecondsRealtime(0.3f);
+            SaveCheck(rec.HintStage == 1 && rec.HintFocus == (int)focus && g.Hud.NoteText.Contains(Hints.Short(focus)),
+                      $"the first hint is about the {focus} that failed, not the order's first item: \"{g.Hud.NoteText}\"");
+            Shot("S6_hint_after_restart");
+            yield return AfterShot();
+            // the same bench again, its models loaded, the trip forgotten: only the restore is new
+            var frames = new List<float>();
+            for (int i = 0; i < 30; i++) { yield return null; frames.Add(Time.unscaledDeltaTime * 1000f); }
+            frames.Sort();
+            float before = frames[frames.Count - 1];
+            g.LastRun = null;
+            g.StartLevel(5);
+            frames.Clear();
+            while (g.RestoringLastTrip && frames.Count < 600) { yield return null; frames.Add(Time.unscaledDeltaTime * 1000f); }
+            float worst = 0f; foreach (var f in frames) worst = Mathf.Max(worst, f);
+            Debug.Log($"[AutoPilot] save 6: delivery 5 again (models loaded): the trip came back over {frames.Count} frames, longest {worst:0} ms (longest of 30 frames before: {before:0} ms)");
+            SaveCheck(frames.Count >= 2 || worst < 100f, $"the bench keeps drawing while the trip is simulated ({frames.Count} frames, longest {worst:0} ms)");
         }
     }
 }

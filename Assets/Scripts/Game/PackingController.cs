@@ -81,6 +81,14 @@ namespace HWC.Gameplay
             Changed?.Invoke();
         }
 
+        /// <summary>The last trip arrived after the bench opened (simulated again): show its trails.</summary>
+        public Recording LastRunShown => lastRun;
+        public void ShowLastRun(Recording last)
+        {
+            lastRun = last;
+            if (Active && trails != null) trails.Show(Box, last);
+        }
+
         public void End()
         {
             Active = false;
