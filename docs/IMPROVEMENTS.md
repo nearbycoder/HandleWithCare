@@ -550,3 +550,45 @@ the test (fields exactly as in v0.1.0's `SaveData`), checked against the validat
 
 Rumble (nothing here can feel it), a physical controller or Steam Deck, a real non-US keyboard, real
 alt-tab focus loss, the Mac build on a Mac.
+
+## Round 5 results (2026-10-07)
+
+| Item | Commit | Verified by |
+| --- | --- | --- |
+| R5-A. Esc backs out of menus | 81d0778 | `tour.sh`, real key events: Esc on Settings and the log opened from pause goes back to the pause menu (still paused), Esc there resumes; from the title, Esc keeps progress on the start-over question, closes Settings, the log and the credits, and does nothing on the title itself (13 steps) |
+| R5-B. Mabel's notes grow to fit | 1dc1946 | `padpilot.sh` at 1280×800: all 300 hint notes (25 deliveries × 4 stages × each item) are shown at 19.2 units or more with LARGER TEXT off (54 needed a taller note) and 24.7 or more with it on (175 did); no intro note grows with it off; the tallest note clears the meter and the seal button, ASK MABEL moved below it still works with A; the note fades to 30% under the stick cursor and comes back. `hintpilot.sh` 26/26 with the moved button |
+| R5-C. PlayStation shapes, drawn ✓ and ✗ | 6ba3106 | `padpilot.sh` adds a virtual pad with the Input System's DualShock 4 layout: prompts read L2 / R2 / SHARE / L1 / R1 and the triangle, the tutorial note says "press" with the cross; back on the Xbox-style pad, the letters return; GAMEPAD BUTTON ICONS reached with the d-pad forces PLAYSTATION; the review draws square, triangle, cross (checked by which sprite each prompt really draws, which caught a TextMeshPro bug that drew every name as the first shape); the Last trip report draws the cross. `savepilot.sh`: the setting survives a restart. `tour.sh` screenshot of the log's ✓ / ✗ |
+| R5-D. MY BEST for v0.1.0 saves | a5ab55a | `savepilot.sh` launch 7 loads a save with exactly v0.1.0's fields (a whole story playthrough, one delivery last shipped items-only, one never delivered): nothing is simulated at launch; each bench keeps its last box as MY BEST with the simulation's result (18 of 18 that deliver), the failing and undelivered ones get none; MY BEST after EMPTY BOX, shipped: three stars, hash matches; version 2 on disk |
+
+After the last commit, on one build: `simcheck check` ALL OK (25), `autopilot.sh` 25/25, `hintpilot.sh`
+26/26, `padpilot.sh` 55/55, `tour.sh` 38 PASS, `savepilot.sh` 61/61 over seven launches. No exceptions in
+any player log, no zero-byte screenshots, and every self-test reported the real
+`~/.config/unity3d/Mossbury Parcel Post/` unchanged. Load average during the final input-driven runs:
+17–24 (the first R5-A tour passed at 49). Screenshots: `docs/media/improvements/round5/`.
+
+Limits and notes:
+
+- **First bench of an old delivery.** Checking a v0.1.0 box simulates one journey when its bench
+  first opens: 88–761 ms per delivery (952 ms for the first, with JIT) at load 24–37 on this shared
+  machine, against 2 ms for a bench without the check. It happens once per delivery. Doing it at
+  launch instead took 4.7 s for a full playthrough, so it was moved. A worker thread could hide it
+  completely if it matters on slow machines.
+- **Which boxes count.** Version 1 saves from the unreleased rounds 3 and 4 may hold an unsealed box
+  rather than the last one shipped; it is still only kept if the simulation says it delivers, with
+  the stars it really earns.
+- **PlayStation detection** uses the Input System's DualShock / DualSense layouts, then Sony's vendor
+  id or name in the device description. Only a virtual DualShock 4 was tested; a real pad on Linux may
+  report itself as a plain gamepad, and then AUTO shows Xbox letters until GAMEPAD BUTTON ICONS is set.
+- **Tall notes at 16:9.** At 1920×1080 a grown note can overlap the top-right shelf cubby. Clicks go
+  through it and it fades under the pointer, but it does cover the item until then.
+- The check and cross marks are drawn by the game, so the owner's font decision from round 4 is no
+  longer needed for them (a font with those glyphs would still work if preferred).
+- The sprite sheet is upgraded by TextMeshPro at start-up, which logs one "Upgrading sprite asset"
+  line. The TextMeshPro sprite shader is now in the build's always-included shaders.
+- Old `/tmp/hwc-*` files from 2026-10-04 are still on the shared RAM disk; they predate this round and
+  weren't touched.
+
+Still not verified here: a physical controller (Xbox-style or PlayStation) or Steam Deck, a real
+non-US keyboard, real alt-tab focus loss, a power cut mid-write, and the Mac build on a Mac (not rebuilt
+this round). Still for the owner: Windows Build Support, Mac signing and notarization, publishing a
+release, and a license.

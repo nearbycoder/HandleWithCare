@@ -392,7 +392,7 @@ Overtime), every one validated solvable with three stars.
   longer has a divider (one divider used to solve it): the wall between the spikes and the balloon
   has to be spike-proof padding. Mabel's best comes from a randomised local search, so a cheaper
   packing may still exist.
-- **Input.** Mouse and keyboard, or a gamepad. The gamepad support is tested with a virtual pad
+- **Input.** Mouse and keyboard, or a gamepad. Esc and the pad's B back out of every menu. The gamepad support is tested with a virtual pad
   (`Tools/padpilot.sh`, at the Steam Deck's 1280×800), not yet with a physical controller or on a
   Steam Deck. PlayStation prompts are tested with the Input System's DualShock 4 layout on a virtual
   device; how a real DualShock or DualSense reports itself on Linux depends on the driver, so AUTO may
