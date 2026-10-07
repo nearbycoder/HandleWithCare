@@ -963,3 +963,103 @@ Still not verified here: a physical controller (Xbox-style or PlayStation) or St
 non-US keyboard, real alt-tab focus loss, a power cut mid-write, and the Mac build on a Mac. Still for
 the owner: Windows Build Support, Mac signing and notarization, publishing a release, a license, and
 re-cutting the trailer (its cinematic mode hides the new care meters, so its shots are unaffected).
+
+## Round 9 scope
+
+Started 2026-10-07 on `improvements-9`, from main after round 8 (0c0ec64). The ranked list is still
+done or blocked (#9 Windows module, #10 a quiet machine or other hardware, #11 human ears, #12 a
+40-minute art rebuild, #13 and #14 not planned). Baseline: `simcheck check` ALL OK (25). Round 8 made
+the care star readable while the trip plays; this round follows a player who **delivered but missed
+the care star** and tries to fix it, and what they still can't see. Found while planning, from the code
+and the round 8 screenshots:
+
+- **A near miss leaves no mark.** The replay's timeline and NEXT TROUBLE only know failures (red
+  marks). A trip that arrives with the vase at 72% (the care star lost) has no marks, and NEXT
+  TROUBLE is hidden, so the only way to find "the pothole" the report names is to scrub for it. On the
+  bench, the same trip shows trails but no mark where the vase took the knock.
+- **The unboxing and the review call a rattled item "OK".** An item that went past 65% and cost the
+  star is stamped OK (teal in the unboxing, green on the review), next to items stamped PERFECT. The
+  review's care label gives only the worst percentage, not whose it was. Nothing says whether a repack
+  did better than the last trip.
+- **The care meters can't be used to get to a moment.** In the replay, the meter that went amber says
+  which item, but not when; the player has to find it on the timeline.
+- **Prices aren't on the toolbar.** The count on each material is how many are left; what a piece costs
+  is only on the hover card (mouse), so a gamepad player switching with LB / RB never sees it.
+- The local macOS build wasn't rebuilt in round 8.
+
+Checked and left alone: moving the shelf art for the tightest bench (still 76% in one configuration of
+400: a 6×4 box at 1920×1080 with LARGER TEXT, a three-line wrapped report and Mabel's tallest note).
+The limit there is vertical (the report above the box on the left, ASK MABEL above the shelf on the
+right), so moving the shelf sideways gains little, and it would move every bench and the trailer's
+shots.
+
+Every item keeps `simcheck check`, `autopilot.sh`, `hintpilot.sh`, `padpilot.sh`, `tour.sh`,
+`savepilot.sh` and `layoutpilot.sh` green, every self-test still leaves the real config folder
+unchanged, and each commit is built and tested on its own before the next item starts. No new delivery
+and no change to any trip (`simcheck hashes` identical). Screenshots go to
+`docs/media/improvements/round9/`.
+
+### R9-A. Near misses are marked (M)
+
+- The simulation side (pure C#, so SimCheck can check it) works out a trip's **troubles**: each failure,
+  plus each **near miss**: for an item that arrived but went past 65%, the knocks that took it past the
+  line or higher (knocks under a second apart count as one; the last is the one the report names).
+- The replay's timeline draws near misses as amber marks next to the red ones, its hint says so, and
+  NEXT TROUBLE (`N`, RB) stops at both, so it shows on a trip that only missed the care star.
+- On the bench, an amber mark sits where each near miss happened; pointing at it shows that item's card
+  ("Rattled: 72% at the pothole"), like a red cross does.
+- SimCheck gets a **careless sample** for each delivery where it can find one: Mabel's packing with
+  padding taken away or made cheaper until it arrives but rattles something past 65%.
+
+**Acceptance:** for every packing SimCheck simulates, each item that arrived at 65% or more has at
+least one near miss, items under the line or that failed have none, every near miss is at a frame where
+the item's care rose to 65% or more, and the last one is at the item's peak (the knock the report
+names); on a careless trip in the game, the timeline shows one amber mark per near miss, `N` lands just
+before each in turn, and pointing at a bench mark shows the card. **Verify:** `simcheck check` (and how
+many deliveries have a careless sample); `tour.sh` ships a careless sample with real key and mouse
+events (the timeline's marks, `N`, the bench marks and card), `padpilot.sh` RB on the same kind of trip;
+screenshots.
+
+### R9-B. The care meters jump to their moment (S)
+
+- In a replay, clicking an item's meter row (or A on it with the pad cursor) jumps to just before that
+  item's first trouble (its failure, or its first near miss), or its worst knock if it had none.
+
+**Acceptance:** with the mouse and with the pad, a meter row lands 1.5 s before the moment it names, and
+the meters stay clear of the other controls at four screen sizes. **Verify:** `tour.sh` (mouse),
+`padpilot.sh` (d-pad and A), `layoutpilot.sh`.
+
+### R9-C. The review says which item rattled, and how it compares with the last trip (S–M)
+
+- An item that arrived past 65% is stamped **RATTLED** (amber) in the unboxing and on the review, not
+  OK. On the review each item shows its care percentage under its stamp.
+- When the delivery's previous trip is known (in this session, or brought back on the bench after a
+  restart), each item also shows what it was ("was 91%", "was SHATTERED") and the budget label shows
+  the previous cost when it changed. REPLAY and back shows the same.
+
+**Acceptance:** after a careless trip, the rattled items read RATTLED with their percentage and the
+others PERFECT; after shipping a better packing next, every item shows its earlier value; the first
+trip of a delivery shows no comparison. **Verify:** `tour.sh` (careless sample, then the reference, with
+real key events; REPLAY and back); `padpilot.sh` LARGER TEXT check of the review (nothing that fit
+overflows); screenshots.
+
+### R9-D. Prices on the toolbar (S)
+
+- Each material button shows what one piece costs, as a small price tag, next to the count of how many
+  are left. The hover card keeps saying COST too.
+
+**Acceptance:** every toolbar button's tag reads its material's cost from the simulation's constants,
+with the mouse and the pad, with LARGER TEXT off and on, and nothing overflows. **Verify:** `tour.sh`
+and `padpilot.sh` read the tags; `padpilot.sh`'s LARGER TEXT bench check; screenshots.
+
+### R9-E. Refresh the local macOS build (S)
+
+- Rebuild `Builds/Mac/HandleWithCare.app` from this branch (rounds 8 and 9 aren't in it).
+
+**Acceptance:** 0 errors, universal binary, bundle id and version. **Verify:** build log, `file`,
+Info.plist. **Not verifiable here:** running it on a Mac.
+
+### Not in this round
+
+Moving the shelf art (above), rumble, a physical controller or Steam Deck, a real non-US keyboard, real
+alt-tab focus loss, the Mac build on a Mac.
