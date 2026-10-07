@@ -6,6 +6,7 @@ using HWC.UI;
 using HWC.Visuals;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace HWC.Gameplay
@@ -32,13 +33,18 @@ namespace HWC.Gameplay
             settings.gameObject.activeSelf ? settings : select.gameObject.activeSelf ? select :
             credits.gameObject.activeSelf ? credits : title.gameObject.activeSelf ? title : null;
 
+        /// <summary>Which screen is on top, for the self-tests: confirm, settings, log, credits, title or none.</summary>
+        public string ScreenName =>
+            confirm.gameObject.activeSelf ? "confirm" : settings.gameObject.activeSelf ? "settings" : select.gameObject.activeSelf ? "log" :
+            credits.gameObject.activeSelf ? "credits" : title.gameObject.activeSelf ? "title" : "none";
+
         /// <summary>Where the gamepad cursor starts on the screen on top.</summary>
         public UiButton DefaultButton =>
             confirm.gameObject.activeSelf ? keepBtn :
             settings.gameObject.activeSelf ? settingsDone : select.gameObject.activeSelf ? selectBack :
             credits.gameObject.activeSelf ? creditsBack : title.gameObject.activeSelf ? continueBtn : null;
 
-        /// <summary>Gamepad B: leave the screen on top. False if there was nothing to leave.</summary>
+        /// <summary>Gamepad B or Esc: leave the screen on top. False if there was nothing to leave.</summary>
         public bool Back()
         {
             if (confirm.gameObject.activeSelf) { keepBtn.Press(); return true; }
@@ -633,6 +639,9 @@ namespace HWC.Gameplay
 
         void Update()
         {
+            // Esc backs out of the screen on top, like the pad's B; the pause menu underneath doesn't see it
+            var kb = Keyboard.current;
+            if (kb != null && kb.escapeKey.wasPressedThisFrame && Open && Back()) G.Hud.ConsumeEscape();
             if (title == null || !title.gameObject.activeSelf) return;
             titleT += Clock.UnscaledDelta;
             // stamp-slam entrance for the logo, then a gentle breathe

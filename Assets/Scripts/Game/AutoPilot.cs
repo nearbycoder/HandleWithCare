@@ -213,6 +213,7 @@ namespace HWC.Gameplay
             g.Hud.SetPaused(false);
             yield return KeyboardRetryLoop();
             yield return KeyboardLayouts();
+            yield return EscapeMenus();
             yield return ShotsWritten();
                 Debug.Log("[AutoPilot] done");
             Application.Quit();
@@ -336,6 +337,62 @@ namespace HWC.Gameplay
             yield return Key(UnityEngine.InputSystem.Key.Enter);
             yield return new WaitForSecondsRealtime(0.3f);
             Check(g.Phase == Phase.Packing && g.Level.Number == 2, "Enter on Results goes to the next delivery (and doesn't seal it)");
+        }
+
+        static UiButton ButtonNamed(Transform root, string name)
+        {
+            foreach (var b in root.GetComponentsInChildren<UiButton>(true)) if (b.name == name) return b;
+            return null;
+        }
+
+        /// <summary>Esc backs out of every menu to the right place, with real key events, and a press that
+        /// closes a menu never also pauses or resumes the game underneath.</summary>
+        IEnumerator EscapeMenus()
+        {
+            var g = Game.I;
+            var m = g.Menus;
+            var esc = UnityEngine.InputSystem.Key.Escape;
+            g.Packing.DropTool();
+            yield return null;
+            yield return Key(esc);
+            Check2(g.Hud.Paused && m.ScreenName == "none", "esc", "Esc while packing pauses");
+            ButtonNamed(g.Hud.PauseRoot, "SETTINGS").Press();
+            yield return null;
+            Check2(m.ScreenName == "settings", "esc", "SETTINGS from the pause menu opens Settings");
+            yield return Key(esc);
+            yield return null;
+            Check2(m.ScreenName == "none" && g.Hud.Paused && g.Hud.PauseRoot.gameObject.activeSelf, "esc", "Esc in Settings (from pause) goes back to the pause menu, still paused");
+            ButtonNamed(g.Hud.PauseRoot, "DELIVERY LOG").Press();
+            yield return null;
+            Check2(m.ScreenName == "log", "esc", "DELIVERY LOG from the pause menu opens the log");
+            yield return Key(esc);
+            yield return null;
+            Check2(m.ScreenName == "none" && g.Hud.Paused && g.Hud.PauseRoot.gameObject.activeSelf, "esc", "Esc in the log (from pause) goes back to the pause menu, still paused");
+            yield return Key(esc);
+            Check2(!g.Hud.Paused && g.Phase == Phase.Packing, "esc", "Esc in the pause menu resumes");
+            // from the title screen
+            g.ShowTitle();
+            yield return new WaitForSecondsRealtime(0.8f);
+            ButtonNamed(m.ActiveScreen, "SETTINGS").Press();
+            yield return null;
+            m.StartOverButton.Press();
+            yield return null;
+            Check2(m.ScreenName == "confirm", "esc", "START OVER asks first");
+            yield return Key(esc);
+            Check2(m.ScreenName == "settings" && g.Save.TotalStars > 0, "esc", "Esc on the start-over question keeps the progress and stays in Settings");
+            yield return Key(esc);
+            Check2(m.ScreenName == "title", "esc", "Esc in Settings (from the title) goes back to the title");
+            yield return Key(esc);
+            Check2(m.ScreenName == "title", "esc", "Esc on the title screen does nothing");
+            ButtonNamed(m.ActiveScreen, "DELIVERY LOG").Press();
+            yield return null;
+            yield return Key(esc);
+            Check2(m.ScreenName == "title", "esc", "Esc in the log (from the title) goes back to the title");
+            ButtonNamed(m.ActiveScreen, "CREDITS").Press();
+            yield return null;
+            Check2(m.ScreenName == "credits", "esc", "CREDITS opens the credits");
+            yield return Key(esc);
+            Check2(m.ScreenName == "title", "esc", "Esc in the credits goes back to the title");
         }
 
         /// <summary>

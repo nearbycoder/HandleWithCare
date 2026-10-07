@@ -56,7 +56,7 @@ Pick an item off the shelf, drop it in the box, paint padding around it, seal, a
 | MY BEST (above EMPTY BOX) | Put your best packing of this delivery back in the box (`Z` undoes it) |
 | `Space` / `Enter` | Seal & ship, once every item is packed |
 | ASK MABEL (under her note) | After a trip that missed a star: one more hint per click |
-| `Esc` | Drop what you are holding, or pause |
+| `Esc` | Drop what you are holding, or pause; in Settings, the delivery log and the credits, go back |
 | During the journey | `Space` pause, `Enter` skip, `1`–`4` playback speed |
 | Replay | Click the timeline to jump, speed buttons, `C` or the CAM button cycles director / close-up / wide |
 | Unboxing | `Enter`, `Space` or `Esc` skips to the review |
@@ -267,7 +267,8 @@ Tools/savepilot.sh              # six launches on one save, saving switched on: 
                                 # START OVER (cancel, then confirm: settings and a copy of the old save kept)
 Tools/tour.sh                   # screenshots of the menus and a delivery played with real input events,
                                 # then the whole retry loop (R, Space, Enter, P) with the keyboard only,
-                                # and undo/redo with German, French and Russian key labels swapped in
+                                # undo/redo with German, French and Russian key labels swapped in, and
+                                # Esc backing out of every menu
 ```
 
 The self-tests write their screenshots and player logs to `Logs/selftest/<name>/` (gitignored) and fail
