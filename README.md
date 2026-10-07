@@ -107,8 +107,10 @@ stay at or under par for a star.
 
 **Ask Mabel.** After a trip that missed a star, Mabel will help if you ask. The first hint is a note
 about the item at risk (where it sits in her packing and what is beside it). The next ones show that
-item's exact spot as a ghost in the box, then her dividers and shelves, then her whole packing. Hints
-never cost stars; the delivery log just pencils in "hinted".
+item's exact spot as a ghost in the box, then her dividers and shelves, then her whole packing. If the
+trip arrived safely and gently but over par, her hints are about money instead: what her packing
+costs and uses (and leaves out), then where her padding goes. Hints never cost stars; the delivery
+log just pencils in "hinted".
 
 **Watch the trip.** Seal the box and the journey plays out with a director camera that knows the
 future: it slows down and leans in just before something goes wrong, and shakes on the big hits.
@@ -119,9 +121,10 @@ toss, waves, an air pocket, a catapult launch) is exactly what the contents feel
 
 **Funny failures you can fix.** Fragile things shatter into shard piles, cakes go SPLAT, potions
 spill, balloons go BANG in a burst of confetti, and if Ember's sneeze reaches cardboard, the box
-catches fire. Then the replay lets you scrub the trip in close-up. Back at the bench, the
-last trip's trails show where every item went and mark where things went wrong ("Vase shattered at
-the hard brake, jolt 11/8").
+catches fire. Then the replay lets you scrub the trip in close-up, and NEXT TROUBLE (`N`) jumps to
+just before each thing that went wrong. Back at the bench, the last trip's trails show where every
+item went and mark where things went wrong ("Vase shattered at the hard brake, jolt 11/8"), the
+report says when the trip went over budget, and WATCH (`P`) plays the trip again without shipping.
 
 <img src="docs/media/screenshots/04-unboxing.jpg" alt="The unboxing: the vase rises out of the box with a green PERFECT stamp" width="100%">
 
@@ -165,7 +168,8 @@ text, fullscreen or a window size, VSync and a frame-rate limit, a graphics qual
 the window loses focus, and starting over), pause, and a replay with three camera modes.
 
 Progress is saved as you go, including a box you haven't sealed yet: leave for the menu or quit, and
-it's on the bench when you come back. Saves are written to a temporary file and swapped in, with the
+it's on the bench when you come back, with the last trip's report and trails (the last box shipped is
+simulated again when the bench opens). Saves are written to a temporary file and swapped in, with the
 previous one kept as a backup. If the save is ever damaged, the game loads the backup, keeps the
 damaged file, and Mabel leaves a note on the title screen saying so.
 
@@ -253,7 +257,8 @@ python3 ArtSource/make_audio.py                                         # every 
 ```sh
 Tools/simcheck.sh check         # every delivery: reference packing valid, delivered, under par, 3-star,
                                 # deterministic; an items-only packing must fail; the full hint is 3-star;
-                                # Mabel's best is a stored 3-star packing at or under par
+                                # Mabel's best is a stored 3-star packing at or under par; the budget hints
+                                # match her packing; a packing that misses only the budget star (21 of 25)
 Tools/simcheck.sh hints         # print Mabel's hint notes for every delivery
 Tools/simcheck.sh map 3 "t..." "vb.." "vppp"   # simulate any packing and print the timeline
 Tools/simcheck.sh solve 7       # parallel local search for cheap / three-star packings (used to set pars)
@@ -261,21 +266,24 @@ Tools/simcheck.sh explore 21    # random item-only packings: how many get delive
 Tools/autopilot.sh              # the built player plays all 25 references through the real packing code
                                 # and checks each outcome and hash against the validator
 Tools/hintpilot.sh              # Ask Mabel on all 25: click through every hint, build what the ghosts show,
-                                # expect three stars and the validator's hash; then the finale opens Overtime
+                                # expect three stars and the validator's hash; ship an over-budget packing on
+                                # 21 and check the report and the budget hints; then the finale opens Overtime
 Tools/padpilot.sh               # gamepad only (a virtual pad at 1280x800): title to delivery 2, dividers,
                                 # undo/redo, turning Ember, Ask Mabel, pause, settings and the delivery log;
                                 # PlayStation prompts with a virtual DualShock 4 and the BUTTON ICONS setting;
                                 # then LARGER TEXT: bigger on four screens, and nothing that fit overflows;
-                                # every hint note of every delivery at a readable size, off and on
+                                # every hint note of every delivery at a readable size, off and on; WATCH
+                                # on the bench with the d-pad, RB to the trouble, B back to the box
 Tools/savepilot.sh              # seven launches on one save, saving switched on: settings, progress and an
                                 # unsealed box survive a restart; a half-written save comes back from the
                                 # backup; garbage with no backup starts fresh; MY BEST after a restart;
                                 # START OVER (cancel, then confirm: settings and a copy of the old save kept);
-                                # a save in v0.1.0's format gets MY BEST from its last boxes shipped
+                                # a save in v0.1.0's format gets MY BEST from its last boxes shipped; a failed
+                                # trip's report, trails and hint focus come back after a restart
 Tools/tour.sh                   # screenshots of the menus and a delivery played with real input events,
                                 # then the whole retry loop (R, Space, Enter, P) with the keyboard only,
-                                # undo/redo with German, French and Russian key labels swapped in, and
-                                # Esc backing out of every menu
+                                # undo/redo with German, French and Russian key labels swapped in,
+                                # Esc backing out of every menu, and WATCH / NEXT TROUBLE from the bench
 ```
 
 The self-tests write their screenshots and player logs to `Logs/selftest/<name>/` (gitignored) and fail
@@ -405,14 +413,22 @@ Overtime), every one validated solvable with three stars.
   ('us') and the key names.
 - **Text size.** LARGER TEXT grows small text by up to 30%, but only as far as its box allows. Mabel's
   sticky note is the exception: it gets taller instead, so her hints are never smaller than 19 units
-  (about 25 with LARGER TEXT). A tall note can overlap the top-right shelf cubby at 16:9; it lets
-  clicks through and fades while the pointer is over it.
+  (about 25 with LARGER TEXT). At 16:9 the tallest note and ASK MABEL under it reach about 100 px
+  over the right edge of the top-right shelf cubby; the note lets clicks through and fades while the
+  pointer is over it. At 21:9 and 4:3 the bench and the HUD fit.
 - **Saves.** Crash safety is tested by damaging the save between launches (`Tools/savepilot.sh`), not
-  by cutting the power mid-write. Only the most recent backup is kept. A save from v0.1.0 kept only
-  the last box shipped for each delivery: the first time each bench opens, that box is simulated again
-  and becomes MY BEST if it still delivers (with the stars it really earns). A box that fails, or that
-  later balance changes made illegal, is not kept, so MY BEST for those appears after the next
-  delivered trip.
+  by cutting the power mid-write. Only the most recent backup is kept. A bench brings its last trip
+  back by simulating the last box shipped on a worker thread; the report and trails appear a fraction
+  of a second after the bench (0.1 to 1 s on the busy machine this was made on). A box that later
+  balance changes made illegal brings no report. A save from v0.1.0 kept only the last box shipped
+  for each delivery: the same run makes it MY BEST if it still delivers (with the stars it really
+  earns), without pausing the game. A box that fails is not kept, so MY BEST for those appears after
+  the next delivered trip.
+- **Budget hints.** They show Mabel's own three-star packing, which is under par. SimCheck finds a
+  packing that misses only the budget star on 21 of the 25 deliveries, and the budget hints are tested
+  in the game on those 21. A Cup for Edna can't miss only that star (it offers five paper, which
+  together cost exactly par); on Magnetic Personality, Swan Song and Party Animal the search found
+  none.
 
 ## License
 

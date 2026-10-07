@@ -664,3 +664,55 @@ events, `padpilot.sh` with the pad, checking phases, the box and the replay time
 
 Moving Mabel's tall notes off the shelf at 16:9 (the overlap is small; see above), rumble, a physical
 controller or Steam Deck, a real non-US keyboard, real alt-tab focus loss, the Mac build on a Mac.
+
+## Round 6 results (2026-10-07)
+
+| Item | Commit | Verified by |
+| --- | --- | --- |
+| R6-A. The last trip comes back | 8007de1 | `savepilot.sh`, launches 5 and 6: a failed trip on delivery 5 (vase and Snoozles) is saved as the last box shipped with its hash; Main Menu and back keeps the trip in memory; after a restart the bench opens while the box is simulated on a worker thread (3–7 ms of it on the main thread), then shows the same LAST TRIP text and trails with the hash as shipped, and ASK MABEL, clicked with the mouse, is about the vase, not Snoozles (the order's first item). Launch 7 (v0.1.0 save): 18 of 18 delivered boxes still become MY BEST (delivery 1 and 4–20), at most 3.3 ms of the check on the main thread |
+| R6-B. Mabel and the report speak to the missed star | da95951 | `simcheck check`: the budget note's cost and par match her packing (under par on all 25), stage 2 is exactly her padding, stage 4 her whole packing; `Hints.OverBudgetSample` finds a packing that misses only the budget star on 21 of 25. `hintpilot.sh` ships each of the 21 through the game (two stars, hash matches), checks "Over budget: materials cost N, par P" on the report, and clicks all four hints (budget focus, her padding, her statics, everything) |
+| R6-C. Watch the last trip from the bench, jump to the trouble | 136f25c | `tour.sh`, real key and mouse events: P on the bench replays the last trip; N lands 1.5 s before each red mark in turn (and wraps), as does the NEXT TROUBLE button; Enter and DONE come back with the same box, report, trails and undo history (Z still undoes the paper placed before watching); clicking WATCH replays too. `padpilot.sh`: the d-pad onto WATCH and A, RB, B back to the same box |
+
+After the last commit, on one build: `simcheck check` ALL OK (25), `autopilot.sh` 25/25, `hintpilot.sh`
+48/48 (26 as before, 21 budget runs and their summary), `padpilot.sh` 60/60, `tour.sh` 49 PASS,
+`savepilot.sh` 71/71 over seven launches. No exceptions in any player log, no zero-byte screenshots, and
+every self-test reported the real `~/.config/unity3d/Mossbury Parcel Post/` unchanged. Load average
+during the final runs: 14–20 (earlier runs this round went up to 80 when other sessions were busy).
+Screenshots: `docs/media/improvements/round6/`.
+
+Found and fixed along the way (in the commits above):
+
+- **The LAST TRIP panel didn't grow with wrapped lines.** It was sized by line count, so a long line
+  ("Snoozles the Armadillo woke up at the hard brake (jolt 10.5/7)") spilled past the bottom. It now
+  measures the text.
+- **Enter at the end of a replay ran one more frame on a stopped journey.** Harmless while the replay
+  always went back to the results, but it threw once DONE could go back to the bench.
+- **`tour.sh` passed with failures.** It listed FAIL lines and exceptions but always exited 0; it now
+  fails on either, like the other self-tests.
+
+Limits and notes:
+
+- **Timing.** The main thread's share of bringing a trip back (reading and checking the box) is
+  measured, 0–7.2 ms. Whole frames on this shared GPU took about 100 ms even at load 14, so a stall
+  shorter than that can't be seen here: reopening a bench with its models loaded, the trip came back
+  within one 95 ms frame against 119 ms frames before it. The simulation itself took 0.1–1.0 s in the
+  player at load 15–80 (10–26 ms in .NET 8 SimCheck), so the report and trails can appear a moment after
+  the bench. ASK MABEL and SEAL wait for it.
+- **Round 5's timing baseline was unfair.** "2 ms for a bench without the check" was a bench reopened
+  with its models loaded; opening a bench for the first time takes about 100 ms with or without a
+  restore, and the first bench of a launch 0.7–1.5 s.
+- **Saves from rounds 3 and 4** (never released) may hold an unsealed box where v0.1.0 kept the last
+  one shipped; they are treated like v0.1.0, so that box's trip is shown as the last trip.
+- **Budget hints** are tested in the game on the 21 deliveries where SimCheck finds a packing that
+  misses only that star; delivery 1 can't (five paper cost exactly par), and on 10, 12 and 22 the
+  search found none.
+- **Hint ghosts overlap the box.** Budget hints show her padding where it goes in her packing, over
+  whatever is in the box; the item hints always did the same.
+- One savepilot run at load 26 dropped a mouse click on EMPTY BOX (the box stayed full); the same step
+  passed in the three other runs. Dropped clicks under load were seen in earlier rounds too.
+- Tall notes at 16:9 were measured, not moved (see the scope above).
+
+Still not verified here: a physical controller (Xbox-style or PlayStation) or Steam Deck, a real
+non-US keyboard, real alt-tab focus loss, a power cut mid-write, and the Mac build on a Mac (not rebuilt
+this round). Still for the owner: Windows Build Support, Mac signing and notarization, publishing a
+release, a license, and re-cutting the trailer.
