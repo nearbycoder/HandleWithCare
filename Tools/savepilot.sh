@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Save self-test with the built player: four launches on one save with saving switched on, all inside
+# Save self-test with the built player: seven launches on one save with saving switched on, all inside
 # Logs/selftest/savepilot (the player's config is sandboxed there; the test mode refuses any other folder).
 #   1  fresh save: settings clicked, delivery 1 delivered, an unsealed box kept through Main Menu and quit
 #   2  restart: progress, settings (VSync, frame-rate limit...) and the unsealed box are back
@@ -9,6 +9,7 @@
 #   5  restart: a failed trip, then MY BEST brings the three-star packing back (undo, redo, ship it)
 #   6  Settings > START OVER: cancel changes nothing; confirm clears progress, keeps the settings and
 #      a copy of the old save
+#   7  a save in v0.1.0's format: the last box shipped becomes MY BEST if it still delivers
 #   Tools/savepilot.sh [OUTDIR]
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -37,7 +38,13 @@ rm -f "$DATA/save.json.bak"
 launch 4
 launch 5
 launch 6
-for i in 1 2 3 4 5 6; do
+if [ -f "$OUT/v010-save.json" ]; then
+  cp "$OUT/v010-save.json" "$DATA/save.json" && rm -f "$DATA/save.json.bak"
+else
+  echo "FAIL launch 6 wrote no v0.1.0 save"; status=1
+fi
+launch 7
+for i in 1 2 3 4 5 6 7; do
   grep -q "\[AutoPilot\] done" "$OUT/player$i.log" || { echo "FAIL launch $i did not finish"; status=1; }
 done
 if grep -qE "\[AutoPilot\] FAIL|Exception" "$OUT"/player?.log; then status=1; fi

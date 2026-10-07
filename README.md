@@ -169,7 +169,8 @@ previous one kept as a backup. If the save is ever damaged, the game loads the b
 damaged file, and Mabel leaves a note on the title screen saying so.
 
 Each delivery also keeps your best packing (most stars, then cheapest, then gentlest), so chasing
-Mabel's best never costs you a three-star layout: **MY BEST** on the bench brings it back.
+Mabel's best never costs you a three-star layout: **MY BEST** on the bench brings it back. (Coming
+from v0.1.0, the last box you shipped for each delivery becomes MY BEST, if it still delivers.)
 **Start over** in Settings clears the progress and keeps your settings. It asks first, and the old
 save stays on disk as `save.erased-<date>.json`.
 
@@ -265,10 +266,11 @@ Tools/padpilot.sh               # gamepad only (a virtual pad at 1280x800): titl
                                 # PlayStation prompts with a virtual DualShock 4 and the BUTTON ICONS setting;
                                 # then LARGER TEXT: bigger on four screens, and nothing that fit overflows;
                                 # every hint note of every delivery at a readable size, off and on
-Tools/savepilot.sh              # six launches on one save, saving switched on: settings, progress and an
+Tools/savepilot.sh              # seven launches on one save, saving switched on: settings, progress and an
                                 # unsealed box survive a restart; a half-written save comes back from the
                                 # backup; garbage with no backup starts fresh; MY BEST after a restart;
-                                # START OVER (cancel, then confirm: settings and a copy of the old save kept)
+                                # START OVER (cancel, then confirm: settings and a copy of the old save kept);
+                                # a save in v0.1.0's format gets MY BEST from its last boxes shipped
 Tools/tour.sh                   # screenshots of the menus and a delivery played with real input events,
                                 # then the whole retry loop (R, Space, Enter, P) with the keyboard only,
                                 # undo/redo with German, French and Russian key labels swapped in, and
@@ -403,8 +405,11 @@ Overtime), every one validated solvable with three stars.
   (about 25 with LARGER TEXT). A tall note can overlap the top-right shelf cubby at 16:9; it lets
   clicks through and fades while the pointer is over it.
 - **Saves.** Crash safety is tested by damaging the save between launches (`Tools/savepilot.sh`), not
-  by cutting the power mid-write. Only the most recent backup is kept. A save from before this
-  version has no best packing stored, so MY BEST appears after the next delivered trip.
+  by cutting the power mid-write. Only the most recent backup is kept. A save from v0.1.0 kept only
+  the last box shipped for each delivery: the first time each bench opens, that box is simulated again
+  and becomes MY BEST if it still delivers (with the stars it really earns). A box that fails, or that
+  later balance changes made illegal, is not kept, so MY BEST for those appears after the next
+  delivered trip.
 
 ## License
 

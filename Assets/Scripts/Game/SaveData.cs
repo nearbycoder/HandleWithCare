@@ -32,9 +32,11 @@ namespace HWC.Gameplay
             public int BestPackingStars;
             public int BestPackingCost = -1;
             public float BestPackingCare = -1;
+            public bool CheckLastBox;      // from a v0.1.0 save: Packing is the last box shipped, not yet checked as a best
         }
 
-        public int Version = 1;
+        public const int CurrentVersion = 2;
+        public int Version = CurrentVersion;  // 1: v0.1.0 (and builds before round 5), where Packing is the last box shipped
         public int LastLevel = 1;
         public float MasterVolume = 0.9f;
         public float MusicVolume = 0.7f;
@@ -72,7 +74,7 @@ namespace HWC.Gameplay
             LastLoad = LoadResult.Fresh;
             if (Disabled) return new SaveData();
             var s = TryRead(PathOnDisk, out bool present);
-            if (s != null) { LastLoad = LoadResult.Loaded; return s; }
+            if (s != null) { LastLoad = LoadResult.Loaded; s.AdoptOldBests(); return s; }
             if (!present && !File.Exists(BackupPath)) return new SaveData();
             if (present)
             {
@@ -85,7 +87,7 @@ namespace HWC.Gameplay
                 catch (Exception e) { Debug.LogWarning("[Save] could not move the damaged save aside: " + e.Message); }
             }
             var b = TryRead(BackupPath, out _);
-            if (b != null) { LastLoad = LoadResult.RecoveredFromBackup; Debug.LogWarning("[Save] recovered from the backup"); return b; }
+            if (b != null) { LastLoad = LoadResult.RecoveredFromBackup; Debug.LogWarning("[Save] recovered from the backup"); b.AdoptOldBests(); return b; }
             LastLoad = LoadResult.Lost;
             Debug.LogWarning("[Save] no usable backup: starting a new save");
             return new SaveData();
@@ -220,6 +222,51 @@ namespace HWC.Gameplay
                 }
             }
             Write();
+        }
+
+        /// <summary>
+        /// Saves from v0.1.0 keep one packing per delivery: the last one shipped. Each delivered delivery
+        /// without a best packing is marked, and its box is checked the first time its bench opens
+        /// (<see cref="AdoptLastBox"/>). Runs once: the save version goes to 2.
+        /// </summary>
+        public int AdoptOldBests()
+        {
+            if (Version >= CurrentVersion) return 0;
+            int marked = 0;
+            foreach (var r in Records)
+                if (r.Delivered && string.IsNullOrEmpty(r.BestPacking) && !string.IsNullOrEmpty(r.Packing)) { r.CheckLastBox = true; marked++; }
+            Debug.Log($"[Save] upgraded a version {Version} save: {marked} last box(es) to check as best packings");
+            Version = CurrentVersion;
+            return marked;
+        }
+
+        /// <summary>
+        /// A delivery from a v0.1.0 save, opened for the first time: the simulation is deterministic, so its
+        /// last shipped box is simulated again and kept as the best packing (with the stars, cost and care
+        /// it really gets) if it is still legal and still delivers. Call before the bench changes the box.
+        /// </summary>
+        public bool AdoptLastBox(LevelDef lv)
+        {
+            var r = Get(lv.Number);
+            if (r == null || !r.CheckLastBox) return false;
+            r.CheckLastBox = false;
+            if (!string.IsNullOrEmpty(r.BestPacking) || string.IsNullOrEmpty(r.Packing)) return false;
+            var t0 = DateTime.Now;
+            try
+            {
+                var pk = Deserialize(lv, r.Packing);
+                string bad = pk.Validate(lv);
+                if (bad != null) { Debug.Log($"[Save] delivery {r.Number}: the last box from v0.1.0 isn't legal now ({bad}); no best packing"); return false; }
+                var o = Simulator.Run(lv, pk, false).Outcome;
+                if (!o.Delivered) { Debug.Log($"[Save] delivery {r.Number}: the last box from v0.1.0 doesn't deliver; no best packing"); return false; }
+                r.BestPacking = r.Packing;
+                r.BestPackingStars = o.Stars;
+                r.BestPackingCost = o.Cost;
+                r.BestPackingCare = o.WorstCare;
+                Debug.Log($"[Save] delivery {r.Number}: the last box from v0.1.0 is the best packing ({o.Stars} stars, cost {o.Cost}; {(DateTime.Now - t0).TotalMilliseconds:0} ms)");
+                return true;
+            }
+            catch (Exception e) { Debug.LogWarning($"[Save] delivery {r.Number}: could not check the last box: {e.Message}"); return false; }
         }
 
         /// <summary>More stars, then a lower cost, then a lower peak jolt.</summary>

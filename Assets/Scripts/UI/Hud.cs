@@ -737,6 +737,7 @@ namespace HWC.Gameplay
         }
 
         public UiButton BestButton => bestBtn;
+        public UiButton ClearButton => clearBtn;
         /// <summary>For the self-tests: what the first prompt written with this pad button shows now.</summary>
         public string PromptFor(string pad)
         {

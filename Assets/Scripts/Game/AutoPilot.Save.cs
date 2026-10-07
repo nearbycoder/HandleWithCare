@@ -69,6 +69,7 @@ namespace HWC.Gameplay
                     case 4: yield return SaveStep4(g); break;
                     case 5: yield return SaveStep5(g); break;
                     case 6: yield return SaveStep6(g); break;
+                    case 7: yield return SaveStep7(g); break;
                 }
                 SaveCheck(Directory.GetFiles(DataDir, "*.tmp").Length == 0, "no temporary file left behind");
                 yield return ShotsWritten();
@@ -265,6 +266,95 @@ namespace HWC.Gameplay
                       "the old save is kept as " + (erased.Length > 0 ? Path.GetFileName(erased[0]) : "(missing)"));
             Shot("S6_after_start_over");
             yield return AfterShot();
+            File.WriteAllText(Path.Combine(dir, "v010-save.json"), V010Save());   // the script puts it in place for launch 7
+        }
+
+        /// <summary>
+        /// A save as v0.1.0 wrote it (exactly its fields; Packing is the last box shipped): delivery 1
+        /// shipped with its three-star reference, delivery 2 delivered once but last shipped items-only,
+        /// delivery 3 tried and never delivered.
+        /// </summary>
+        static string V010Save()
+        {
+            string Rec(int num, int stars, bool delivered, int attempts, string packing) =>
+                $"{{\"Number\":{num},\"Stars\":{stars},\"Delivered\":{(delivered ? "true" : "false")},\"UnderBudget\":{(stars >= 2 ? "true" : "false")},\"Careful\":{(stars >= 3 ? "true" : "false")}," +
+                $"\"BestCost\":{(delivered ? 5 : -1)},\"BestCare\":{(delivered ? "0.33" : "-1.0")},\"Attempts\":{attempts},\"Packing\":\"{packing}\"}}";
+            // and the rest of the story (4-20) shipped with their references: a whole v0.1.0 playthrough
+            string more = "";
+            for (int n = 4; n <= 20; n++) more += "," + Rec(n, 3, true, 1, SaveData.Serialize(Levels.Get(n).ReferencePacking()));
+            return "{\"Version\":1,\"LastLevel\":3,\"MasterVolume\":0.9,\"MusicVolume\":0.7,\"SfxVolume\":0.9,\"ScreenShake\":true,\"ReducedMotion\":false," +
+                   "\"Fullscreen\":false,\"ShowGrid\":true,\"HighQuality\":true,\"Tape\":\"kraft\",\"SeenTips\":[\"basics\",\"shift_1\"],\"Records\":[" +
+                   Rec(1, 3, true, 2, SaveData.Serialize(Levels.Get(1).ReferencePacking())) + "," +
+                   Rec(2, 1, true, 3, SaveData.Serialize(NaivePacking(Levels.Get(2)))) + "," +
+                   Rec(3, 0, false, 1, SaveData.Serialize(Levels.Get(3).ReferencePacking())) + more + "]}";
+        }
+
+        IEnumerator SaveStep7(Game g)
+        {
+            var r1 = g.Save.Get(1); var r2 = g.Save.Get(2); var r3 = g.Save.Get(3);
+            var lv1 = Levels.Get(1);
+            string ref1 = SaveData.Serialize(lv1.ReferencePacking());
+            var sim1 = Simulator.Run(lv1, lv1.ReferencePacking(), false);
+            var sim2 = Simulator.Run(Levels.Get(2), NaivePacking(Levels.Get(2)), false);
+            SaveCheck(SaveData.LastLoad == SaveData.LoadResult.Loaded && g.Save.Version == SaveData.CurrentVersion && r1 != null && r1.Stars == 3 && r1.Attempts == 2,
+                      "a v0.1.0 save loads, keeps its progress, and is upgraded to version 2");
+            SaveCheck(r1.CheckLastBox && r2.CheckLastBox && !r3.CheckLastBox && string.IsNullOrEmpty(r1.BestPacking),
+                      "the delivered deliveries are marked to check when their bench opens (nothing simulated at launch)");
+            yield return new WaitForSecondsRealtime(0.9f);
+            // each bench, opened the way the delivery log does it
+            float t0 = Time.realtimeSinceStartup;
+            g.StartLevel(2);
+            float ms2 = (Time.realtimeSinceStartup - t0) * 1000f;
+            yield return new WaitForSecondsRealtime(0.4f);
+            SaveCheck(!sim2.Outcome.Delivered && string.IsNullOrEmpty(r2.BestPacking) && !r2.CheckLastBox && r2.Stars == 1,
+                      "delivery 2: a last box that wouldn't deliver is not kept (the star stays)");
+            g.StartLevel(3);
+            yield return new WaitForSecondsRealtime(0.4f);
+            SaveCheck(string.IsNullOrEmpty(r3.BestPacking), "delivery 3: never delivered, so no best packing");
+            int rest = 0; float worst = 0f;
+            for (int n = 4; n <= 20; n++)
+            {
+                t0 = Time.realtimeSinceStartup;
+                g.StartLevel(n);
+                worst = Mathf.Max(worst, (Time.realtimeSinceStartup - t0) * 1000f);
+                yield return null;
+                var r = g.Save.Get(n);
+                if (r != null && r.BestPacking == r.Packing && r.BestPackingStars == 3 && !r.CheckLastBox) rest++;
+            }
+            t0 = Time.realtimeSinceStartup;
+            g.StartLevel(18);                                 // already checked: the bench alone, for comparison
+            float plain = (Time.realtimeSinceStartup - t0) * 1000f;
+            yield return null;
+            Debug.Log($"[AutoPilot] save 7: opening a bench that checks its last box took {ms2:0} ms (delivery 2), at most {worst:0} ms (4-20); without the check {plain:0} ms (18)");
+            SaveCheck(rest == 17, $"deliveries 4-20: {rest} of 17 three-star boxes kept as best packings when their bench opens");
+            t0 = Time.realtimeSinceStartup;
+            g.StartLevel(1);
+            float ms1 = (Time.realtimeSinceStartup - t0) * 1000f;
+            yield return new WaitForSecondsRealtime(0.6f);
+            SaveCheck(r1.BestPacking == ref1 && r1.BestPackingStars == sim1.Outcome.Stars && r1.BestPackingCost == sim1.Outcome.Cost && sim1.Outcome.Stars == 3,
+                      $"delivery 1: its last shipped box becomes the best packing with the simulation's result ({r1.BestPackingStars} stars, cost {r1.BestPackingCost}; bench opened in {ms1:0} ms)");
+            var bestBtn = g.Hud.BestButton;
+            SaveCheck(SaveData.Serialize(g.CurrentPacking) == ref1 && !bestBtn.gameObject.activeInHierarchy, "the bench shows the last box; MY BEST waits until the box changes");
+            yield return ClickButton(g.Hud.ClearButton);
+            yield return new WaitForSecondsRealtime(0.4f);
+            int gold = 0;
+            foreach (var img in bestBtn.GetComponentsInChildren<UnityEngine.UI.Image>()) if (img.name.StartsWith("star") && img.color == HWC.Visuals.Palette.Gold) gold++;
+            SaveCheck(g.CurrentPacking.Pieces.Count == 0 && bestBtn.gameObject.activeInHierarchy && gold == 3, $"after EMPTY BOX, MY BEST shows with {gold} gold stars");
+            Shot("S7_v010_my_best");
+            yield return AfterShot();
+            yield return ClickButton(bestBtn);
+            yield return new WaitForSecondsRealtime(0.4f);
+            SaveCheck(SaveData.Serialize(g.CurrentPacking) == ref1, "MY BEST puts the v0.1.0 box back");
+            yield return Key(UnityEngine.InputSystem.Key.Space);
+            yield return WaitPhase(Phase.Journey, 8f);
+            g.Journey.Skip();
+            yield return WaitPhase(Phase.Reveal, 3f);
+            yield return Key(UnityEngine.InputSystem.Key.Enter);
+            yield return WaitPhase(Phase.Results, 5f);
+            SaveCheck(g.Phase == Phase.Results && g.LastRun.Outcome.Stars == 3 && g.LastRun.Hash == sim1.Hash,
+                      $"shipped: {g.LastRun.Outcome.Stars} stars, hash {(g.LastRun.Hash == sim1.Hash ? "matches" : "DIFFERS")} the simulation's");
+            var onDisk = JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath));
+            SaveCheck(onDisk.Version == SaveData.CurrentVersion && onDisk.Get(1)?.BestPacking == ref1, "on disk: version 2, with the best packing");
         }
 
         IEnumerator SaveStep5(Game g)

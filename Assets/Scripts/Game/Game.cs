@@ -219,6 +219,7 @@ namespace HWC.Gameplay
             Reveal.Hide();
             Level = Levels.Get(number);
             Save.LastLevel = number;
+            Save.AdoptLastBox(Level);   // a v0.1.0 save: the last box shipped may become MY BEST
             CurrentPacking = Save.GetPacking(Level) ?? new Packing(Level.W, Level.H);
             LastRun = null;
             EnterPacking();
