@@ -130,7 +130,7 @@ namespace HWC.Sim
         /// arrives safely and gently. Null when none turns up: that delivery can't miss only the budget star
         /// this way.
         /// </summary>
-        public static Packing OverBudgetSample(LevelDef lv, int maxTries = 60)
+        public static Packing OverBudgetSample(LevelDef lv, int maxTries = 60, int randomTries = 400)
         {
             int tries = 0;
             foreach (var pk in Dearer(lv, Source(lv)))
@@ -139,7 +139,60 @@ namespace HWC.Sim
                 var o = Simulator.Run(lv, pk, false).Outcome;
                 if (o.Delivered && o.Careful && !o.UnderBudget) return pk;
             }
+            // nothing in order: seeded random changes (the same ones every time)
+            tries = 0;
+            foreach (var pk in DearerRandom(lv, Source(lv), lv.Seed))
+            {
+                if (tries++ >= randomTries) break;
+                var o = Simulator.Run(lv, pk, false).Outcome;
+                if (o.Delivered && o.Careful && !o.UnderBudget) return pk;
+            }
             return null;
+        }
+
+        /// <summary>
+        /// Her packing with a few random changes until it costs more than par: padding swapped for a dearer
+        /// kind, extra padding wherever it can rest, or a strap on a piece. Deterministic (seeded).
+        /// </summary>
+        static IEnumerable<Packing> DearerRandom(LevelDef lv, Packing src, uint seed)
+        {
+            uint state = seed * 2654435761u + 12345u;
+            int Next(int n) { state = state * 1664525u + 1013904223u; return (int)((state >> 8) % (uint)n); }
+            var kinds = new[] { PieceKind.Paper, PieceKind.Bubble, PieceKind.Foam };
+            for (int attempt = 0; attempt < 4000; attempt++)
+            {
+                var pk = src.Clone();
+                for (int step = 0; step < 12 && pk.Cost <= lv.Par; step++)
+                {
+                    int op = Next(3);
+                    if (op == 0 && pk.Pieces.Count > 0)
+                    {
+                        int i = Next(pk.Pieces.Count);
+                        var p = pk.Pieces[i];
+                        if (p.Kind != PieceKind.Paper && p.Kind != PieceKind.Bubble) continue;
+                        var was = p.Kind;
+                        p.Kind = p.Kind == PieceKind.Paper && Next(2) == 0 ? PieceKind.Bubble : PieceKind.Foam;
+                        pk.Pieces[i] = p;
+                        if (pk.Validate(lv) != null) { p.Kind = was; pk.Pieces[i] = p; }
+                    }
+                    else if (op == 1)
+                    {
+                        var p = new Placement(kinds[Next(3)], Next(pk.W), Next(pk.H));
+                        if (!pk.CanPlace(p)) continue;
+                        pk.Pieces.Add(p);
+                        if (pk.Validate(lv) != null) pk.Pieces.RemoveAt(pk.Pieces.Count - 1);
+                    }
+                    else if (pk.Pieces.Count > 0)
+                    {
+                        int i = Next(pk.Pieces.Count);
+                        var p = pk.Pieces[i];
+                        if (p.Strapped) continue;
+                        p.Strapped = true; pk.Pieces[i] = p;
+                        if (pk.Validate(lv) != null) { p.Strapped = false; pk.Pieces[i] = p; }
+                    }
+                }
+                if (pk.Cost > lv.Par && pk.Validate(lv) == null) yield return pk;
+            }
         }
 
         static IEnumerable<Packing> Dearer(LevelDef lv, Packing src)

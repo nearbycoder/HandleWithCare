@@ -261,7 +261,8 @@ python3 ArtSource/make_audio.py                                         # every 
 Tools/simcheck.sh check         # every delivery: reference packing valid, delivered, under par, 3-star,
                                 # deterministic; an items-only packing must fail; the full hint is 3-star;
                                 # Mabel's best is a stored 3-star packing at or under par; the budget hints
-                                # match her packing; a packing that misses only the budget star (21 of 25)
+                                # match her packing; a packing that misses only the budget star (24 of 25;
+                                # on the 25th, everything on offer costs par)
 Tools/simcheck.sh hints         # print Mabel's hint notes for every delivery
 Tools/simcheck.sh map 3 "t..." "vb.." "vppp"   # simulate any packing and print the timeline
 Tools/simcheck.sh solve 7       # parallel local search for cheap / three-star packings (used to set pars)
@@ -270,7 +271,7 @@ Tools/autopilot.sh              # the built player plays all 25 references throu
                                 # and checks each outcome and hash against the validator
 Tools/hintpilot.sh              # Ask Mabel on all 25: click through every hint, build what the ghosts show,
                                 # expect three stars and the validator's hash; ship an over-budget packing on
-                                # 21 and check the report and the budget hints; then the finale opens Overtime
+                                # 24 and check the report and the budget hints; then the finale opens Overtime
 Tools/padpilot.sh               # gamepad only (a virtual pad at 1280x800): title to delivery 2, dividers,
                                 # undo/redo, turning Ember, Ask Mabel, pause, settings and the delivery log;
                                 # PlayStation prompts with a virtual DualShock 4 and the BUTTON ICONS setting;
@@ -440,10 +441,9 @@ Overtime), every one validated solvable with three stars.
   earns), without pausing the game. A box that fails is not kept, so MY BEST for those appears after
   the next delivered trip.
 - **Budget hints.** They show Mabel's own three-star packing, which is under par. SimCheck finds a
-  packing that misses only the budget star on 21 of the 25 deliveries, and the budget hints are tested
-  in the game on those 21. A Cup for Edna can't miss only that star (it offers five paper, which
-  together cost exactly par); on Magnetic Personality, Swan Song and Party Animal the search found
-  none.
+  packing that misses only the budget star on 24 of the 25 deliveries (an ordered search, then seeded
+  random changes), and the budget hints are tested in the game on those 24. A Cup for Edna can't miss
+  only that star: everything it offers (five paper) costs exactly par, which SimCheck checks.
 
 ## License
 

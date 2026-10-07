@@ -560,7 +560,7 @@ namespace HWC.Gameplay
                 for (int n = 1; n <= Levels.All.Count; n++) yield return RunHinted(n, n == 18);
                 int budgetRuns = 0;
                 for (int n = 1; n <= Levels.All.Count; n++) yield return RunBudgetHinted(n, n == 18, () => budgetRuns++);
-                Debug.Log($"[AutoPilot] {(budgetRuns >= 21 ? "PASS" : "FAIL")} budget hints: {budgetRuns} deliveries shipped over budget and hinted about money (SimCheck finds a sample on 21)");
+                Debug.Log($"[AutoPilot] {(budgetRuns >= 24 ? "PASS" : "FAIL")} budget hints: {budgetRuns} deliveries shipped over budget and hinted about money (SimCheck finds a sample on 24; on A Cup for Edna it can't happen)");
                 // the story finale: Next after The Dragon Egg rolls credits and opens Overtime
                 var g = Game.I;
                 g.StartLevel(20);

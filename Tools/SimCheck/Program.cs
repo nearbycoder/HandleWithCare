@@ -147,7 +147,13 @@ static class Program
             if (Hints.Pieces(lv, Hints.MaxStage, lv.Items[0], true).Count != src.Pieces.Count) problems.Add("budget stage 4 isn't her whole packing");
             // a packing that misses only the budget star (the self-test ships it), when one exists
             var over = Hints.OverBudgetSample(lv);
-            if (over == null) Console.Write("  over budget: none");
+            if (over == null)
+            {
+                // only acceptable when no packing can cost more than par: every material on offer is within it
+                bool impossible = lv.Materials.Cost <= lv.Par;
+                Console.Write(impossible ? $"  over budget: can't happen (everything on offer costs {lv.Materials.Cost}, par {lv.Par})" : "  over budget: none found");
+                if (!impossible) problems.Add("no over-budget packing found, though one may exist");
+            }
             else
             {
                 var ro = Simulator.Run(lv, over, false).Outcome;
