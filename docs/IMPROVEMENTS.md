@@ -436,3 +436,37 @@ Controller rumble was considered, but Unity's Linux gamepad backend may not driv
 here could feel it, so it would land untested. PlayStation button glyphs need a font or sprites for
 the shapes. Physical controller and Steam Deck testing, real alt-tab focus loss and the Mac build on
 a Mac still need hardware.
+
+## Round 4 results (2026-10-06)
+
+| Item | Commit | Verified by |
+| --- | --- | --- |
+| R4-A. Your best packing is kept | 612501b | `savepilot.sh` launches 4 and 5: a three-star trip becomes the best packing; after a restart, a failed trip doesn't replace it; MY BEST (with three gold stars) is clicked with real mouse events and puts the three-star layout back; Z and Y undo and redo it; shipping it gets three stars with the validator's hash. MY BEST is hidden while the box already holds the best |
+| R4-B. Shortcuts follow the keyboard's labels | c9b214d | `tour.sh` presses physical keys while German, French and Russian labels are swapped in: QWERTZ Y undoes and Z redoes; AZERTY W undoes and Z does nothing; Russian (no Z label) keeps the US keys and the hints read Я / Н; US unchanged. The player log shows this Linux player reports the layout (`'us'`) and key names, so the lookup uses real platform data |
+| R4-C. Larger text | 0fed5ca | `padpilot.sh` (pad only, 1280×800) reaches LARGER TEXT with the d-pad and checks four screens: settings, the bench (order card, hint note, item card), the delivery log and the results. 9–74 small texts per screen grow (about 1.2× on average, at most 1.3×), none shrinks, and none that fit before overflows. `savepilot.sh` checks it survives a restart |
+| R4-D. Start over | c93f5d0 | `savepilot.sh` launch 6, real mouse clicks: KEEP MY PROGRESS changes nothing and writes no copy; START OVER leaves a fresh game ("START SHIFT"), keeps a setting changed just before (grid off) in memory and on disk, and keeps `save.erased-<time>.json` with the old progress and best packing |
+
+After the last commit, on one build: `simcheck check` ALL OK (25), `autopilot.sh` 25/25, `hintpilot.sh`
+26/26, `padpilot.sh` 38/38, `tour.sh` 25 PASS, `savepilot.sh` 49/49 over six launches. Every run
+left `~/.config/unity3d/Mossbury Parcel Post/` unchanged. No zero-byte screenshots. Load average
+during the input-driven runs: 21–28 (padpilot also passed once at 33). Screenshots:
+`docs/media/improvements/round4/`.
+
+Limits and notes:
+
+- **Larger text** only grows text as far as its own box allows. Mabel's longer hint notes already
+  fill the sticky note, so they stay the same size. Making the note itself bigger would mean
+  re-laying out the bench's right column.
+- **Keyboard layouts** are tested with swapped labels, not with a real German or French keyboard on
+  Linux, Windows or macOS.
+- **MY BEST** needs a delivered trip made with this version: saves from before have no best packing
+  stored.
+- Esc doesn't close menus (it never has, only the pad's B does), so the start-over dialog is
+  cancelled with KEEP MY PROGRESS or B.
+- Unity's batch builds leave their usual IPC sockets in /tmp (`Unity-Upm-*.sock`,
+  `Unity-LicenseClient-*.sock`). They are the editor's, possibly shared with other sessions, so they
+  were left alone. The local macOS build was not rebuilt this round.
+
+Still not verified here: a physical controller or Steam Deck, real alt-tab focus loss, a power cut
+mid-write, and the Mac build on a Mac. Still for the owner: Windows Build Support, Mac signing and
+notarization, publishing a release, a license, and a font with real check and cross glyphs.

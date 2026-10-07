@@ -52,7 +52,8 @@ Pick an item off the shelf, drop it in the box, paint padding around it, seal, a
 | Left click a placed piece | Pick it back up |
 | Right click a placed piece | Return it to the shelf (items) or bin it (padding) |
 | Click a divider or shelf (with that tool) | Remove it |
-| `Z` / `Y` (or `Shift`+`Z`) | Undo / redo |
+| `Z` / `Y` (or `Shift`+`Z`) | Undo / redo (the keys labelled Z and Y, so QWERTZ and AZERTY keyboards work too) |
+| MY BEST (above EMPTY BOX) | Put your best packing of this delivery back in the box (`Z` undoes it) |
 | `Space` / `Enter` | Seal & ship, once every item is packed |
 | ASK MABEL (under her note) | After a trip that missed a star: one more hint per click |
 | `Esc` | Drop what you are holding, or pause |
@@ -156,14 +157,19 @@ and random item-only packings never get through.
 That's 19 item types, 3 kinds of padding plus dividers, shelves and straps, and six journey
 environments. There's also an onboarding tutorial and shift title cards, plus a delivery log
 (point at a card to see which of its three stars is missing, your best cost against par and your
-best care against the 65% line), settings (volumes, screen shake, reduced motion, packing grid, fullscreen or a
-window size, VSync and a frame-rate limit, a graphics quality switch, pausing when the window loses
-focus), pause, and a replay with three camera modes.
+best care against the 65% line), settings (volumes, screen shake, reduced motion, packing grid, larger
+text, fullscreen or a window size, VSync and a frame-rate limit, a graphics quality switch, pausing when
+the window loses focus, and starting over), pause, and a replay with three camera modes.
 
 Progress is saved as you go, including a box you haven't sealed yet: leave for the menu or quit, and
 it's on the bench when you come back. Saves are written to a temporary file and swapped in, with the
 previous one kept as a backup. If the save is ever damaged, the game loads the backup, keeps the
 damaged file, and Mabel leaves a note on the title screen saying so.
+
+Each delivery also keeps your best packing (most stars, then cheapest, then gentlest), so chasing
+Mabel's best never costs you a three-star layout: **MY BEST** on the bench brings it back.
+**Start over** in Settings clears the progress and keeps your settings. It asks first, and the old
+save stays on disk as `save.erased-<date>.json`.
 
 ## Screenshots
 
@@ -253,12 +259,15 @@ Tools/autopilot.sh              # the built player plays all 25 references throu
 Tools/hintpilot.sh              # Ask Mabel on all 25: click through every hint, build what the ghosts show,
                                 # expect three stars and the validator's hash; then the finale opens Overtime
 Tools/padpilot.sh               # gamepad only (a virtual pad at 1280x800): title to delivery 2, dividers,
-                                # undo/redo, turning Ember, Ask Mabel, pause, settings and the delivery log
-Tools/savepilot.sh              # four launches on one save, saving switched on: settings, progress and an
+                                # undo/redo, turning Ember, Ask Mabel, pause, settings and the delivery log;
+                                # then LARGER TEXT: bigger on four screens, and nothing that fit overflows
+Tools/savepilot.sh              # six launches on one save, saving switched on: settings, progress and an
                                 # unsealed box survive a restart; a half-written save comes back from the
-                                # backup; garbage with no backup starts fresh
+                                # backup; garbage with no backup starts fresh; MY BEST after a restart;
+                                # START OVER (cancel, then confirm: settings and a copy of the old save kept)
 Tools/tour.sh                   # screenshots of the menus and a delivery played with real input events,
-                                # then the whole retry loop (R, Space, Enter, P) with the keyboard only
+                                # then the whole retry loop (R, Space, Enter, P) with the keyboard only,
+                                # and undo/redo with German, French and Russian key labels swapped in
 ```
 
 The self-tests write their screenshots and player logs to `Logs/selftest/<name>/` (gitignored) and fail
@@ -379,9 +388,14 @@ Overtime), every one validated solvable with three stars.
 - **Input.** Mouse and keyboard, or a gamepad. The gamepad support is tested with a virtual pad
   (`Tools/padpilot.sh`, at the Steam Deck's 1280×800), not yet with a physical controller or on a
   Steam Deck. There's no touch support. Pausing when the window loses focus is tested by calling
-  the focus handler, not by really switching windows.
+  the focus handler, not by really switching windows. Letter shortcuts follow the keyboard layout's
+  labels. That is tested by swapping in German, French and Russian labels (`Tools/tour.sh`), not
+  with a real non-US keyboard; this Linux player does report the layout ('us') and the key names.
+- **Text size.** LARGER TEXT grows small text by up to 30%, but only as far as its box allows. Text
+  that already fills its box stays the same size, such as Mabel's longer hint notes.
 - **Saves.** Crash safety is tested by damaging the save between launches (`Tools/savepilot.sh`), not
-  by cutting the power mid-write. Only the most recent backup is kept.
+  by cutting the power mid-write. Only the most recent backup is kept. A save from before this
+  version has no best packing stored, so MY BEST appears after the next delivered trip.
 
 ## License
 
