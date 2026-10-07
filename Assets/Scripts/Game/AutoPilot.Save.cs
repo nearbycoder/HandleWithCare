@@ -18,6 +18,8 @@ namespace HWC.Gameplay
     ///   4  (garbage, no backup) a fresh save, both damaged files kept, and it saves again;
     ///      then delivery 1 with three stars (its best packing)
     ///   5  restart: a failed trip, then MY BEST brings the three-star packing back (undo, redo, ship it)
+    ///   6  Settings > START OVER: cancel changes nothing; confirm clears progress, keeps the settings
+    ///      and a copy of the old save
     /// </summary>
     public sealed partial class AutoPilot
     {
@@ -66,6 +68,7 @@ namespace HWC.Gameplay
                     case 3: yield return SaveStep3(g); break;
                     case 4: yield return SaveStep4(g); break;
                     case 5: yield return SaveStep5(g); break;
+                    case 6: yield return SaveStep6(g); break;
                 }
                 SaveCheck(Directory.GetFiles(DataDir, "*.tmp").Length == 0, "no temporary file left behind");
                 yield return ShotsWritten();
@@ -221,6 +224,44 @@ namespace HWC.Gameplay
             SaveCheck(g.LastRun.Outcome.Stars == 3 && g.Save.Get(1)?.BestPacking == best && g.Save.Get(1)?.BestPackingStars == 3,
                       "a three-star trip is kept as the best packing");
             File.WriteAllText(ExpectedFile("best"), best);
+        }
+
+        IEnumerator SaveStep6(Game g)
+        {
+            var m = g.Menus;
+            SaveCheck(g.Save.IsDelivered(1) && g.Save.Records.Count > 0, "progress to clear: delivery 1 is delivered");
+            m.ShowSettings(g.ShowTitle);
+            yield return new WaitForSecondsRealtime(0.6f);
+            var grid = m.SettingToggle("grid");
+            yield return ClickAt(RectScreen((RectTransform)grid.transform));   // a setting to keep: the packing grid off
+            int records = g.Save.Records.Count;
+
+            yield return ClickButton(m.StartOverButton);
+            yield return new WaitForSecondsRealtime(0.4f);
+            SaveCheck(m.StartOverAsking && m.ActiveScreen != null && m.ActiveScreen.name == "StartOver" && m.DefaultButton == m.StartOverKeepButton,
+                      "START OVER asks first (the pad cursor would start on KEEP MY PROGRESS)");
+            Shot("S6_start_over_confirm");
+            yield return AfterShot();
+            yield return ClickButton(m.StartOverKeepButton);
+            yield return new WaitForSecondsRealtime(0.3f);
+            SaveCheck(!m.StartOverAsking && g.Save.Records.Count == records && Directory.GetFiles(DataDir, "save.erased-*.json").Length == 0,
+                      "KEEP MY PROGRESS changes nothing");
+
+            yield return ClickButton(m.StartOverButton);
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return ClickButton(m.StartOverConfirmButton);
+            yield return new WaitForSecondsRealtime(0.8f);
+            var erased = Directory.GetFiles(DataDir, "save.erased-*.json");
+            SaveData old = null, now = null;
+            try { old = JsonUtility.FromJson<SaveData>(File.ReadAllText(erased[0])); } catch { }
+            try { now = JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath)); } catch { }
+            SaveCheck(g.Phase == Phase.Title && g.Save.Records.Count == 0 && g.Save.SeenTips.Count == 0 && g.Menus.ContinueLabel == "START SHIFT",
+                      $"START OVER: a fresh game on the title screen ('{g.Menus.ContinueLabel}')");
+            SaveCheck(now != null && now.Records.Count == 0 && !now.ShowGrid && !g.Save.ShowGrid, "on disk: no progress, and the settings are kept (the grid stays off)");
+            SaveCheck(erased.Length == 1 && old != null && old.IsDelivered(1) && old.Get(1)?.BestPacking != null,
+                      "the old save is kept as " + (erased.Length > 0 ? Path.GetFileName(erased[0]) : "(missing)"));
+            Shot("S6_after_start_over");
+            yield return AfterShot();
         }
 
         IEnumerator SaveStep5(Game g)

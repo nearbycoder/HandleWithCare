@@ -7,6 +7,8 @@
 #   4  garbage and no backup: a fresh save without an exception, both damaged files kept; then
 #      delivery 1 with three stars
 #   5  restart: a failed trip, then MY BEST brings the three-star packing back (undo, redo, ship it)
+#   6  Settings > START OVER: cancel changes nothing; confirm clears progress, keeps the settings and
+#      a copy of the old save
 #   Tools/savepilot.sh [OUTDIR]
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -34,7 +36,8 @@ printf 'not a save {{{' > "$DATA/save.json"
 rm -f "$DATA/save.json.bak"
 launch 4
 launch 5
-for i in 1 2 3 4 5; do
+launch 6
+for i in 1 2 3 4 5 6; do
   grep -q "\[AutoPilot\] done" "$OUT/player$i.log" || { echo "FAIL launch $i did not finish"; status=1; }
 done
 if grep -qE "\[AutoPilot\] FAIL|Exception" "$OUT"/player?.log; then status=1; fi

@@ -22,23 +22,26 @@ namespace HWC.Gameplay
         const float LogoScale = 0.82f;
         readonly List<RectTransform> titleButtons = new List<RectTransform>();
         Game G => Game.I;
-        public bool Open => (title != null && title.gameObject.activeSelf) || select.gameObject.activeSelf || settings.gameObject.activeSelf || credits.gameObject.activeSelf;
+        public bool Open => (title != null && title.gameObject.activeSelf) || select.gameObject.activeSelf || settings.gameObject.activeSelf || credits.gameObject.activeSelf || confirm.gameObject.activeSelf;
         Action settingsBack;
         UiButton selectBack, settingsDone, creditsBack;
 
         /// <summary>The menu screen on top, if any (gamepad navigation stays inside it).</summary>
         public RectTransform ActiveScreen =>
+            confirm.gameObject.activeSelf ? confirm :
             settings.gameObject.activeSelf ? settings : select.gameObject.activeSelf ? select :
             credits.gameObject.activeSelf ? credits : title.gameObject.activeSelf ? title : null;
 
         /// <summary>Where the gamepad cursor starts on the screen on top.</summary>
         public UiButton DefaultButton =>
+            confirm.gameObject.activeSelf ? keepBtn :
             settings.gameObject.activeSelf ? settingsDone : select.gameObject.activeSelf ? selectBack :
             credits.gameObject.activeSelf ? creditsBack : title.gameObject.activeSelf ? continueBtn : null;
 
         /// <summary>Gamepad B: leave the screen on top. False if there was nothing to leave.</summary>
         public bool Back()
         {
+            if (confirm.gameObject.activeSelf) { keepBtn.Press(); return true; }
             if (settings.gameObject.activeSelf) { settingsDone.Press(); return true; }
             if (select.gameObject.activeSelf) { selectBack.Press(); return true; }
             if (credits.gameObject.activeSelf) { creditsBack.Press(); return true; }
@@ -58,6 +61,7 @@ namespace HWC.Gameplay
             BuildSelect();
             BuildSettings();
             BuildCredits();
+            BuildStartOver();
             HideAll();
         }
 
@@ -67,6 +71,7 @@ namespace HWC.Gameplay
             select.gameObject.SetActive(false);
             settings.gameObject.SetActive(false);
             credits.gameObject.SetActive(false);
+            confirm.gameObject.SetActive(false);
         }
 
         // =================================================================================== title
@@ -356,6 +361,46 @@ namespace HWC.Gameplay
             tapeRow.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -640), new Vector2(780, 110));
             var back = settingsDone = Ui.Button(p.transform, "back", "DONE", () => { G.Save.Write(); settingsBack?.Invoke(); }, Palette.PostalRed, Palette.Cream, 38);
             back.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 30), new Vector2(260, 76));
+            startOverBtn = Ui.Button(p.transform, "startOver", "START OVER", () => { confirm.gameObject.SetActive(true); confirm.SetAsLastSibling(); }, Palette.Cream, Palette.PostalRedDark, 26);
+            startOverBtn.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(60, 38), new Vector2(230, 60));
+        }
+
+        // ---- start over: progress cleared, settings kept, the old save kept as a copy ---------------------
+        RectTransform confirm;
+        UiButton keepBtn, eraseBtn, startOverBtn;
+        public UiButton StartOverButton => startOverBtn;
+        public string ContinueLabel => continueLabel.text;
+        public UiButton StartOverKeepButton => keepBtn;
+        public UiButton StartOverConfirmButton => eraseBtn;
+        public bool StartOverAsking => confirm.gameObject.activeSelf;
+
+        void BuildStartOver()
+        {
+            confirm = Ui.Rect("StartOver", root).Stretch();
+            var dim = Ui.Panel(confirm, "dim", new Color(0.08f, 0.05f, 0.04f, 0.6f), Ui.Rounded(2));
+            dim.rectTransform.Stretch();
+            var p = Ui.Panel(confirm, "panel", Palette.Cream, Ui.Rounded(18, 4));
+            p.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(860, 420));
+            Ui.Shadow(p, 10);
+            var h = Ui.Text(p.transform, "h", "START OVER?", 58, Palette.PostalRedDark, Ui.Display);
+            h.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -26), new Vector2(760, 72));
+            var t = Ui.Text(p.transform, "t", "Every star, delivery and box on the bench is cleared, and Shift 1 starts again. " +
+                "Your settings stay. A copy of this save is kept next to it, just in case.", 24, Palette.Ink, Ui.Body);
+            t.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -112), new Vector2(740, 150));
+            keepBtn = Ui.Button(p.transform, "keep", "KEEP MY PROGRESS", () => confirm.gameObject.SetActive(false), Palette.Teal, Palette.Cream, 30);
+            keepBtn.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-200, 36), new Vector2(360, 76));
+            eraseBtn = Ui.Button(p.transform, "erase", "START OVER", StartOver, Palette.PostalRed, Palette.Cream, 30);
+            eraseBtn.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(200, 36), new Vector2(360, 76));
+            confirm.gameObject.SetActive(false);
+        }
+
+        void StartOver()
+        {
+            G.Packing.End();               // the box on the bench is part of the progress: don't keep it
+            if (!G.Save.StartOver()) { confirm.gameObject.SetActive(false); return; }
+            G.Level = null;
+            G.Hud.Sfx("clear");
+            G.ShowTitle();
         }
 
         static void ColumnHead(RectTransform col, string text)

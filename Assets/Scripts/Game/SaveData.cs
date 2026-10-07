@@ -239,6 +239,34 @@ namespace HWC.Gameplay
             catch { return null; }
         }
 
+        /// <summary>
+        /// Clears progress (records, boxes, seen notes) and keeps the settings. The save from before is
+        /// copied to save.erased-[time].json first; if that copy can't be made, nothing is cleared.
+        /// </summary>
+        public bool StartOver()
+        {
+            if (!Disabled && File.Exists(PathOnDisk))
+            {
+                try
+                {
+                    string copy = Path.Combine(Application.persistentDataPath, $"save.erased-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+                    File.Copy(PathOnDisk, copy, false);
+                    Debug.Log("[Save] starting over; the old save is kept as " + Path.GetFileName(copy));
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning("[Save] could not copy the save before starting over, so nothing was cleared: " + e.Message);
+                    return false;
+                }
+            }
+            Records.Clear();
+            SeenTips.Clear();
+            LastLevel = 1;
+            Tape = "kraft";   // the other tapes are earned with stars
+            Write();
+            return true;
+        }
+
         public Packing GetPacking(LevelDef lv)
         {
             var r = Get(lv.Number);
