@@ -592,3 +592,75 @@ Still not verified here: a physical controller (Xbox-style or PlayStation) or St
 non-US keyboard, real alt-tab focus loss, a power cut mid-write, and the Mac build on a Mac (not rebuilt
 this round). Still for the owner: Windows Build Support, Mac signing and notarization, publishing a
 release, and a license.
+
+## Round 6 scope
+
+Started 2026-10-07 on `improvements-6`, from main after round 5 (21b5b4e). The ranked list is still
+done or blocked (#9 Windows module, #10 a quiet machine or other hardware, #11 human ears, #12 a
+40-minute art rebuild, #13 and #14 not planned). This round follows a stuck player around the bench:
+
+- **The last trip is forgotten when you leave the bench.** Opening a delivery (from the log, CONTINUE
+  or after a restart) clears the last trip, so the LAST TRIP report and the trails are gone, and ASK
+  MABEL's first hint is about the order's first item instead of the one that broke. A player who
+  quits after a bad trip comes back to nothing.
+- **Opening an old delivery pauses the game** (round 5): the v0.1.0 box check simulates a journey on
+  the main thread, 0.1 to 0.95 s, once per delivery.
+- **Mabel ignores a missed budget star.** After a trip that arrived safely and gently but over par,
+  the LAST TRIP report says "Everything arrived calm and happy", and ASK MABEL's first hint is about
+  where an item sits. Neither says the trip cost too much.
+- **The trip can only be watched again from the results screen.** Back at the bench, with the report
+  in front of you, there is no way to see the moment it went wrong without shipping again, and in the
+  replay a gamepad player has to aim the cursor at a small red mark to get to the trouble.
+
+Checked and left alone: at 21:9 (2560×1080) and 4:3 (1600×1200) the bench, the HUD and the results
+fit. At 1920×1080 the tallest hint note (258 units with LARGER TEXT) and ASK MABEL under it reach over
+the right edge of the top-right shelf cubby, about 100 px; items stand in the middle of the cubby.
+
+Every item keeps `simcheck check`, `autopilot.sh`, `hintpilot.sh`, `padpilot.sh`, `tour.sh` and
+`savepilot.sh` green, and every self-test still leaves the real config folder unchanged. No new
+delivery this round. Screenshots go to `docs/media/improvements/round6/`.
+
+### R6-A. The last trip comes back (S–M)
+
+- Each delivery's save keeps the last box shipped and its trip's hash. When a bench opens without a
+  trip in memory, that box is simulated again on a worker thread (the simulation is deterministic),
+  and the LAST TRIP report, the trails and ASK MABEL's focus come back when it finishes. Nothing waits
+  for it: the bench opens at once. ASK MABEL or sealing in the first instants waits for it.
+- The v0.1.0 MY BEST check uses the same worker-thread run, so opening an old delivery no longer
+  pauses.
+
+**Acceptance:** after a failed trip and a restart, the bench shows the same LAST TRIP text as before,
+with the same trip hash, and the first hint is about the item that failed; opening a bench takes no
+longer on the main thread than one without a last trip; a v0.1.0 save still gets its MY BEST (18 of
+18), now without the pause. **Verify:** `savepilot.sh` (a failed trip, then a restart; launch 7's
+v0.1.0 save with the bench-opening times logged, and the load noted).
+
+### R6-B. Mabel and the report speak to the missed star (S–M)
+
+- When the last trip arrived safely and gently but over par, the LAST TRIP report says so (cost
+  against par), and ASK MABEL's hints are about the budget: (1) her materials against yours ("Mine
+  costs 6: 2 paper, the divider and the shelf. Yours cost 11; most of it was foam."), (2) where her
+  padding goes, (3) her dividers and shelves too, (4) her whole packing, as before.
+- A trip that rattled something past the 65% line keeps today's item hints.
+
+**Acceptance:** for every delivery, the budget hint's numbers match her packing, which is under par;
+the full hint is still three stars; after an over-budget trip the report and the first hint name the
+budget. **Verify:** SimCheck (`check` proves the budget notes and finds, for every delivery, an
+over-budget packing that still delivers gently; `hints` prints them); `hintpilot.sh` ships those
+packings through the real game, checks the report and the hint, and screenshots them.
+
+### R6-C. Watch the last trip from the bench, and jump to the trouble (S–M)
+
+- The LAST TRIP report gets a WATCH button (`P`, as on the results screen; the gamepad cursor reaches
+  it). The replay plays with its usual controls, and DONE goes back to the bench with the box as it
+  was.
+- In any replay, `N` (the key labelled N) or RB jumps to just before the next red mark.
+
+**Acceptance:** from the bench, `P` and the button both replay the last trip and come back to the same
+box; `N` and RB land just before each trouble in turn. **Verify:** `tour.sh` with real key and mouse
+events, `padpilot.sh` with the pad, checking phases, the box and the replay time; screenshots.
+
+### Not in this round
+
+Moving Mabel's tall notes off the shelf at 16:9 (the overlap is small; see above), rumble, a physical
+controller or Steam Deck, a real non-US keyboard, real alt-tab focus loss, the Mac build on a Mac.
