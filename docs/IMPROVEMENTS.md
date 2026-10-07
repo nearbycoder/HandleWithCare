@@ -919,3 +919,47 @@ Moving the shelf art to gain more room in the tightest bench (round 7; only the 
 1920×1080 with LARGER TEXT and the longest report are under 80%, and every bench and the trailer's
 shots would move). Rumble, a physical controller or Steam Deck, a real non-US keyboard, real alt-tab
 focus loss, the Mac build on a Mac.
+
+## Round 8 results (2026-10-07)
+
+| Item | Commit | Verified by |
+| --- | --- | --- |
+| R8-A. Care meters on the trip | 2c7be83 | `simcheck check`: on every reference, three-star, over-budget and items-only packing, each item's last recorded care equals its review's and gives the same status (247 item trips), and it never goes down; the new `simcheck hashes` lists every stored packing's trip hash, identical before and after (the trips are unchanged). `autopilot.sh` 25/25: the meters at the end of each trip read the review's percentages. `tour.sh`, in a replay of a failed trip on delivery 5: the meters read WIDE AWAKE and SHATTERED at the end, 0% after scrubbing back to the start, the vase's 90% turns to SHATTERED at 5.17 s. `layoutpilot.sh`: on Museum Piece (5 items) the meters stay clear of the timeline, the replay buttons and the leg banner at 1920×1080, 1280×800, 2560×1080 and 1600×1200, LARGER TEXT off and on |
+| R8-B. Hint ghosts show what's in place | 9b860bf | `simcheck check`: her packing matches all of her ghosts with nothing extra and an empty box none (306 ghosts); on the 24 over-budget packings the budget hint marks exactly the padding that isn't hers. `hintpilot.sh` 52/52: building her packing counts 171 ghosts into place one at a time on all 25 deliveries, ending "all N in place"; an item put one cell off isn't counted, is drawn as "not in mine" and blocks exactly the ghosts it overlaps (24 deliveries; one had no spot to try); 65 pieces of extra padding marked on the 24 budget runs, as the test works out independently. `layoutpilot.sh`: the note's count row leaves the tightest framing where it was (76%) |
+| R8-C. Item cards remember the last trip | d8f1072 | `tour.sh`, real mouse moves after a failed trip on delivery 5: the vase's and Snoozles's cards say what the report says ("Shattered at the hard brake (jolt 18/8)", "Woke up at the hard brake (jolt 10.5/7)") and start below the report; pointing at a red cross shows the vase's card and makes its cross stand out; pointing away hides it all. `padpilot.sh`: the d-pad onto the vase shows the same line |
+
+Each commit was built and tested on its own, with the whole suite (`simcheck check`, `autopilot.sh`,
+`hintpilot.sh`, `padpilot.sh`, `tour.sh`, `savepilot.sh`, `layoutpilot.sh`) before the next item was
+built. After the last commit: `simcheck check` ALL OK (25), `autopilot.sh` 25/25, `hintpilot.sh` 52/52,
+`padpilot.sh` 65/65, `tour.sh` 68 PASS, `savepilot.sh` 75/75 over seven launches, `layoutpilot.sh` 24/24.
+No exceptions in any player log, no zero-byte screenshots, and every self-test reported the real
+`~/.config/unity3d/Mossbury Parcel Post/` unchanged. Load average at the start of the final runs: 7–10
+(earlier runs this round, 15–34; the input-driven ones waited for it to drop under 26). Screenshots:
+`docs/media/improvements/round8/`.
+
+Found and fixed along the way (in the commits above):
+
+- **Scrubbing a replay back twice after an item changed model crashed.** A shattered vase or an awake
+  armadillo swaps its model; the old one was destroyed at the end of the frame but its renderers were
+  collected first, so the next reset touched destroyed renderers (a NullReferenceException, and the
+  replay stopped updating). The new replay test found it; the old model is now detached first.
+- **The LAST TRIP report hid the top of the item card** (the item's name) on a retry: the report is
+  drawn over it. The card now starts below the report.
+- On a budget hint whose packing has no padding at all (#4, #10), the note's count line stayed empty
+  while extra padding was marked; it now says "N extra".
+
+Limits and notes:
+
+- **Meters** use the recorded frames, so they move in frame steps; dragging the replay right to its end
+  finishes it (as before), so the test stops 0.05 s short and checks the last frame separately.
+- **Ghosts in the way** are drawn red, but one under your own piece is hidden by it; the count on her
+  note says how many there are.
+- **Twin items.** Pointing at one of two magnets in the box shows the card of the one with the worse
+  trip; a red cross shows the item that failed there.
+- **Not done:** moving the shelf art for the tightest bench (still 76% in that one configuration), and
+  the local macOS build wasn't rebuilt this round.
+
+Still not verified here: a physical controller (Xbox-style or PlayStation) or Steam Deck, a real
+non-US keyboard, real alt-tab focus loss, a power cut mid-write, and the Mac build on a Mac. Still for
+the owner: Windows Build Support, Mac signing and notarization, publishing a release, a license, and
+re-cutting the trailer (its cinematic mode hides the new care meters, so its shots are unaffected).

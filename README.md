@@ -463,6 +463,13 @@ Overtime), every one validated solvable with three stars.
   packing that misses only the budget star on 24 of the 25 deliveries (an ordered search, then seeded
   random changes), and the budget hints are tested in the game on those 24. A Cup for Edna can't miss
   only that star: everything it offers (five paper) costs exactly par, which SimCheck checks.
+- **Reading a trip.** The care meters show the recorded frames (about 30 a second), so a knock shows
+  on the frame it lands in; at the end they read exactly what the review does (SimCheck and the autopilot
+  check this on every delivery). Mabel's ghosts are compared with the box cell for cell: a red ghost
+  under one of your own pieces is hidden by it, so her note also counts the ghosts "in the way". When an
+  order has two of the same item (two magnets), pointing at one in the box shows the card of whichever
+  had the worse trip; pointing at a red cross shows that very item. The item card is not kept clear of
+  the box by the bench camera (it comes and goes, and clicks pass through it).
 
 ## License
 
