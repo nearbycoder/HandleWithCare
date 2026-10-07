@@ -470,3 +470,83 @@ Limits and notes:
 Still not verified here: a physical controller or Steam Deck, real alt-tab focus loss, a power cut
 mid-write, and the Mac build on a Mac. Still for the owner: Windows Build Support, Mac signing and
 notarization, publishing a release, a license, and a font with real check and cross glyphs.
+
+## Round 5 scope
+
+Started 2026-10-06 on `improvements-5`, from main after round 4 (e586636). The ranked list is still
+done or blocked (#9 Windows module, #10 a quiet machine or other hardware, #11 human ears, #12 a
+40-minute art rebuild, #13 and #14 not planned). This round picks up what round 4 left open and what a
+player still runs into:
+
+- **Esc doesn't close menus.** Settings, the delivery log, the credits and the start-over question
+  only close with a click or the pad's B. Esc is the first key most players try.
+- **Mabel's hint notes stay small.** Hint notes are longer than her intro notes, so the sticky note
+  shrinks them to fit (down to 15 units, about 11 px at 1280×800), and LARGER TEXT can't grow them.
+- **PlayStation pads show Xbox letters.** A DualShock or DualSense player reads "A", "X", "LB" and
+  "VIEW". Round 4 deferred this for want of sprites or a font. The UI is built in code, so the button
+  shapes can be drawn in code too, with no font and no new licence.
+- **The Last trip report uses stand-ins for ✓ and ✗** (a multiplication sign and a dot), because
+  Fira Sans has no check or cross. Drawn marks fix that the same way.
+- **Players coming from v0.1.0 get no MY BEST.** The only released save format keeps the last
+  shipped packing per delivery. The simulation is deterministic, so that packing's result can be
+  worked out again on the bench and kept as the best, with its real stars.
+
+Every item keeps `simcheck check`, `autopilot.sh`, `hintpilot.sh`, `padpilot.sh`, `tour.sh` and
+`savepilot.sh` green, and every self-test still leaves the real config folder unchanged. No new
+delivery this round. Screenshots go to `docs/media/improvements/round5/`.
+
+### R5-A. Esc backs out of menus (S)
+
+- Esc does what the pad's B does on the screen on top: the start-over question keeps your progress,
+  Settings is DONE (saved), the delivery log and credits go BACK (to the pause menu when opened from
+  there). Pause and resume with Esc keep working as before.
+
+**Acceptance:** with real key events, Esc closes each of those screens to the right place, and a
+single press never also opens or closes the pause menu underneath. **Verify:** `tour.sh` steps
+that press Esc on the start-over question, Settings (from the title and from pause), the log and
+the credits, and check the screen and the pause state after each.
+
+### R5-B. Mabel's notes grow to fit (S–M)
+
+- The sticky note gets taller when its text would otherwise shrink below a readable size (19 units
+  normally, the full 30% larger with LARGER TEXT), and ASK MABEL moves down with it. The note no
+  longer catches clicks, so it never hides a shelf item from the mouse.
+
+**Acceptance:** the longest hint note of every delivery is shown at 19 units or more (about 23 with
+LARGER TEXT), the note stays clear of the seal button and the materials meter, and the hint button
+is still reachable. Intro notes look as they do now. **Verify:** a padpilot step at 1280×800 that
+goes through all four hint stages on a delivery and logs the note's font size, height and overlaps
+with the setting off and on; `hintpilot.sh` still clicks every hint (25/25); screenshots by eye.
+
+### R5-C. PlayStation button shapes, and real ✓ and ✗ (M)
+
+- A small sprite sheet drawn in code at start-up (cross, circle, square, triangle, a check and a
+  cross mark) is used by TextMeshPro inline. With a DualShock or DualSense, prompts read ✕ ○ □ △,
+  L1/R1, L2/R2, OPTIONS and SHARE / CREATE, in the hints on buttons, the seal hint and Mabel's
+  tutorial notes. A BUTTON ICONS setting (AUTO / XBOX / PLAYSTATION) covers pads that don't say
+  what they are.
+- The Last trip report and MATCHED use the drawn ✓ and ✗.
+
+**Acceptance:** with a virtual DualShock 4 the prompts show the PlayStation shapes and names; with
+the Xbox-style pad they're unchanged; the setting overrides AUTO and survives a restart; the report
+shows drawn marks. **Verify:** `padpilot.sh` with a second virtual pad of DualShock 4 layout (the
+Input System's own layout), checking the prompt texts and taking screenshots; `savepilot.sh` for the
+setting. **Not verifiable here:** a physical PlayStation controller (on Linux, how it reports
+itself depends on the driver; the setting is the fallback).
+
+### R5-D. MY BEST for saves from v0.1.0 (S–M)
+
+- When a delivery has been delivered but has no best packing stored (a save from v0.1.0, where the
+  stored box is the last shipped one), the bench simulates that packing once. If it delivers, it
+  becomes the best packing with the stars, cost and care the simulation gives. The save version
+  goes to 2, so this happens only for older saves.
+
+**Acceptance:** an old-format save with a stored three-star packing shows MY BEST with three stars,
+and shipping it gives the same outcome as the simulation; a stored packing that would fail is not
+kept; a version 2 save is left alone. **Verify:** `savepilot.sh` with a v0.1.0-style save written by
+the test (fields exactly as in v0.1.0's `SaveData`), checked against the validator's outcome.
+
+### Not in this round
+
+Rumble (nothing here can feel it), a physical controller or Steam Deck, a real non-US keyboard, real
+alt-tab focus loss, the Mac build on a Mac.
