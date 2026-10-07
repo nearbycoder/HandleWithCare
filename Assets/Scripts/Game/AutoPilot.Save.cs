@@ -126,7 +126,10 @@ namespace HWC.Gameplay
             Shot("S1_settings");
             yield return AfterShot();
             for (int i = 0; i < 4 && g.Save.FrameCap != 60; i++) yield return ClickButton(m.FrameRateButton);
-            SaveCheck(!g.Save.ScreenShake && !g.Save.VSync && !g.Save.PauseInBackground && g.Save.FrameCap == 60 && g.Save.LargerText && TextScale.Larger, "clicked: screen shake, VSync and background pause off, 60 fps limit, larger text on");
+            for (int i = 0; i < 3 && g.Save.ButtonIcons != PadGlyphs.PlayStation; i++) yield return ClickButton(m.ButtonIconsButton);
+            SaveCheck(!g.Save.ScreenShake && !g.Save.VSync && !g.Save.PauseInBackground && g.Save.FrameCap == 60 && g.Save.LargerText && TextScale.Larger
+                      && g.Save.ButtonIcons == PadGlyphs.PlayStation && m.ButtonIconsButton.Label.text == "PLAYSTATION",
+                      "clicked: screen shake, VSync and background pause off, 60 fps limit, larger text on, PlayStation button icons");
             yield return ClickButton(m.DefaultButton);   // DONE
             yield return new WaitForSecondsRealtime(0.3f);
             SaveCheck(File.Exists(SavePath) && File.Exists(SavePath + ".bak") == false, "DONE writes save.json");
@@ -173,8 +176,8 @@ namespace HWC.Gameplay
         {
             SaveCheck(SaveData.LastLoad == SaveData.LoadResult.Loaded && !g.Menus.SaveNoteShowing, "the save loads after a restart (no damaged-save note)");
             SaveCheck(g.Save.IsDelivered(1) && g.Save.StarsFor(1) == 3 && g.Save.IsUnlocked(2), "delivery 1 is still delivered with three stars");
-            SaveCheck(!g.Save.ScreenShake && !g.Save.VSync && !g.Save.PauseInBackground && g.Save.FrameCap == 60 && g.Save.LargerText, "the settings survive a restart");
-            SaveCheck(QualitySettings.vSyncCount == 0 && Application.targetFrameRate == 60 && !g.Rig.ShakeEnabled && TextScale.Larger,
+            SaveCheck(!g.Save.ScreenShake && !g.Save.VSync && !g.Save.PauseInBackground && g.Save.FrameCap == 60 && g.Save.LargerText && g.Save.ButtonIcons == PadGlyphs.PlayStation, "the settings survive a restart");
+            SaveCheck(QualitySettings.vSyncCount == 0 && Application.targetFrameRate == 60 && !g.Rig.ShakeEnabled && TextScale.Larger && PadGlyphs.Ps,
                       $"and are applied at launch (vSyncCount {QualitySettings.vSyncCount}, targetFrameRate {Application.targetFrameRate})");
             yield return ContinueFromTitle(g);
             string expected = File.Exists(ExpectedFile("quit")) ? File.ReadAllText(ExpectedFile("quit")) : null;

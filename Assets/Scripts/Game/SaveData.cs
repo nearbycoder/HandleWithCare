@@ -49,6 +49,7 @@ namespace HWC.Gameplay
         public int WindowW, WindowH;          // windowed size; 0 = leave the window as launched
         public bool PauseInBackground = true; // pause (and muffle) when the window loses focus
         public bool LargerText;               // small text grows where it has room
+        public int ButtonIcons;               // gamepad prompts: 0 auto (from the pad), 1 Xbox, 2 PlayStation
         public string Tape = "kraft";
         public List<string> SeenTips = new List<string>();
         public List<LevelRecord> Records = new List<LevelRecord>();

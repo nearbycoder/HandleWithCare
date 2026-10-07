@@ -60,35 +60,35 @@ namespace HWC.Gameplay
             steps.Add(new Step
             {
                 Text = "Here's Edna's teacup. Click it to pick it up.",
-                PadText = "Here's Edna's teacup. Point at it and press A.",
+                PadText = "Here's Edna's teacup. Point at it and press {A}.",
                 Target = () => WorldToCanvas(G.Station.SlotPosition(0) + Vector3.up * 0.25f),
                 Done = () => pc.Tool == Tool.Item || pc.RemainingItems().Count == 0,
             });
             steps.Add(new Step
             {
                 Text = "Now drop it into the box. Click a spot on the floor.",
-                PadText = "Now drop it into the box. Pick a spot on the floor, press A.",
+                PadText = "Now drop it into the box. Pick a spot on the floor, press {A}.",
                 Target = () => WorldToCanvas(G.Station.Box.CellToWorld(1.5f, 1.4f)),
                 Done = () => pc.RemainingItems().Count == 0,
             });
             steps.Add(new Step
             {
                 Text = "Teacups hate rattling about. Grab some crumpled paper.",
-                PadText = "Teacups hate rattling about. RB for crumpled paper.",
+                PadText = "Teacups hate rattling about. {RB} for crumpled paper.",
                 Target = () => G.Hud.SlotScreen(MaterialSlot.Paper),
                 Done = () => pc.Tool == Tool.Padding || pc.Pk.UsedMaterials().Paper > 0,
             });
             steps.Add(new Step
             {
                 Text = "Click and drag to stuff the gaps. Fill every empty spot!",
-                PadText = "Hold A and sweep the d-pad to stuff the gaps. Fill them all!",
+                PadText = "Hold {A} and sweep the d-pad to stuff the gaps. Fill them all!",
                 Target = () => WorldToCanvas(G.Station.Box.CellToWorld(0.5f, 1.4f)),
                 Done = () => pc.Pk.UsedMaterials().Paper >= 4,
             });
             steps.Add(new Step
             {
                 Text = "Snug as a bug. Seal it and ship it!",
-                PadText = "Snug as a bug. Press View to seal it and ship it!",
+                PadText = "Snug as a bug. Press {View} to seal it and ship it!",
                 Target = () => G.Hud.SealScreen(),
                 Done = () => G.Phase != Phase.Packing,
             });
@@ -105,8 +105,16 @@ namespace HWC.Gameplay
         }
 
         bool shownPad;
+        int shownGlyphs = -1;
 
-        string StepText(Step st) => (shownPad = Hud.PadPrompts) && st.PadText != null ? st.PadText : st.Text;
+        string StepText(Step st)
+        {
+            shownGlyphs = PadGlyphs.Version;
+            return (shownPad = Hud.PadPrompts) && st.PadText != null ? PadGlyphs.Format(st.PadText) : st.Text;
+        }
+
+        /// <summary>The note on screen now (for the self-tests).</summary>
+        public string ShownText => text != null && root.gameObject.activeSelf ? text.text : "";
 
         void Show()
         {
@@ -131,7 +139,7 @@ namespace HWC.Gameplay
             note.gameObject.SetActive(!waiting);
             if (waiting) { arrow.gameObject.SetActive(false); t = 0; return; }
             var st = steps[index];
-            if (Hud.PadPrompts != shownPad) text.text = StepText(st);   // the player switched devices
+            if (Hud.PadPrompts != shownPad || PadGlyphs.Version != shownGlyphs) text.text = StepText(st);   // the player switched devices
             if (st.Done())
             {
                 index++;

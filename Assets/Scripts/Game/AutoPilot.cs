@@ -458,6 +458,7 @@ namespace HWC.Gameplay
                 yield return PadTour();
                 yield return LargerTextTour();
                 yield return NoteFitCheck();
+                yield return PlayStationPrompts();
                 yield return ShotsWritten();
                 Debug.Log("[AutoPilot] done");
                 yield return new WaitForSecondsRealtime(0.3f);
@@ -858,6 +859,90 @@ namespace HWC.Gameplay
                 }
             }
             TextScale.Set(g.Save.LargerText);
+        }
+
+        /// <summary>
+        /// PlayStation prompts: a second virtual pad with the Input System's own DualShock 4 layout makes
+        /// the prompts read L1 / R1 / L2 / R2 / SHARE and the drawn shapes; the Xbox-style pad brings the
+        /// letters back; the BUTTON ICONS setting (reached with the d-pad) forces PlayStation. Then a
+        /// failed trip: the Last trip report shows the drawn cross.
+        /// </summary>
+        IEnumerator PlayStationPrompts()
+        {
+            var g = Game.I;
+            string Tri = Glyphs.Tag(Glyphs.PsTriangle), Crs = Glyphs.Tag(Glyphs.PsCross), Sq = Glyphs.Tag(Glyphs.PsSquare);
+            Check2(Glyphs.Ok, "ps", "the glyph sheet was drawn (the sprite shader is in the build)");
+            g.Save.SeenTips.Remove("basics");
+            g.Save.Records.RemoveAll(r => r.Number == 1);
+            g.StartLevel(1);                                   // the tutorial's first note mentions A
+            yield return new WaitForSecondsRealtime(0.6f);
+            string xboxTut = g.Tutorial.ShownText, xboxSeal = g.Hud.PromptFor("VIEW");
+            var ds4 = InputSystem.AddDevice<UnityEngine.InputSystem.DualShock.DualShock4GamepadHID>("PadPilotDS4");
+            ds4.MakeCurrent();
+            yield return null; yield return null;
+            Debug.Log($"[AutoPilot] ps: current pad {Gamepad.current?.layout}, PlayStation {PadGlyphs.Ps}; undo '{g.Hud.PromptFor("LT")}', redo '{g.Hud.PromptFor("RT")}', seal '{g.Hud.PromptFor("VIEW")}', hint '{g.Hud.PromptFor("Y")}', shoulder '{g.Hud.PromptFor("LB")}'");
+            Check2(PadGlyphs.Ps && g.Hud.PromptFor("LT") == "L2" && g.Hud.PromptFor("RT") == "R2" && g.Hud.PromptFor("VIEW") == "SHARE"
+                   && g.Hud.PromptFor("LB") == "L1" && g.Hud.PromptFor("RB") == "R1" && g.Hud.PromptFor("Y") == Tri,
+                   "ps", "a DualShock 4 turns the bench prompts into L2 / R2 / SHARE / L1 / R1 and the triangle");
+            Check2(xboxTut.Contains("press A.") && g.Tutorial.ShownText.Contains("press " + Crs), "ps", $"the tutorial note follows: '{g.Tutorial.ShownText}'");
+            Shot("C1_ps_tutorial");
+            yield return AfterShot();
+            gp.MakeCurrent();
+            yield return null; yield return null;
+            Check2(!PadGlyphs.Ps && g.Hud.PromptFor("VIEW") == xboxSeal && g.Hud.PromptFor("LT") == "LT" && g.Tutorial.ShownText == xboxTut,
+                   "ps", "back on the Xbox-style pad, the letters return (AUTO)");
+            InputSystem.RemoveDevice(ds4);
+            g.Save.SeenTips.Add("basics");
+
+            // BUTTON ICONS in Settings, from the pause menu, with the d-pad and A: AUTO -> XBOX -> PLAYSTATION
+            g.Tutorial.Stop();
+            yield return PadButton(GamepadButton.Start);
+            yield return new WaitForSecondsRealtime(0.3f);
+            yield return PadButton(GamepadButton.DpadDown);
+            yield return PadButton(GamepadButton.DpadDown);
+            yield return PadButton(GamepadButton.South);          // SETTINGS
+            yield return new WaitForSecondsRealtime(0.6f);
+            yield return PadOnto(g.Menus.ButtonIconsButton.Image.rectTransform);
+            yield return PadButton(GamepadButton.South);
+            bool xbox = g.Save.ButtonIcons == PadGlyphs.Xbox && !PadGlyphs.Ps;
+            yield return PadButton(GamepadButton.South);
+            yield return null;
+            Check2(xbox && g.Save.ButtonIcons == PadGlyphs.PlayStation && PadGlyphs.Ps && g.Menus.ButtonIconsButton.Label.text == "PLAYSTATION",
+                   "ps", "the d-pad reaches BUTTON ICONS; A steps it to XBOX, then PLAYSTATION, on the Xbox-style pad");
+            Shot("C2_ps_settings");
+            yield return AfterShot();
+            yield return PadButton(GamepadButton.East);
+            yield return new WaitForSecondsRealtime(0.3f);
+            yield return PadButton(GamepadButton.East);
+            yield return new WaitForSecondsRealtime(0.4f);
+            Check2(g.Hud.PromptFor("VIEW") == "SHARE" && g.Hud.PromptFor("LT") == "L2", "ps", "the bench follows the setting");
+
+            // ship the teacup with no padding: it breaks; the review reads square / triangle / cross
+            g.Packing.ClearAll();
+            foreach (var p in BottomUp(g.Level)) if (!Catalog.Get(p.Kind).IsPadding) g.Packing.DebugPlace(p);
+            yield return null;
+            Check2(g.Hud.SealHintText == "Share to seal", "ps", $"the seal hint: '{g.Hud.SealHintText}'");
+            yield return PadButton(GamepadButton.Select);
+            yield return WaitPhase(Phase.Journey, 6f);
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return PadButton(GamepadButton.East);
+            yield return WaitPhase(Phase.Reveal, 3f);
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return PadButton(GamepadButton.East);
+            yield return WaitPhase(Phase.Results, 3f);
+            yield return new WaitForSecondsRealtime(1.2f);
+            string KeyOf(UiButton b) => Glyphs.Drawn(b.transform.Find("key").GetComponent<TextMeshProUGUI>());
+            string drawn = $"{KeyOf(g.Hud.RepackButton)} | {KeyOf(g.Hud.ReplayButton)} | {KeyOf(g.Hud.NextButton)}";
+            Check2(drawn == $"{Glyphs.PsSquare} | {Glyphs.PsTriangle} | {Glyphs.PsCross}", "ps", $"the review: square repacks, triangle replays, cross goes on (drawn: {drawn})");
+            Shot("C3_ps_results");
+            yield return AfterShot();
+            yield return PadButton(GamepadButton.West);           // repack
+            yield return WaitPhase(Phase.Packing, 3f);
+            yield return new WaitForSecondsRealtime(0.5f);
+            Check2(g.Hud.LastTripText.Contains(Glyphs.Tag(Glyphs.MarkCross)) && g.Hud.LastTripDrawn == Glyphs.MarkCross, "ps", $"the Last trip report draws the cross: '{g.Hud.LastTripText}' (drawn: {g.Hud.LastTripDrawn})");
+            Shot("C4_last_trip_cross");
+            yield return AfterShot();
+            g.Save.ButtonIcons = PadGlyphs.Auto;
         }
 
         IEnumerator PadTo(Vector2 target, int maxSteps = 12)

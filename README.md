@@ -64,13 +64,15 @@ Pick an item off the shelf, drop it in the box, paint padding around it, seal, a
 
 **Gamepad (and Steam Deck).** Pick up a controller and a cursor appears: the left stick moves it,
 the d-pad jumps it to the next box cell, item or button. Everything the mouse does works the same. The
-on-screen hints and Mabel's tutorial notes switch to gamepad buttons while you use one.
+on-screen hints and Mabel's tutorial notes switch to gamepad buttons while you use one: Xbox letters, or
+the PlayStation shapes (cross, circle, square, triangle, L1/R1, L2/R2, OPTIONS, SHARE or CREATE) with a
+DualShock or DualSense. If a pad shows the wrong ones, Settings > GAMEPAD BUTTON ICONS picks them.
 
 | Gamepad | Action |
 | --- | --- |
 | Left stick / d-pad | Move the cursor / jump to the next cell, shelf item or button |
 | A | Click: pick up, drop, hold to paint padding, press buttons |
-| B | Right click: erase padding, put a piece back, or put back the item in hand; back out of menus |
+| B | Right click: erase padding, put a piece back, or put back the item in hand; back out of menus (like `Esc`) |
 | X / Y | Rotate the held piece / Ask Mabel |
 | LB / RB | Previous / next material |
 | LT / RT | Undo / redo |
@@ -157,7 +159,7 @@ and random item-only packings never get through.
 That's 19 item types, 3 kinds of padding plus dividers, shelves and straps, and six journey
 environments. There's also an onboarding tutorial and shift title cards, plus a delivery log
 (point at a card to see which of its three stars is missing, your best cost against par and your
-best care against the 65% line), settings (volumes, screen shake, reduced motion, packing grid, larger
+best care against the 65% line), settings (volumes, screen shake, reduced motion, packing grid, gamepad button icons, larger
 text, fullscreen or a window size, VSync and a frame-rate limit, a graphics quality switch, pausing when
 the window loses focus, and starting over), pause, and a replay with three camera modes.
 
@@ -260,6 +262,7 @@ Tools/hintpilot.sh              # Ask Mabel on all 25: click through every hint,
                                 # expect three stars and the validator's hash; then the finale opens Overtime
 Tools/padpilot.sh               # gamepad only (a virtual pad at 1280x800): title to delivery 2, dividers,
                                 # undo/redo, turning Ember, Ask Mabel, pause, settings and the delivery log;
+                                # PlayStation prompts with a virtual DualShock 4 and the BUTTON ICONS setting;
                                 # then LARGER TEXT: bigger on four screens, and nothing that fit overflows;
                                 # every hint note of every delivery at a readable size, off and on
 Tools/savepilot.sh              # six launches on one save, saving switched on: settings, progress and an
@@ -389,7 +392,9 @@ Overtime), every one validated solvable with three stars.
   packing may still exist.
 - **Input.** Mouse and keyboard, or a gamepad. The gamepad support is tested with a virtual pad
   (`Tools/padpilot.sh`, at the Steam Deck's 1280×800), not yet with a physical controller or on a
-  Steam Deck. There's no touch support. Pausing when the window loses focus is tested by calling
+  Steam Deck. PlayStation prompts are tested with the Input System's DualShock 4 layout on a virtual
+  device; how a real DualShock or DualSense reports itself on Linux depends on the driver, so AUTO may
+  still show Xbox letters there (GAMEPAD BUTTON ICONS fixes that). There's no touch support. Pausing when the window loses focus is tested by calling
   the focus handler, not by really switching windows. Letter shortcuts follow the keyboard layout's
   labels. That is tested by swapping in German, French and Russian labels (`Tools/tour.sh`), not
   with a real non-US keyboard; this Linux player does report the layout ('us') and the key names.

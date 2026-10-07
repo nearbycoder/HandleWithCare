@@ -593,7 +593,7 @@ namespace HWC.Gameplay
                 string what = Catalog.Get(kind).Name;
                 string how = inc.Kind == IncidentKind.Stuck ? "stuck to the other magnet" : StatusWordForIncident(inc.Kind).ToLowerInvariant();
                 string detail = inc.Limit > 0 && (inc.Kind == IncidentKind.Broke || inc.Kind == IncidentKind.Woke || inc.Kind == IncidentKind.Squished) ? $" (jolt {inc.Value:0.#}/{inc.Limit:0.#})" : "";
-                lines.Add($"<color=#A8322A><size=150%><b>\u00D7</b></size></color> {what} {how} at {EventName(rec, inc.Leg, inc.Event)}{detail}");
+                lines.Add($"{Glyphs.Cross} {what} {how} at {EventName(rec, inc.Leg, inc.Event)}{detail}");
             }
             if (lines.Count == 0)
             {
@@ -602,7 +602,7 @@ namespace HWC.Gameplay
                     if (it.Care < SimConst.CareFraction || lines.Count >= 3) continue;
                     lines.Add($"<color=#B07A1A>!</color> {Catalog.Get(it.Kind).Name} rattled ({it.Care * 100:0}%) at {EventName(rec, it.PeakLeg, it.PeakEvent)}");
                 }
-                if (lines.Count == 0) lines.Add("<color=#2E8B57>\u25CF</color> Everything arrived calm and happy.");
+                if (lines.Count == 0) lines.Add($"{Glyphs.Check} Everything arrived calm and happy.");
             }
             lastTrip.gameObject.SetActive(true);
             lastTripText.text = string.Join("\n", lines);
@@ -698,7 +698,7 @@ namespace HWC.Gameplay
             var lv = pc.Level;
             int cost = pc.Pk.Cost;
             budgetText.text = $"{cost} <size=70%>/ par {lv.Par}</size>";
-            expertText.text = G.Save.IsExpert(lv.Number) ? $"MABEL'S BEST  {lv.Expert}   <color=#2E8B57>MATCHED</color>" : $"MABEL'S BEST  {lv.Expert}";
+            expertText.text = G.Save.IsExpert(lv.Number) ? $"MABEL'S BEST  {lv.Expert}   {Glyphs.Check} <color=#2E8B57>MATCHED</color>" : $"MABEL'S BEST  {lv.Expert}";
             float frac = Mathf.Clamp01(cost / (float)Mathf.Max(1, lv.Par * 1.5f));
             budgetFill.rectTransform.anchorMax = new Vector2(Mathf.Max(0.02f, frac), 1);
             budgetFill.color = cost <= lv.Par ? Palette.Good : Palette.Bad;
@@ -720,7 +720,7 @@ namespace HWC.Gameplay
             sealBtn.SetInteractable(pc.ReadyToSeal);
             if (pc.ReadyToSeal && !wasReady) { sealBtn.Pulse(); Sfx("stamp_ok", 0.5f); }
             wasReady = pc.ReadyToSeal;
-            sealHint.text = remaining > 0 ? $"Pack {remaining} more item{(remaining > 1 ? "s" : "")}" : (ready ? (PadPrompts ? "View to seal" : "Space to seal") : "");
+            sealHint.text = remaining > 0 ? $"Pack {remaining} more item{(remaining > 1 ? "s" : "")}" : (ready ? (PadPrompts ? PadGlyphs.Format("{View} to seal") : "Space to seal") : "");
             RefreshBest(lv);
         }
 
@@ -737,6 +737,22 @@ namespace HWC.Gameplay
         }
 
         public UiButton BestButton => bestBtn;
+        /// <summary>For the self-tests: what the first prompt written with this pad button shows now.</summary>
+        public string PromptFor(string pad)
+        {
+            foreach (var (t, kb, pd) in prompts) if (pd == pad && t != null) return t.text;
+            return null;
+        }
+        /// <summary>For the self-tests: the sprites the first prompt for this pad button draws.</summary>
+        public string PromptDrawn(string pad)
+        {
+            foreach (var (t, kb, pd) in prompts) if (pd == pad && t != null) return Glyphs.Drawn(t);
+            return null;
+        }
+        public string LastTripDrawn => Glyphs.Drawn(lastTripText);
+        public string LastTripText => lastTrip.gameObject.activeSelf ? lastTripText.text : "";
+        public string SealHintText => sealHint.text;
+
         public string UndoHint => undoBtn.transform.Find("key")?.GetComponent<TextMeshProUGUI>()?.text;
         public string RedoHint => redoBtn.transform.Find("key")?.GetComponent<TextMeshProUGUI>()?.text;
 
@@ -1028,20 +1044,21 @@ namespace HWC.Gameplay
         TextMeshProUGUI Prompt(TextMeshProUGUI t, string kb, string pad)
         {
             prompts.Add((t, kb, pad));
-            t.text = PadPrompts ? pad : KeyLabel(kb);
+            t.text = PadPrompts ? PadGlyphs.Label(pad) : KeyLabel(kb);
             return t;
         }
 
         /// <summary>A one-letter key hint shows the label of the key that does it on this keyboard layout.</summary>
         static string KeyLabel(string kb) => kb != null && kb.Length == 1 && kb[0] >= 'A' && kb[0] <= 'Z' ? Shortcuts.Label(kb[0]) : kb;
 
-        int keysVersion = -1;
+        int keysVersion = -1, glyphsVersion = -1;
 
         void RefreshPrompts()
         {
             padPrompts = PadPrompts;
             keysVersion = Shortcuts.Version;
-            foreach (var (t, kb, pad) in prompts) if (t != null) t.text = padPrompts ? pad : KeyLabel(kb);
+            glyphsVersion = PadGlyphs.Version;
+            foreach (var (t, kb, pad) in prompts) if (t != null) t.text = padPrompts ? PadGlyphs.Label(pad) : KeyLabel(kb);
             if (packRoot.gameObject.activeSelf && G.Packing.Level != null) RefreshPacking();
         }
 
@@ -1207,7 +1224,8 @@ namespace HWC.Gameplay
             escConsumed = false;
             UpdateShortcuts(kb);
             Shortcuts.Refresh(Keyboard.current);
-            if (PadPrompts != padPrompts || Shortcuts.Version != keysVersion) RefreshPrompts();
+            PadGlyphs.Refresh(G.Save.ButtonIcons);
+            if (PadPrompts != padPrompts || Shortcuts.Version != keysVersion || PadGlyphs.Version != glyphsVersion) RefreshPrompts();
             if (camBtn != null && camBtn.gameObject.activeInHierarchy) camBtn.Label.text = "CAM: " + JourneyPlayer.CameraModeNames[G.Journey.CameraMode];
 
             float dt = Clock.UnscaledDelta;

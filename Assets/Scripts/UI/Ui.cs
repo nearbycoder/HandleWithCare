@@ -195,6 +195,7 @@ namespace HWC.UI
             t.raycastTarget = false;
             t.textWrappingMode = TextWrappingModes.Normal;
             t.overflowMode = TextOverflowModes.Overflow;
+            t.spriteAsset = Glyphs.Asset;   // button shapes and check / cross marks, inline
             TextScale.Created++;
             return t;
         }

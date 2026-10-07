@@ -228,7 +228,7 @@ namespace HWC.Gameplay
         }
 
         // Fira Sans has no check or cross marks (they draw as empty boxes): a dot and a multiplication sign
-        static string Mark(bool ok) => ok ? "<color=#2E8B57>\u25CF</color>" : "<color=#A8322A><size=150%><b>\u00D7</b></size></color>";
+        static string Mark(bool ok) => ok ? Glyphs.Check : Glyphs.Cross;
 
         string Detail(LevelDef lv)
         {
@@ -354,6 +354,7 @@ namespace HWC.Gameplay
             ToggleRow(left, "SCREEN SHAKE", -390, "shake");
             ToggleRow(left, "REDUCED MOTION (no slow-mo, fewer particles)", -455, "motion");
             ToggleRow(left, "SHOW PACKING GRID", -520, "grid");
+            iconsBtn = CycleRow(left, "GAMEPAD BUTTON ICONS", -585, CycleIcons);
             ToggleRow(right, "FULLSCREEN", -170, "full");
             windowBtn = CycleRow(right, "WINDOW SIZE", -235, CycleWindow);
             frameBtn = CycleRow(right, "FRAME RATE LIMIT (VSync off)", -300, CycleFrameCap);
@@ -362,9 +363,9 @@ namespace HWC.Gameplay
             ToggleRow(right, "PAUSE WHEN IN THE BACKGROUND", -495, "bgpause");
             ToggleRow(right, "LARGER TEXT (cards, notes, hints)", -560, "text");
             var tl = Ui.Text(p.transform, "tapeLabel", "TAPE DESIGN", 30, Palette.Ink, Ui.Display, TextAlignmentOptions.Left);
-            tl.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -590), new Vector2(400, 40));
+            tl.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -652), new Vector2(400, 40));
             tapeRow = Ui.Rect("tapes", p.transform);
-            tapeRow.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -640), new Vector2(780, 110));
+            tapeRow.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -700), new Vector2(780, 110));
             var back = settingsDone = Ui.Button(p.transform, "back", "DONE", () => { G.Save.Write(); settingsBack?.Invoke(); }, Palette.PostalRed, Palette.Cream, 38);
             back.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 30), new Vector2(260, 76));
             startOverBtn = Ui.Button(p.transform, "startOver", "START OVER", () => { confirm.gameObject.SetActive(true); confirm.SetAsLastSibling(); }, Palette.Cream, Palette.PostalRedDark, 26);
@@ -417,8 +418,17 @@ namespace HWC.Gameplay
         }
 
         // ---- display settings ---------------------------------------------------------------------------
-        UiButton windowBtn, frameBtn;
+        UiButton windowBtn, frameBtn, iconsBtn;
         bool syncing;
+        public UiButton ButtonIconsButton => iconsBtn;
+
+        /// <summary>Gamepad prompts: AUTO (from the pad), XBOX or PLAYSTATION.</summary>
+        void CycleIcons()
+        {
+            G.Save.ButtonIcons = (G.Save.ButtonIcons + 1) % PadGlyphs.SettingNames.Length;
+            PadGlyphs.Refresh(G.Save.ButtonIcons);
+            RefreshDisplayButtons();
+        }
         public UiButton WindowSizeButton => windowBtn;
         public UiButton FrameRateButton => frameBtn;
         public Toggle SettingToggle(string key) { foreach (var (t, k) in toggles) if (k == key) return t; return null; }
@@ -465,6 +475,7 @@ namespace HWC.Gameplay
             windowBtn.SetInteractable(!full);
             frameBtn.Label.text = G.Save.FrameCap > 0 ? $"{G.Save.FrameCap} FPS" : "UNLIMITED";
             frameBtn.SetInteractable(!G.Save.VSync);
+            iconsBtn.Label.text = PadGlyphs.SettingNames[Mathf.Clamp(G.Save.ButtonIcons, 0, PadGlyphs.SettingNames.Length - 1)];
         }
 
         UiButton CycleRow(Transform parent, string label, float y, Action onClick)
