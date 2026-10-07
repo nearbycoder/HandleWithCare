@@ -356,10 +356,11 @@ namespace HWC.Gameplay
             // keyboard
             if (kb != null)
             {
-                bool ctrl = kb.leftCtrlKey.isPressed || kb.rightCtrlKey.isPressed;
-                if (kb.zKey.wasPressedThisFrame) { if (kb.leftShiftKey.isPressed) Redo(); else Undo(); }
-                if (kb.yKey.wasPressedThisFrame) Redo();
-                if (kb.rKey.wasPressedThisFrame || (mouse.scroll.ReadValue().y != 0 && Tool != Tool.None)) RotateHeld();
+                // letters by their label (Z is undo on QWERTZ and AZERTY too); Ctrl+Z and Shift+Z work as well
+                bool shift = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
+                if (Shortcuts.Pressed(kb, 'z')) { if (shift) Redo(); else Undo(); }
+                if (Shortcuts.Pressed(kb, 'y')) Redo();
+                if (Shortcuts.Pressed(kb, 'r') || (mouse.scroll.ReadValue().y != 0 && Tool != Tool.None)) RotateHeld();
                 if (kb.digit1Key.wasPressedThisFrame) SelectMaterial(MaterialSlot.Paper);
                 if (kb.digit2Key.wasPressedThisFrame) SelectMaterial(MaterialSlot.Bubble);
                 if (kb.digit3Key.wasPressedThisFrame) SelectMaterial(MaterialSlot.Foam);
@@ -367,7 +368,6 @@ namespace HWC.Gameplay
                 if (kb.digit5Key.wasPressedThisFrame) SelectMaterial(MaterialSlot.Shelf);
                 if (kb.digit6Key.wasPressedThisFrame) SelectMaterial(MaterialSlot.Strap);
                 if ((kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame) && ReadyToSeal && Tool == Tool.None) G.SealAndShip();
-                _ = ctrl;
             }
 
             // hover over the shelf items

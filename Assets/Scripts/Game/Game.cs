@@ -111,6 +111,7 @@ namespace HWC.Gameplay
             Tutorial.Build(OverlayCanvas.transform);
             Hud.HookReveal(Reveal);
             PadInput.Create(transform);
+            Shortcuts.LogLayout();   // one line in the player log: what this keyboard layout reports
             Packing.Changed += () => { if (Phase == Phase.Packing) keepAt = Time.unscaledTime + KeepDelay; };
             ApplySettings();
         }

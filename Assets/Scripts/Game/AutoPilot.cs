@@ -210,6 +210,7 @@ namespace HWC.Gameplay
             yield return AfterShot();
             g.Hud.SetPaused(false);
             yield return KeyboardRetryLoop();
+            yield return KeyboardLayouts();
             yield return ShotsWritten();
                 Debug.Log("[AutoPilot] done");
             Application.Quit();
@@ -333,6 +334,58 @@ namespace HWC.Gameplay
             yield return Key(UnityEngine.InputSystem.Key.Enter);
             yield return new WaitForSecondsRealtime(0.3f);
             Check(g.Phase == Phase.Packing && g.Level.Number == 2, "Enter on Results goes to the next delivery (and doesn't seal it)");
+        }
+
+        /// <summary>
+        /// Undo and redo follow the key labels. The platform can't be given another layout here without
+        /// changing the desktop's, so the labels are swapped in through Shortcuts.TestLabels and the
+        /// physical keys are pressed with real key events.
+        /// </summary>
+        IEnumerator KeyboardLayouts()
+        {
+            var g = Game.I;
+            Shortcuts.LogLayout();   // what this platform reports for the real keyboard
+            var qwertz = new System.Collections.Generic.Dictionary<Key, string> { { UnityEngine.InputSystem.Key.Y, "z" }, { UnityEngine.InputSystem.Key.Z, "y" } };
+            var azerty = new System.Collections.Generic.Dictionary<Key, string> {
+                { UnityEngine.InputSystem.Key.Q, "a" }, { UnityEngine.InputSystem.Key.A, "q" }, { UnityEngine.InputSystem.Key.W, "z" },
+                { UnityEngine.InputSystem.Key.Z, "w" }, { UnityEngine.InputSystem.Key.Semicolon, "m" }, { UnityEngine.InputSystem.Key.M, "," } };
+            // Russian ЙЦУКЕН: no key is labelled Z or Y, so the US positions are kept
+            var russian = new System.Collections.Generic.Dictionary<Key, string>();
+            string ru = "фисвуапршолдьтщзйкыегмцчня";   // a..z
+            for (int i = 0; i < 26; i++) russian[UnityEngine.InputSystem.Key.A + i] = ru[i].ToString();
+            yield return LayoutCase(g, "US (the platform's names)", null, UnityEngine.InputSystem.Key.Z, UnityEngine.InputSystem.Key.Y, UnityEngine.InputSystem.Key.None, "Z", "Y");
+            yield return LayoutCase(g, "German QWERTZ", qwertz, UnityEngine.InputSystem.Key.Y, UnityEngine.InputSystem.Key.Z, UnityEngine.InputSystem.Key.None, "Z", "Y");
+            yield return LayoutCase(g, "French AZERTY", azerty, UnityEngine.InputSystem.Key.W, UnityEngine.InputSystem.Key.Y, UnityEngine.InputSystem.Key.Z, "Z", "Y");
+            yield return LayoutCase(g, "Russian", russian, UnityEngine.InputSystem.Key.Z, UnityEngine.InputSystem.Key.Y, UnityEngine.InputSystem.Key.None, "Я", "Н");
+            Shot("K1_undo_hint_russian");
+            yield return AfterShot();
+            Shortcuts.TestLabels = null;
+            yield return null;
+        }
+
+        /// <summary>One layout: the undo key empties a one-piece box, the redo key puts the piece back,
+        /// a key that is neither does nothing, and the hints show the labels.</summary>
+        IEnumerator LayoutCase(Game g, string name, System.Collections.Generic.Dictionary<Key, string> labels, Key undoKey, Key redoKey, Key idleKey, string undoHint, string redoHint)
+        {
+            Shortcuts.TestLabels = labels;
+            yield return null;
+            yield return null;
+            g.Packing.ClearAll();
+            yield return null;
+            string empty = SaveData.Serialize(g.CurrentPacking);
+            bool placed = false;
+            foreach (var p in BottomUp(g.Level)) if (g.Packing.DebugPlace(p)) { placed = true; break; }
+            string one = SaveData.Serialize(g.CurrentPacking);
+            if (idleKey != UnityEngine.InputSystem.Key.None) yield return Key(idleKey);
+            bool idleOk = SaveData.Serialize(g.CurrentPacking) == one;
+            yield return Key(undoKey);
+            bool undone = SaveData.Serialize(g.CurrentPacking) == empty;
+            yield return Key(redoKey);
+            bool redone = SaveData.Serialize(g.CurrentPacking) == one;
+            string uh = g.Hud.UndoHint, rh = g.Hud.RedoHint;
+            Check2(placed && undone && redone && idleOk && uh == undoHint && rh == redoHint, "layout",
+                   $"{name}: {undoKey} undoes {(undone ? "yes" : "NO")}, {redoKey} redoes {(redone ? "yes" : "NO")}" +
+                   (idleKey != UnityEngine.InputSystem.Key.None ? $", {idleKey} does nothing {(idleOk ? "yes" : "NO")}" : "") + $"; hints '{uh}' / '{rh}'");
         }
 
         IEnumerator Start()

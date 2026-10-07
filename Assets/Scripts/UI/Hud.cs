@@ -673,6 +673,8 @@ namespace HWC.Gameplay
         }
 
         public UiButton BestButton => bestBtn;
+        public string UndoHint => undoBtn.transform.Find("key")?.GetComponent<TextMeshProUGUI>()?.text;
+        public string RedoHint => redoBtn.transform.Find("key")?.GetComponent<TextMeshProUGUI>()?.text;
 
         static MaterialSlot SlotFor(PieceKind k) => k == PieceKind.Paper ? MaterialSlot.Paper : (k == PieceKind.Bubble ? MaterialSlot.Bubble : MaterialSlot.Foam);
 
@@ -962,14 +964,20 @@ namespace HWC.Gameplay
         TextMeshProUGUI Prompt(TextMeshProUGUI t, string kb, string pad)
         {
             prompts.Add((t, kb, pad));
-            t.text = PadPrompts ? pad : kb;
+            t.text = PadPrompts ? pad : KeyLabel(kb);
             return t;
         }
+
+        /// <summary>A one-letter key hint shows the label of the key that does it on this keyboard layout.</summary>
+        static string KeyLabel(string kb) => kb != null && kb.Length == 1 && kb[0] >= 'A' && kb[0] <= 'Z' ? Shortcuts.Label(kb[0]) : kb;
+
+        int keysVersion = -1;
 
         void RefreshPrompts()
         {
             padPrompts = PadPrompts;
-            foreach (var (t, kb, pad) in prompts) if (t != null) t.text = padPrompts ? pad : kb;
+            keysVersion = Shortcuts.Version;
+            foreach (var (t, kb, pad) in prompts) if (t != null) t.text = padPrompts ? pad : KeyLabel(kb);
             if (packRoot.gameObject.activeSelf && G.Packing.Level != null) RefreshPacking();
         }
 
@@ -984,8 +992,8 @@ namespace HWC.Gameplay
             }
             else if (G.Phase == Phase.Results && resultsRoot.gameObject.activeSelf)
             {
-                if (kb.rKey.wasPressedThisFrame) repackBtn.Press();
-                else if (kb.pKey.wasPressedThisFrame) replayBtn.Press();
+                if (Shortcuts.Pressed(kb, 'r')) repackBtn.Press();
+                else if (Shortcuts.Pressed(kb, 'p')) replayBtn.Press();
                 else if (enter) nextBtn.Press();
             }
         }
@@ -1134,7 +1142,8 @@ namespace HWC.Gameplay
             }
             escConsumed = false;
             UpdateShortcuts(kb);
-            if (PadPrompts != padPrompts) RefreshPrompts();
+            Shortcuts.Refresh(Keyboard.current);
+            if (PadPrompts != padPrompts || Shortcuts.Version != keysVersion) RefreshPrompts();
             if (camBtn != null && camBtn.gameObject.activeInHierarchy) camBtn.Label.text = "CAM: " + JourneyPlayer.CameraModeNames[G.Journey.CameraMode];
 
             float dt = Clock.UnscaledDelta;

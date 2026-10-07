@@ -156,7 +156,7 @@ namespace HWC.Gameplay
                 if (kb.digit2Key.wasPressedThisFrame) Speed = 0.5f;
                 if (kb.digit3Key.wasPressedThisFrame) Speed = 1f;
                 if (kb.digit4Key.wasPressedThisFrame) Speed = 2f;
-                if (kb.cKey.wasPressedThisFrame) CameraMode = (CameraMode + 1) % 3;
+                if (Shortcuts.Pressed(kb, 'c')) CameraMode = (CameraMode + 1) % 3;
             }
 
             SlowMo = DirectorScale(out bool focusing);
