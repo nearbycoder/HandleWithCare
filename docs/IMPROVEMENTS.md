@@ -798,3 +798,46 @@ Info.plist. **Not verifiable here:** running it on a Mac.
 
 Rumble, a physical controller or Steam Deck, a real non-US keyboard, real alt-tab focus loss, the
 Mac build on a Mac.
+
+## Round 7 results (2026-10-07)
+
+| Item | Commit | Verified by |
+| --- | --- | --- |
+| R7-A. The bench is framed around the HUD | f709ef0 | New `layoutpilot.sh`: 25 benches × 4 screen sizes × first visit / retry × LARGER TEXT off / on (400 benches). Framed as before, up to 57 box cells and shelf cubbies per configuration were under a panel (9 of 24 cells on The Vase and the Dragon at 1920×1080 with LARGER TEXT); framed now, none in any configuration. On a first visit cells keep 99–100% of their size. Framing takes 0.1–16 ms (load 23–32). `tour.sh`, `padpilot.sh`, `autopilot.sh`, `hintpilot.sh`, `savepilot.sh` all green on this commit alone |
+| R7-B. The review says what you earned | c613936 | `tour.sh`, real key events: with 15 stars seeded, shipping delivery 5's reference reads "+1 STAR: UNDER BUDGET · 16 of 75 stars · FRAGILE tape at 24" with a Teal Polka sticker; `T` puts it on (ON YOUR BOXES); REPLAY and back shows the same; the next box is sealed with it; a trip with nothing new shows only the total and no sticker. `padpilot.sh`: the d-pad reaches USE IT, A presses it. `savepilot.sh`: USE IT clicked with the mouse is on disk and survives a restart |
+| R7-C. The LAST TRIP report holds its place | 5e59f37 | `savepilot.sh` launch 6: the first frame of delivery 5's bench after a restart shows "Mabel is reading the last trip…", then the same report, trails and hash as round 6 checks |
+| R7-D. Budget hints tested on 24 of 25 | f15f7f1 | `simcheck check` ALL OK: a packing that misses only the budget star on 24 deliveries (10, 12 and 22 found by the new seeded random phase); on A Cup for Edna SimCheck checks it can't happen (everything on offer costs 5, par 5). `hintpilot.sh` ships all 24 (two stars, hash match, report and budget hints) |
+| R7-E. Local macOS build refreshed | (build only) | 0 errors; universal x86_64 + arm64 Mach-O; `com.nearbycoder.handlewithcare`, 0.2.0; this round's code is in `Assembly-CSharp.dll`. **Not run on a Mac.** |
+
+After the last commit, on one build: `simcheck check` ALL OK (25), `autopilot.sh` 25/25, `hintpilot.sh`
+51/51 (26 as before, 24 budget runs and their summary), `padpilot.sh` 64/64, `tour.sh` 57 PASS,
+`savepilot.sh` 75/75 over seven launches, `layoutpilot.sh` 16/16. No exceptions in any player log, no
+zero-byte screenshots, and every self-test reported the real `~/.config/unity3d/Mossbury Parcel Post/`
+unchanged. Load average during the input-driven runs: 17–27. Screenshots: `docs/media/improvements/round7/`.
+
+Limits and notes:
+
+- **The 80% aim was missed in the tightest case.** At 1920×1080 with LARGER TEXT, a LAST TRIP report of
+  three lines that each wrap, and Mabel's tallest note, the 6×4 boxes of The Vase and the Dragon and
+  Moving Day keep 76–77% of their cell size (83 px, against 109 px when a third of them were under the
+  report). The room between the report and ASK MABEL is what limits it; moving the shelf closer to the
+  box or narrowing the left column would gain more, and both were left alone. `layoutpilot.sh` guards
+  75% and says when a configuration is under 80%. Every other configuration keeps 85% or more.
+- **The camera moves when the HUD changes.** A first visit and a retry frame differently (the report
+  needs room), and asking Mabel for a taller note, or a report longer than three lines, glides the
+  camera to fit. The item card, the shift title card and toasts are not avoided: they come and go,
+  and the item card lets clicks through.
+- **The trailer** was recorded with the old framing; its packing shots would come out a little
+  different if it were captured again (re-cutting it is the owner's call).
+- **The tape sticker** only appears on the trip that crosses a threshold (8, 16, 24, 34, 48 stars).
+  Saves that already passed one keep finding those tapes in Settings, as before.
+- **History.** B and C were first committed with misplaced blocks (a zero-context partial staging) and
+  re-committed before anything else happened; the final tree is identical to the one tested. A was
+  tested on its own build; B, C and D together on the final build, not one by one.
+- Unity's batch builds left their usual sockets in /tmp; they're shared with other sessions and were
+  left alone.
+
+Still not verified here: a physical controller (Xbox-style or PlayStation) or Steam Deck, a real
+non-US keyboard, real alt-tab focus loss, a power cut mid-write, and the Mac build on a Mac. Still for
+the owner: Windows Build Support, Mac signing and notarization, publishing a release, a license, and
+re-cutting the trailer.
