@@ -223,11 +223,21 @@ namespace HWC.Gameplay
             // three stars on delivery 1: that packing becomes its best
             g.Save.SeenTips.Add("basics");
             g.Save.SeenTips.Add("shift_1");
+            // two deliveries already starred: delivery 1's three stars make 9, which unlocks the Candy Stripe tape (8)
+            foreach (int n in new[] { 2, 3 })
+                g.Save.Records.Add(new SaveData.LevelRecord { Number = n, Stars = 3, Delivered = true, UnderBudget = true, Careful = true, Attempts = 1 });
             yield return RunLevel(1, "ref", false);
             string best = SaveData.Serialize(g.LastRun.Packing);
             SaveCheck(g.LastRun.Outcome.Stars == 3 && g.Save.Get(1)?.BestPacking == best && g.Save.Get(1)?.BestPackingStars == 3,
                       "a three-star trip is kept as the best packing");
             File.WriteAllText(ExpectedFile("best"), best);
+            yield return new WaitForSecondsRealtime(1.9f);
+            SaveCheck(g.Hud.TapeStickerShowing && g.Hud.ProgressLine.Contains("9 of 75 stars"), $"9 stars in all: the review shows a NEW TAPE sticker ({g.Hud.ProgressLine})");
+            yield return ClickButton(g.Hud.TapeUseButton);
+            yield return new WaitForSecondsRealtime(0.3f);
+            SaveData withTape = null;
+            try { withTape = JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath)); } catch { }
+            SaveCheck(g.Save.Tape == "stripe" && withTape?.Tape == "stripe", $"clicking USE IT puts the Candy Stripe tape on, and saves it ('{withTape?.Tape}')");
         }
 
         IEnumerator SaveStep6(Game g)
@@ -374,6 +384,7 @@ namespace HWC.Gameplay
         {
             string best = File.Exists(ExpectedFile("best")) ? File.ReadAllText(ExpectedFile("best")) : null;
             SaveCheck(best != null && g.Save.Get(1)?.BestPacking == best, "the best packing survives a restart");
+            SaveCheck(g.Save.Tape == "stripe", $"the tape put on with USE IT survives a restart ('{g.Save.Tape}')");
             yield return new WaitForSecondsRealtime(0.9f);
             g.StartLevel(1);                                  // what picking it in the delivery log does
             yield return new WaitForSecondsRealtime(0.6f);

@@ -348,9 +348,29 @@ namespace HWC.Gameplay
             Journey.Play(rec, Station.Box, OnJourneyDone);
         }
 
+        /// <summary>What a trip earned, for the review: the delivery's stars and the total before and after,
+        /// and a tape design it unlocked.</summary>
+        public sealed class TripGain
+        {
+            public Recording Run;
+            public int StarsBefore, StarsAfter, TotalBefore, TotalAfter;
+            public bool[] GoalsBefore, GoalsAfter;   // delivered, under budget, handled with care
+            public string NewTape;                   // the tape id the trip unlocked, or null
+        }
+        public TripGain LastGain;
+
+        static bool[] Goals(SaveData.LevelRecord r) => new[] { r != null && r.Delivered, r != null && r.Delivered && r.UnderBudget, r != null && r.Delivered && r.Careful };
+
         void OnJourneyDone()
         {
+            var before = Save.Get(Level.Number);
+            var gain = new TripGain { Run = LastRun, StarsBefore = before?.Stars ?? 0, TotalBefore = Save.TotalStars, GoalsBefore = Goals(before) };
             Save.Record(Level, LastRun.Outcome, LastRun.Packing, LastRun.Hash);
+            var after = Save.Get(Level.Number);
+            gain.StarsAfter = after?.Stars ?? 0; gain.TotalAfter = Save.TotalStars; gain.GoalsAfter = Goals(after);
+            foreach (var (id, _, req) in HWC.Gameplay.Menus.Tapes)
+                if (gain.TotalBefore < req && req <= gain.TotalAfter) gain.NewTape = id;
+            LastGain = gain;
             if (SkipReveal) { ShowResultsNow(); return; }
             Phase = Phase.Reveal;
             Hud.ShowReveal();

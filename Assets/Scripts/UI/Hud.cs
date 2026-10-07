@@ -1081,7 +1081,7 @@ namespace HWC.Gameplay
             var dim = Ui.Panel(resultsRoot, "dim", new Color(0.08f, 0.05f, 0.04f, 0.45f), Ui.Rounded(2));
             dim.rectTransform.Stretch();
             var p = Ui.Panel(resultsRoot, "panel", Palette.Cream, Ui.Rounded(18, 4));
-            p.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 10), new Vector2(980, 760));
+            p.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 10), new Vector2(980, 810));
             Ui.Shadow(p, 10);
             resTitle = Ui.Text(p.transform, "title", "", 84, Palette.Ink, Ui.Display);
             resTitle.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -26), new Vector2(900, 100));
@@ -1090,15 +1090,17 @@ namespace HWC.Gameplay
             resStars = Ui.Rect("stars", p.transform);
             resStars.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -310), new Vector2(900, 170));
             var rev = Ui.Panel(p.transform, "review", Palette.Paper, Ui.Rounded(12, 2));
-            rev.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -500), new Vector2(860, 130));
+            rev.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -530), new Vector2(860, 130));
             resReview = Ui.Text(rev.transform, "text", "", 28, Palette.Ink, Ui.Italic, TextAlignmentOptions.Left);
             resReview.rectTransform.Stretch(24, 24, 14, 40);
             resCustomer = Ui.Text(rev.transform, "cust", "", 22, Palette.InkSoft, Ui.Bold, TextAlignmentOptions.BottomRight);
             resCustomer.rectTransform.Stretch(24, 24, 10, 12);
             resExpert = Ui.Text(rev.transform, "expert", "", 20, Palette.InkSoft, Ui.Bold, TextAlignmentOptions.BottomLeft);
             resExpert.rectTransform.Stretch(24, 24, 10, 12);
-            resCost = Ui.Text(p.transform, "cost", "", 22, Palette.InkSoft, Ui.Bold);
-            resCost.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -478), new Vector2(860, 30));
+            // what the trip earned: a new star for this delivery, the total, the next tape
+            resCost = Ui.Text(p.transform, "progress", "", 22, Palette.InkSoft, Ui.Bold);
+            resCost.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -486), new Vector2(860, 36));
+            BuildTapeSticker(p.rectTransform);
 
             repackBtn = Ui.Button(p.transform, "repack", "REPACK", () => G.Repack(), Palette.Teal, Palette.Cream, 40);
             repackBtn.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-300, 34), new Vector2(260, 84));
@@ -1117,6 +1119,75 @@ namespace HWC.Gameplay
         }
 
         RectTransform resultsPanel;
+
+        // ---- a trip that unlocks a tape design says so, and the tape can go on the next box at once ----------
+        RectTransform tapeSticker;
+        Image tapeSwatch;
+        TextMeshProUGUI tapeName, tapeSub;
+        UiButton tapeUse;
+        string stickerTape;
+        bool stickerPopped;
+        public UiButton TapeUseButton => tapeUse;
+        public bool TapeStickerShowing => tapeSticker.gameObject.activeSelf;
+        public string ProgressLine => resCost.text;
+
+        void BuildTapeSticker(RectTransform panel)
+        {
+            var st = Ui.Panel(panel, "newTape", Palette.Sticky, Ui.Rounded(6));
+            tapeSticker = st.rectTransform;
+            tapeSticker.Place(new Vector2(1, 1), new Vector2(0, 1), new Vector2(12, -150), new Vector2(280, 290));
+            tapeSticker.localRotation = Quaternion.Euler(0, 0, -3f);
+            Ui.Shadow(st, 6, 0.25f);
+            var h = Ui.Text(tapeSticker, "h", "NEW TAPE!", 40, Palette.PostalRed, Ui.Display);
+            h.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -12), new Vector2(260, 48));
+            tapeSwatch = Ui.Icon(tapeSticker, "swatch", null, Color.white);
+            tapeSwatch.preserveAspect = false;
+            tapeSwatch.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -66), new Vector2(240, 58));
+            tapeName = Ui.Text(tapeSticker, "name", "", 30, Palette.Ink, Ui.Display);
+            tapeName.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -130), new Vector2(260, 38));
+            tapeSub = Ui.Text(tapeSticker, "sub", "", 20, Palette.InkSoft, Ui.Italic);
+            tapeSub.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -168), new Vector2(260, 28));
+            tapeUse = Ui.Button(tapeSticker, "use", "USE IT", UseNewTape, Palette.Teal, Palette.Cream, 30);
+            tapeUse.Image.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 18), new Vector2(220, 62));
+            KeyHint(tapeUse, "T", "");
+            tapeSticker.gameObject.SetActive(false);
+        }
+
+        void UseNewTape()
+        {
+            if (stickerTape == null) return;
+            G.Save.Tape = stickerTape;
+            G.Save.Write();
+            RefreshTapeUse();
+        }
+
+        void RefreshTapeUse()
+        {
+            bool inUse = G.Save.Tape == stickerTape;
+            tapeUse.Label.text = inUse ? "ON YOUR BOXES" : "USE IT";
+            tapeUse.Label.fontSize = inUse ? 24 : 30;
+            tapeUse.SetInteractable(!inUse);
+        }
+
+        /// <summary>The line under the stars: a star this trip added to the delivery, the total, the next tape.</summary>
+        static string ProgressText(Game.TripGain gain, int total, int max)
+        {
+            var sb = new System.Text.StringBuilder();
+            if (gain != null && gain.StarsAfter > gain.StarsBefore)
+            {
+                int d = gain.StarsAfter - gain.StarsBefore;
+                string[] goal = { "DELIVERED", "UNDER BUDGET", "HANDLED WITH CARE" };
+                string which = null;
+                if (d == 1) for (int i = 0; i < 3; i++) if (gain.GoalsAfter[i] && !gain.GoalsBefore[i]) which = goal[i];
+                sb.Append($"<color=#1F7A6F>+{d} STAR{(d > 1 ? "S" : "")}{(which != null && gain.StarsBefore > 0 ? ": " + which : "")}</color>   ·   ");
+            }
+            sb.Append($"{total} of {max} stars");
+            string next = null; int at = 0;
+            foreach (var (_, name, req) in Menus.Tapes) if (req > total) { next = name; at = req; break; }
+            sb.Append(next != null ? $"   ·   {next.ToUpperInvariant()} tape at {at}" : "   ·   every tape unlocked");
+            return sb.ToString();
+        }
+
         readonly List<(Image img, bool got, float delay)> starAnims = new List<(Image, bool, float)>();
         float resultsT;
         bool confettiPending;
@@ -1177,6 +1248,7 @@ namespace HWC.Gameplay
                 if (Shortcuts.Pressed(kb, 'r')) repackBtn.Press();
                 else if (Shortcuts.Pressed(kb, 'p')) replayBtn.Press();
                 else if (enter) nextBtn.Press();
+                else if (Shortcuts.Pressed(kb, 't') && tapeSticker.gameObject.activeSelf) tapeUse.Press();
             }
         }
 
@@ -1222,7 +1294,19 @@ namespace HWC.Gameplay
             }
             resReview.text = "“" + Review(lv, rec) + "”";
             resCustomer.text = "— " + lv.Customer;
-            resCost.text = "";
+            var gain = G.LastGain != null && G.LastGain.Run == rec ? G.LastGain : null;
+            resCost.text = ProgressText(gain, G.Save.TotalStars, Levels.All.Count * 3);
+            stickerTape = gain?.NewTape;
+            tapeSticker.gameObject.SetActive(stickerTape != null);
+            stickerPopped = false;
+            tapeSticker.localScale = Vector3.zero;
+            if (stickerTape != null)
+            {
+                foreach (var (id, name, req) in Menus.Tapes)
+                    if (id == stickerTape) { tapeName.text = name.ToUpperInvariant(); tapeSub.text = $"for {req} stars"; }
+                tapeSwatch.sprite = Ui.FromTexture(TextureLibrary.Get("tape_" + stickerTape));
+                RefreshTapeUse();
+            }
             bool expert = o.Stars == 3 && o.Cost <= lv.Expert;
             resExpert.text = expert ? $"<color=#1F7A6F>EXPERT!</color>  Matched Mabel's best ({lv.Expert})" : (o.Delivered ? $"Mabel's best: {lv.Expert}" : "");
             nextBtn.SetInteractable(o.Delivered || G.Save.IsDelivered(lv.Number));
@@ -1357,6 +1441,13 @@ namespace HWC.Gameplay
                     float sc = k < 1f ? Mathf.Lerp(2.2f, 1f, 1f - Mathf.Pow(1f - k, 2f)) : 1f;
                     img.transform.localScale = Vector3.one * Mathf.Max(0.001f, sc);
                     img.transform.localRotation = Quaternion.Euler(0, 0, k < 1f ? (1f - k) * 30f : 0);
+                }
+                // the new tape sticker slaps on after the stars
+                if (tapeSticker.gameObject.activeSelf)
+                {
+                    float tk = (resultsT - 1.5f) / 0.25f;
+                    if (tk >= 0f && !stickerPopped) { stickerPopped = true; Sfx("stamp_good", 0.9f); }
+                    tapeSticker.localScale = Vector3.one * (tk <= 0f ? 0.0001f : tk < 1f ? Mathf.Lerp(1.7f, 1f, 1f - Mathf.Pow(1f - tk, 2f)) : 1f);
                 }
                 if (confettiPending && resultsT > 1.3f)
                 {

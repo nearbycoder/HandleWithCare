@@ -216,6 +216,7 @@ namespace HWC.Gameplay
             yield return WatchFromBench();
             yield return KeyboardLayouts();
             yield return EscapeMenus();
+            yield return EarnedOnReview();
             yield return ShotsWritten();
                 Debug.Log("[AutoPilot] done");
             Application.Quit();
@@ -543,6 +544,7 @@ namespace HWC.Gameplay
             {
                 yield return PadTour();
                 yield return PadWatch();
+                yield return PadUseTape();
                 yield return LargerTextTour();
                 yield return NoteFitCheck();
                 yield return PlayStationPrompts();

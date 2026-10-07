@@ -154,9 +154,12 @@ namespace HWC.Visuals
             }
         }
 
+        public string TapeStyle { get; private set; }
+
         /// <summary>Swaps the tape texture (cosmetic unlocks).</summary>
         public void SetTapeStyle(string style)
         {
+            TapeStyle = style;
             if (tape == null) return;
             var mat = TextureLibrary.MaterialFor("tape_" + style);
             foreach (var r in tape.GetComponentsInChildren<Renderer>(true))

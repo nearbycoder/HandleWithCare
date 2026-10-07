@@ -61,7 +61,7 @@ Pick an item off the shelf, drop it in the box, paint padding around it, seal, a
 | During the journey | `Space` pause, `Enter` skip, `1`–`4` playback speed |
 | Replay | Click the timeline to jump, `N` or NEXT TROUBLE jumps to just before the next red mark, speed buttons, `C` or the CAM button cycles director / close-up / wide |
 | Unboxing | `Enter`, `Space` or `Esc` skips to the review |
-| Review | `R` repack, `P` replay, `Enter` next delivery |
+| Review | `R` repack, `P` replay, `Enter` next delivery, `T` put a newly unlocked tape on your boxes |
 
 **Gamepad (and Steam Deck).** Pick up a controller and a cursor appears: the left stick moves it,
 the d-pad jumps it to the next box cell, item or button. Everything the mouse does works the same. The
@@ -138,7 +138,10 @@ and up to three stars:
 - **Handled with care**: no item ever went above 65% of its limit, and nothing toppled.
 
 Stars add up across attempts and unlock six tape designs: Kraft, Candy Stripe, Teal Polka, FRAGILE,
-Dragon Scale and Gold. For the stubborn there is also **Mabel's best**: the cheapest three-star packing
+Dragon Scale and Gold. The review says when a trip earns the delivery a new star ("+1 STAR: UNDER
+BUDGET"), how many stars you have and where the next tape is; when a trip unlocks a tape, a NEW TAPE
+sticker's **USE IT** (`T`) puts it on every box from then on (Settings still lets you pick any
+unlocked tape). For the stubborn there is also **Mabel's best**: the cheapest three-star packing
 the solver has found for each delivery, shown under the materials meter. Match it with three stars
 and the delivery log stamps the order EXPERT.
 
@@ -273,24 +276,27 @@ Tools/padpilot.sh               # gamepad only (a virtual pad at 1280x800): titl
                                 # PlayStation prompts with a virtual DualShock 4 and the BUTTON ICONS setting;
                                 # then LARGER TEXT: bigger on four screens, and nothing that fit overflows;
                                 # every hint note of every delivery at a readable size, off and on; WATCH
-                                # on the bench with the d-pad, RB to the trouble, B back to the box
+                                # on the bench with the d-pad, RB to the trouble, B back to the box; USE IT
+                                # on a NEW TAPE sticker with the d-pad
 Tools/savepilot.sh              # seven launches on one save, saving switched on: settings, progress and an
                                 # unsealed box survive a restart; a half-written save comes back from the
                                 # backup; garbage with no backup starts fresh; MY BEST after a restart;
                                 # START OVER (cancel, then confirm: settings and a copy of the old save kept);
                                 # a save in v0.1.0's format gets MY BEST from its last boxes shipped; a failed
-                                # trip's report, trails and hint focus come back after a restart
+                                # trip's report, trails and hint focus come back after a restart; a tape put
+                                # on with USE IT survives a restart
 Tools/tour.sh                   # screenshots of the menus and a delivery played with real input events,
                                 # then the whole retry loop (R, Space, Enter, P) with the keyboard only,
                                 # undo/redo with German, French and Russian key labels swapped in,
-                                # Esc backing out of every menu, and WATCH / NEXT TROUBLE from the bench
+                                # Esc backing out of every menu, WATCH / NEXT TROUBLE from the bench, and
+                                # the review's new star and NEW TAPE sticker (T puts the tape on)
+Tools/layoutpilot.sh            # every bench at 1920x1080, 1280x800, 2560x1080 and 1600x1200, on a first visit
+                                # and on a retry (LAST TRIP report, Mabel's tallest note), LARGER TEXT off and
+                                # on: no box cell or shelf cubby under a HUD panel, and the cells' size
 ```
 
 The self-tests write their screenshots and player logs to `Logs/selftest/<name>/` (gitignored) and fail
 if a screenshot never reaches the disk. They also point `XDG_CONFIG_HOME` into that folder, so the
-Tools/layoutpilot.sh            # every bench at 1920x1080, 1280x800, 2560x1080 and 1600x1200, on a first visit
-                                # and on a retry (LAST TRIP report, Mabel's tallest note), LARGER TEXT off and
-                                # on: no box cell or shelf cubby under a HUD panel, and the cells' size
 player's Unity prefs and any save stay there, and they fail if the real
 `~/.config/unity3d/Mossbury Parcel Post/` changed during the run.
 
