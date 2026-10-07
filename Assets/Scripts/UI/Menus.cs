@@ -349,6 +349,7 @@ namespace HWC.Gameplay
             ToggleRow(right, "VSYNC", -365, "vsync");
             ToggleRow(right, "HIGH QUALITY GRAPHICS (off for slower computers)", -430, "gfx");
             ToggleRow(right, "PAUSE WHEN IN THE BACKGROUND", -495, "bgpause");
+            ToggleRow(right, "LARGER TEXT (cards, notes, hints)", -560, "text");
             var tl = Ui.Text(p.transform, "tapeLabel", "TAPE DESIGN", 30, Palette.Ink, Ui.Display, TextAlignmentOptions.Left);
             tl.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -590), new Vector2(400, 40));
             tapeRow = Ui.Rect("tapes", p.transform);
@@ -476,6 +477,7 @@ namespace HWC.Gameplay
                     case "vsync": G.Save.VSync = on; G.ApplyDisplay(); if (frameBtn != null) RefreshDisplayButtons(); break;
                     case "bgpause": G.Save.PauseInBackground = on; break;
                     case "gfx": G.Save.HighQuality = on; GraphicsQuality.Apply(on); break;
+                    case "text": G.Save.LargerText = on; TextScale.Set(on); break;
                 }
                 G.Hud.Sfx("click", 0.6f);
             });
@@ -493,7 +495,8 @@ namespace HWC.Gameplay
             foreach (var (t, key) in toggles)
             {
                 bool v = key == "shake" ? G.Save.ScreenShake : key == "motion" ? G.Save.ReducedMotion : key == "grid" ? G.Save.ShowGrid
-                    : key == "gfx" ? G.Save.HighQuality : key == "vsync" ? G.Save.VSync : key == "bgpause" ? G.Save.PauseInBackground : G.Save.Fullscreen;
+                    : key == "gfx" ? G.Save.HighQuality : key == "vsync" ? G.Save.VSync : key == "bgpause" ? G.Save.PauseInBackground
+                    : key == "text" ? G.Save.LargerText : G.Save.Fullscreen;
                 syncing = true;
                 t.isOn = !v;
                 t.isOn = v;

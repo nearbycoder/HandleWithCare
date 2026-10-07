@@ -7,6 +7,8 @@ using HWC.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
+using TMPro;
+using System.Collections.Generic;
 
 namespace HWC.Gameplay
 {
@@ -397,6 +399,7 @@ namespace HWC.Gameplay
             if (pad)
             {
                 yield return PadTour();
+                yield return LargerTextTour();
                 yield return ShotsWritten();
                 Debug.Log("[AutoPilot] done");
                 yield return new WaitForSecondsRealtime(0.3f);
@@ -578,6 +581,125 @@ namespace HWC.Gameplay
         static bool Near(Vector2 a, Vector2 b) => (a - b).sqrMagnitude < 9f;
 
         /// <summary>Presses a d-pad direction until the cursor sits on the target (or gives up).</summary>
+        /// <summary>D-pad until the cursor is on this control.</summary>
+        IEnumerator PadOnto(RectTransform rt, int maxSteps = 16)
+        {
+            var target = RectScreen(rt);
+            for (int i = 0; i < maxSteps && !RectTransformUtility.RectangleContainsScreenPoint(rt, PadInput.I.CursorPosition, null); i++)
+            {
+                var d = target - PadInput.I.CursorPosition;
+                GamepadButton b = Mathf.Abs(d.x) > Mathf.Abs(d.y) ? (d.x > 0 ? GamepadButton.DpadRight : GamepadButton.DpadLeft) : (d.y > 0 ? GamepadButton.DpadUp : GamepadButton.DpadDown);
+                yield return PadButton(b);
+            }
+        }
+
+        // ---- LARGER TEXT, at the Steam Deck's 1280x800, with the pad only ------------------------------
+
+        /// <summary>Text drawn outside its own rectangle (TextMeshPro's bounds against the rect, less margins).</summary>
+        static bool Overflows(TextMeshProUGUI t)
+        {
+            var b = t.textBounds;
+            if (b.size.x <= 0.01f || string.IsNullOrWhiteSpace(t.text)) return false;
+            var r = t.rectTransform.rect;
+            var m = t.margin;
+            const float slack = 1.5f;
+            return b.min.x < r.xMin + m.x - slack || b.max.x > r.xMax - m.z + slack || b.min.y < r.yMin + m.w - slack || b.max.y > r.yMax - m.y + slack;
+        }
+
+        /// <summary>On the screen showing now: with the setting on, the small texts are larger (never smaller)
+        /// and none overflows its rectangle that didn't with the setting off.</summary>
+        IEnumerator TextCheck(string screen)
+        {
+            var off = new Dictionary<TextMeshProUGUI, (float size, bool over)>();
+            TextScale.Set(false);
+            yield return null; yield return null;
+            foreach (var t in TextScale.SmallTexts()) { t.ForceMeshUpdate(); off[t] = (t.fontSize, Overflows(t)); }
+            TextScale.Set(true);
+            yield return null; yield return null;
+            int n = 0, grew = 0; float sum = 0, most = 1f;
+            var bad = new List<string>();
+            foreach (var t in TextScale.SmallTexts())
+            {
+                if (!off.TryGetValue(t, out var o) || string.IsNullOrWhiteSpace(t.text)) continue;
+                t.ForceMeshUpdate();
+                float r = t.fontSize / Mathf.Max(0.01f, o.size);
+                n++; sum += r; most = Mathf.Max(most, r);
+                if (r > 1.02f) grew++;
+                if (t.fontSize < o.size - 0.05f) bad.Add($"{t.name} shrank {o.size:0.#} -> {t.fontSize:0.#}");
+                if (Overflows(t) && !o.over) bad.Add($"{t.name} overflows: '{t.text.Replace("\n", " ")}'");
+            }
+            Check2(grew > 0 && bad.Count == 0, "text", $"{screen}: {grew} of {n} small texts larger (mean x{(n > 0 ? sum / n : 1f):0.00}, most x{most:0.00}), new overflows {bad.Count}{(bad.Count > 0 ? ": " + string.Join("; ", bad) : "")}");
+        }
+
+        IEnumerator LargerTextTour()
+        {
+            var g = Game.I;
+            // switch it on in Settings (opened from pause) with the d-pad and A
+            yield return PadButton(GamepadButton.Start);
+            yield return new WaitForSecondsRealtime(0.3f);
+            yield return PadButton(GamepadButton.DpadDown);
+            yield return PadButton(GamepadButton.DpadDown);
+            yield return PadButton(GamepadButton.South);          // SETTINGS
+            yield return new WaitForSecondsRealtime(0.6f);
+            var toggle = (RectTransform)g.Menus.SettingToggle("text").transform;
+            yield return PadOnto(toggle);
+            yield return PadButton(GamepadButton.South);
+            yield return new WaitForSecondsRealtime(0.3f);
+            Check2(TextScale.Larger && g.Save.LargerText, "text", "the d-pad reaches LARGER TEXT and A switches it on");
+            yield return TextCheck("settings");
+            Shot("T1_settings_larger");
+            yield return AfterShot();
+            yield return PadButton(GamepadButton.East);
+            yield return new WaitForSecondsRealtime(0.3f);
+            yield return PadButton(GamepadButton.East);
+            yield return new WaitForSecondsRealtime(0.4f);
+
+            // the bench: order card, Mabel's hint and an item card
+            var cam = g.Rig.Cam;
+            Vector2 item = Vector2.zero;
+            foreach (var t in g.Packing.TrayPositions) item = cam.WorldToScreenPoint(t + Vector3.up * 0.06f);
+            yield return PadTo(item);
+            yield return new WaitForSecondsRealtime(0.3f);
+            yield return TextCheck("packing (order card, hint note, item card)");
+            Shot("T2_packing_larger");
+            yield return AfterShot();
+
+            // the delivery log with a card's detail line
+            yield return PadButton(GamepadButton.Start);
+            yield return new WaitForSecondsRealtime(0.3f);
+            for (int i = 0; i < 3; i++) yield return PadButton(GamepadButton.DpadDown);
+            yield return PadButton(GamepadButton.South);          // DELIVERY LOG
+            yield return new WaitForSecondsRealtime(0.6f);
+            for (int i = 0; i < 8 && !g.Menus.SelectDetailText.Contains("01  "); i++) yield return PadButton(GamepadButton.DpadUp);
+            yield return new WaitForSecondsRealtime(0.2f);
+            yield return TextCheck("delivery log");
+            Shot("T3_log_larger");
+            yield return AfterShot();
+            yield return PadButton(GamepadButton.East);
+            yield return new WaitForSecondsRealtime(0.3f);
+            yield return PadButton(GamepadButton.East);
+            yield return new WaitForSecondsRealtime(0.3f);
+
+            // a review: delivery 1 with its reference packing, shipped with View
+            if (!g.Save.SeenTips.Contains("basics")) g.Save.SeenTips.Add("basics");
+            g.StartLevel(1);
+            yield return new WaitForSecondsRealtime(0.5f);
+            g.Packing.ClearAll();
+            foreach (var p in BottomUp(g.Level)) g.Packing.DebugPlace(p);
+            yield return PadButton(GamepadButton.Select);
+            yield return WaitPhase(Phase.Journey, 6f);
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return PadButton(GamepadButton.East);
+            yield return WaitPhase(Phase.Reveal, 3f);
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return PadButton(GamepadButton.East);
+            yield return WaitPhase(Phase.Results, 3f);
+            yield return new WaitForSecondsRealtime(1.2f);
+            yield return TextCheck("results");
+            Shot("T4_results_larger");
+            yield return AfterShot();
+        }
+
         IEnumerator PadTo(Vector2 target, int maxSteps = 12)
         {
             for (int i = 0; i < maxSteps && !Near(PadInput.I.CursorPosition, target); i++)

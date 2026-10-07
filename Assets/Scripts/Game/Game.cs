@@ -120,6 +120,7 @@ namespace HWC.Gameplay
         {
             Rig.ShakeEnabled = Save.ScreenShake;
             Fx.Reduced = Save.ReducedMotion;
+            TextScale.Set(Save.LargerText);
             GraphicsQuality.Apply(Save.HighQuality);
             Menus.ApplyAudio();
             ApplyDisplay();

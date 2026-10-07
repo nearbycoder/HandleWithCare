@@ -41,6 +41,7 @@ namespace HWC.UI
             s.referenceResolution = new Vector2(1920, 1080);
             s.matchWidthOrHeight = 0.5f;
             go.AddComponent<GraphicRaycaster>();
+            go.AddComponent<TextScale>();
             return c;
         }
 
@@ -194,6 +195,7 @@ namespace HWC.UI
             t.raycastTarget = false;
             t.textWrappingMode = TextWrappingModes.Normal;
             t.overflowMode = TextOverflowModes.Overflow;
+            TextScale.Created++;
             return t;
         }
 
@@ -224,6 +226,74 @@ namespace HWC.UI
                 b.Label = t;
             }
             return b;
+        }
+    }
+
+    /// <summary>
+    /// LARGER TEXT: small UI text (24 units or less) grows by up to 30% where its box has room, and never
+    /// goes below its normal size. TextMeshPro's auto-size picks the largest size that fits, so a text
+    /// only grows as far as its own rectangle allows.
+    /// </summary>
+    public sealed class TextScale : MonoBehaviour
+    {
+        public const float SmallText = 24f, Grow = 1.3f;
+        public static bool Larger { get; private set; }
+        public static int Created;   // texts made so far (Ui.Text): new ones get the setting too
+        static int version;
+
+        struct Normal { public bool Auto; public float Size, Min, Max; }
+        static readonly Dictionary<TextMeshProUGUI, Normal> normal = new Dictionary<TextMeshProUGUI, Normal>();
+        int seenCreated = -1, seenVersion = -1;
+
+        public static void Set(bool on)
+        {
+            if (on == Larger) return;
+            Larger = on;
+            version++;
+        }
+
+        void LateUpdate()
+        {
+            if (seenCreated == Created && seenVersion == version) return;
+            seenCreated = Created; seenVersion = version;
+            foreach (var t in GetComponentsInChildren<TextMeshProUGUI>(true)) Apply(t);
+            if (normal.Count > 4000)   // forget texts that were destroyed (screens rebuilt over a long session)
+            {
+                var dead = new List<TextMeshProUGUI>();
+                foreach (var k in normal.Keys) if (k == null) dead.Add(k);
+                foreach (var k in dead) normal.Remove(k);
+            }
+        }
+
+        static void Apply(TextMeshProUGUI t)
+        {
+            if (!normal.TryGetValue(t, out var n))
+            {
+                n = new Normal { Auto = t.enableAutoSizing, Size = t.fontSize, Min = t.fontSizeMin, Max = t.fontSizeMax };
+                normal[t] = n;
+            }
+            float top = n.Auto ? n.Max : n.Size;
+            if (top > SmallText) return;
+            if (Larger)
+            {
+                t.enableAutoSizing = true;
+                t.fontSizeMin = n.Auto ? n.Min : n.Size;
+                t.fontSizeMax = top * Grow;
+            }
+            else
+            {
+                t.enableAutoSizing = n.Auto;
+                t.fontSizeMin = n.Min;
+                t.fontSizeMax = n.Max;
+                if (!n.Auto) t.fontSize = n.Size;
+            }
+        }
+
+        /// <summary>The small texts that are on screen (for the self-test).</summary>
+        public static IEnumerable<TextMeshProUGUI> SmallTexts()
+        {
+            foreach (var kv in normal)
+                if (kv.Key != null && kv.Key.isActiveAndEnabled && (kv.Value.Auto ? kv.Value.Max : kv.Value.Size) <= SmallText) yield return kv.Key;
         }
     }
 
