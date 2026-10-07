@@ -497,8 +497,11 @@ namespace HWC.Gameplay
                 if (hl >= 0 && hl < views.Count) { views[hl].SetHover(true); G.Hud.Sfx("hover", 0.25f); }
                 lastHover = hl;
             }
-            PieceKind? hk = hoverTray != null ? hoverTray.Kind : (hoverPiece >= 0 ? Pk.Pieces[hoverPiece].Kind : (Tool == Tool.Item || Tool == Tool.Padding ? HeldKind : (PieceKind?)null));
-            if (hk != lastHovered) { lastHovered = hk; Hovered?.Invoke(hk); }
+            // a red cross from the last trip under the pointer: its item's card, for that very item
+            int trouble = !overUi && inBox && Tool == Tool.None && hoverTray == null ? TroubleAt(cell) : -1;
+            PieceKind? hk = trouble >= 0 ? lastRun.Bodies[trouble].Kind
+                          : hoverTray != null ? hoverTray.Kind : (hoverPiece >= 0 ? Pk.Pieces[hoverPiece].Kind : (Tool == Tool.Item || Tool == Tool.Padding ? HeldKind : (PieceKind?)null));
+            if (hk != lastHovered || trouble != HoverTroubleBody) { lastHovered = hk; HoverTroubleBody = trouble; Hovered?.Invoke(hk); }
             for (int i = 0; i < tray.Count; i++)
             {
                 var t = tray[i];
@@ -522,6 +525,30 @@ namespace HWC.Gameplay
                 G.Hud.ConsumeEscape();
             }
         }
+
+        /// <summary>The recorded body whose failure mark (from the last trip) is under this cell point, or -1.</summary>
+        public int HoverTroubleBody { get; private set; } = -1;
+        const float TroubleReach = 0.4f;   // cells from the cross's centre
+
+        int TroubleAt(Vector2 cell)
+        {
+            if (lastRun == null || lastRun.Level != Level) return -1;
+            int best = -1; float bestD = TroubleReach * TroubleReach;
+            foreach (var inc in lastRun.Incidents)
+            {
+                if (!inc.IsFailure || inc.Body < 0) continue;
+                float dx = cell.x - inc.Where.x, dy = cell.y - inc.Where.y, d = dx * dx + dy * dy;
+                if (d < bestD) { bestD = d; best = inc.Body; }
+            }
+            return best;
+        }
+
+        /// <summary>The last trip's trails and crosses of an item (or of one recorded body) stand out.</summary>
+        public void HighlightTrip(PieceKind? kind, int body)
+        {
+            if (trails != null) trails.Highlight(lastRun, kind, body);
+        }
+        public int TripMarksHighlighted => trails != null ? trails.HighlightedMarks() : 0;
 
         TrayItem TrayUnder(Ray ray)
         {

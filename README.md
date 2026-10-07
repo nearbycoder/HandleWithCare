@@ -43,7 +43,7 @@ Pick an item off the shelf, drop it in the box, paint padding around it, seal, a
 
 | Input | Action |
 | --- | --- |
-| Left click an item on the shelf | Pick it up (hover first to read its card: quirk and jolt limit) |
+| Left click an item on the shelf | Pick it up (hover first to read its card: quirk, jolt limit, and what happened to it last trip) |
 | Left click in the box | Drop the held item; it slides down to the first spot it can rest on |
 | `1` – `6`, or click the toolbar | Paper, bubble wrap, foam, divider, shelf, strap |
 | Left drag (padding) | Paint padding into every cell you sweep over |
@@ -131,6 +131,9 @@ catches fire. Then the replay lets you scrub the trip in close-up, and NEXT TROU
 just before each thing that went wrong. Back at the bench, the last trip's trails show where every
 item went and mark where things went wrong ("Vase shattered at the hard brake, jolt 11/8"), the
 report says when the trip went over budget, and WATCH (`P`) plays the trip again without shipping.
+Point at an item (on the shelf or in the box) or at a red cross and its card says what happened to it
+last trip, in the report's words ("Shattered at the hard brake (jolt 18/8)", or "Rattled: 72% at the
+pothole"), while its trails and crosses stand out.
 
 <img src="docs/media/screenshots/04-unboxing.jpg" alt="The unboxing: the vase rises out of the box with a green PERFECT stamp" width="100%">
 
@@ -289,7 +292,8 @@ Tools/padpilot.sh               # gamepad only (a virtual pad at 1280x800): titl
                                 # PlayStation prompts with a virtual DualShock 4 and the BUTTON ICONS setting;
                                 # then LARGER TEXT: bigger on four screens, and nothing that fit overflows;
                                 # every hint note of every delivery at a readable size, off and on; WATCH
-                                # on the bench with the d-pad, RB to the trouble, B back to the box; USE IT
+                                # on the bench with the d-pad, RB to the trouble, B back to the box, the
+                                # vase's card says it shattered; USE IT
                                 # on a NEW TAPE sticker with the d-pad
 Tools/savepilot.sh              # seven launches on one save, saving switched on: settings, progress and an
                                 # unsealed box survive a restart; a half-written save comes back from the
@@ -302,8 +306,9 @@ Tools/tour.sh                   # screenshots of the menus and a delivery played
                                 # then the whole retry loop (R, Space, Enter, P) with the keyboard only,
                                 # undo/redo with German, French and Russian key labels swapped in,
                                 # Esc backing out of every menu, WATCH / NEXT TROUBLE from the bench (and
-                                # the care meters as the replay is scrubbed), and the review's new star and
-                                # NEW TAPE sticker (T puts the tape on)
+                                # the care meters as the replay is scrubbed), the item cards and red crosses
+                                # after a failed trip, and the review's new star and NEW TAPE sticker (T puts
+                                # the tape on)
 Tools/layoutpilot.sh            # every bench at 1920x1080, 1280x800, 2560x1080 and 1600x1200, on a first visit
                                 # and on a retry (LAST TRIP report, Mabel's tallest note), LARGER TEXT off and
                                 # on: no box cell or shelf cubby under a HUD panel, and the cells' size;

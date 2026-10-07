@@ -417,6 +417,87 @@ namespace HWC.Gameplay
             Check(g.Phase == Phase.Packing && SaveData.Serialize(g.CurrentPacking) == box, "DONE goes back to the bench, same box");
             yield return Key(UnityEngine.InputSystem.Key.Z);
             Check(g.Packing.UndoDepth == undo - 1 && SaveData.Serialize(g.CurrentPacking) != box, "Z still undoes the paper placed before watching");
+            yield return TripCards(trip, report);
+        }
+
+        /// <summary>The words after an item's name on its LAST TRIP report line ("shattered at the hard brake
+        /// (jolt 13.7/9)"), or null when the report has no line for it.</summary>
+        static string ReportFor(string report, string name)
+        {
+            foreach (var line in report.Split('\n'))
+            {
+                int i = line.IndexOf(" " + name + " ");
+                if (i >= 0) return line.Substring(i + name.Length + 2);
+            }
+            return null;
+        }
+
+        static string Plain(string rich) => System.Text.RegularExpressions.Regex.Replace(rich, "<[^>]+>", "");
+
+        /// <summary>
+        /// After a failed trip, with real mouse moves: pointing at each item in the box shows its card with a
+        /// LAST TRIP line in the report's words (or how close it came); pointing at a red cross shows the card of
+        /// the item that failed there and makes its crosses stand out; pointing away hides it all.
+        /// </summary>
+        IEnumerator TripCards(Recording trip, string report)
+        {
+            var g = Game.I;
+            var pk = g.CurrentPacking;
+            var marks = new List<Vector2>();
+            foreach (var inc in trip.Incidents) if (inc.IsFailure) marks.Add(new Vector2(inc.Where.x, inc.Where.y));
+            int checkedItems = 0;
+            for (int i = 0; i < pk.Pieces.Count; i++)
+            {
+                var p = pk.Pieces[i];
+                if (p.Def.IsPadding) continue;
+                // the point of the piece farthest from every cross (a cross takes over the card)
+                Vector2 best = default; float bestD = -1f;
+                for (int cx = 0; cx < p.W * 4; cx++)
+                    for (int cy = 0; cy < p.H * 4; cy++)
+                    {
+                        var c = new Vector2(p.X + (cx + 0.5f) / 4f, p.Y + (cy + 0.5f) / 4f);
+                        float d = float.MaxValue;
+                        foreach (var m in marks) d = Mathf.Min(d, Vector2.Distance(c, m));
+                        if (d > bestD) { bestD = d; best = c; }
+                    }
+                if (bestD < 0.5f) continue;
+                yield return MoveMouse(CellScreen(best.x, best.y));
+                yield return null; yield return null;
+                string name = p.Def.Name;
+                string want = ReportFor(Plain(report), name);
+                string card = Plain(g.Hud.ItemCardTrip);
+                bool ok = g.Hud.ItemCardShown && g.Hud.ItemCardName == name.ToUpperInvariant() && card.StartsWith("LAST TRIP")
+                          && (want != null ? card.ToLowerInvariant().Contains(want.Trim().ToLowerInvariant()) : (card.Contains("Perfect") || card.Contains("Rattled")));
+                Check(ok, $"pointing at the {name} in the box: its card says \"{card}\"{(want != null ? $" (the report: \"{want.Trim()}\")" : "")}");
+                // the card is clear of the LAST TRIP report (which is drawn over it)
+                Canvas.ForceUpdateCanvases();
+                var cr = g.Hud.ItemCardRect; var lr = g.Hud.LastTripRect;
+                Vector3[] a = new Vector3[4], b = new Vector3[4]; cr.GetWorldCorners(a); lr.GetWorldCorners(b);
+                Check(a[1].y <= b[0].y + 0.5f, $"the {name}'s card starts below the LAST TRIP report (card top {a[1].y:0}, report bottom {b[0].y:0})");
+                if (checkedItems == 0) { Shot("C1_card_last_trip"); yield return AfterShot(); }
+                checkedItems++;
+            }
+            Check(checkedItems > 0, $"{checkedItems} item cards checked");
+            // a cross: the card of the item that failed there, and its crosses stand out
+            Incident first = default; bool any = false;
+            foreach (var inc in trip.Incidents) if (inc.IsFailure && !any) { first = inc; any = true; }
+            if (any)
+            {
+                yield return MoveMouse(CellScreen(first.Where.x, first.Where.y));
+                yield return null; yield return null;
+                var kind = trip.Bodies[first.Body].Kind;
+                string card = Plain(g.Hud.ItemCardTrip);
+                string want = ReportFor(Plain(report), Catalog.Get(kind).Name);
+                Check(g.Hud.ItemCardShown && g.Hud.ItemCardName == Catalog.Get(kind).Name.ToUpperInvariant() && want != null && card.ToLowerInvariant().Contains(want.Trim().ToLowerInvariant())
+                      && g.Packing.HoverTroubleBody == first.Body && g.Packing.TripMarksHighlighted >= 1,
+                      $"pointing at the cross where the {kind} failed: its card (\"{card}\") and {g.Packing.TripMarksHighlighted} cross(es) stand out");
+                Shot("C2_card_cross");
+                yield return AfterShot();
+            }
+            // away from the box: no card, nothing stands out
+            yield return MoveMouse(new Vector2(UnityEngine.Screen.width * 0.5f, UnityEngine.Screen.height * 0.88f));   // the pegboard
+            yield return null; yield return null;
+            Check(!g.Hud.ItemCardShown && g.Packing.TripMarksHighlighted == 0, "pointing away hides the card, and the crosses go back");
         }
 
         /// <summary>
@@ -1319,6 +1400,18 @@ namespace HWC.Gameplay
             yield return WaitPhase(Phase.Packing, 3f);
             yield return new WaitForSecondsRealtime(0.3f);
             PadCheck(g.Phase == Phase.Packing && SaveData.Serialize(g.CurrentPacking) == box, "B ends the replay: back at the bench, same box");
+            // the cursor on a piece that failed: its card says what happened on the last trip
+            var pk = g.CurrentPacking;
+            int vase = pk.Pieces.FindIndex(p => p.Kind == PieceKind.Vase);
+            if (vase >= 0)
+            {
+                var v = pk.Pieces[vase];
+                yield return PadTo(CellScreen(v.X + v.W * 0.5f, v.Y + v.H * 0.5f));
+                yield return null; yield return null;
+                string card = Plain(g.Hud.ItemCardTrip);
+                PadCheck(g.Hud.ItemCardShown && card.StartsWith("LAST TRIP") && card.Contains("hattered"), $"the d-pad onto the vase: its card says \"{card}\"");
+            }
+            else PadCheck(false, "no vase in the box after the failed trip");
         }
 
         static Vector2 ButtonScreen(UiButton b)

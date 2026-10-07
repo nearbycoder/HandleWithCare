@@ -11,11 +11,31 @@ namespace HWC.Visuals
     public sealed class TrailOverlay : MonoBehaviour
     {
         readonly List<GameObject> objects = new List<GameObject>();
+        readonly List<(int body, LineRenderer line)> lines = new List<(int, LineRenderer)>();
+        readonly List<(int body, Transform mark)> marks = new List<(int, Transform)>();
+        const float LineWidth = 0.012f;
 
         public void Hide()
         {
             foreach (var o in objects) if (o != null) Destroy(o);
             objects.Clear();
+            lines.Clear();
+            marks.Clear();
+        }
+
+        /// <summary>An item's trails and crosses stand out while its card shows (every item of that kind, or
+        /// one recorded body); null lets them all go back.</summary>
+        public void Highlight(Recording rec, PieceKind? kind, int body)
+        {
+            bool On(int b) => body >= 0 ? b == body : kind.HasValue && rec != null && b < rec.Bodies.Length && rec.Bodies[b].Kind == kind.Value;
+            foreach (var (b, lr) in lines) if (lr != null) lr.widthMultiplier = On(b) ? LineWidth * 2.4f : LineWidth;
+            foreach (var (b, m) in marks) if (m != null) m.localScale = Vector3.one * (On(b) ? 1.6f : 1f);
+        }
+        public int HighlightedMarks()
+        {
+            int n = 0;
+            foreach (var (_, m) in marks) if (m != null && m.localScale.x > 1.01f) n++;
+            return n;
         }
 
         public void Show(BoxView box, Recording rec)
@@ -55,7 +75,7 @@ namespace HWC.Visuals
                 lr.useWorldSpace = false;
                 lr.positionCount = pts.Count;
                 lr.SetPositions(pts.ToArray());
-                lr.widthMultiplier = 0.012f;
+                lr.widthMultiplier = LineWidth;
                 lr.numCapVertices = 4;
                 lr.numCornerVertices = 2;
                 lr.sharedMaterial = Mat.Unlit(col, true);
@@ -65,6 +85,7 @@ namespace HWC.Visuals
                     new[] { new GradientAlphaKey(0.15f, 0), new GradientAlphaKey(1f, 1) });
                 lr.colorGradient = grad;
                 objects.Add(go);
+                lines.Add((b, lr));
             }
 
             // failure markers
@@ -81,6 +102,7 @@ namespace HWC.Visuals
                     bar.transform.localRotation = Quaternion.Euler(0, 0, k == 0 ? 45 : -45);
                 }
                 objects.Add(go);
+                marks.Add((inc.Body, go.transform));
             }
         }
     }

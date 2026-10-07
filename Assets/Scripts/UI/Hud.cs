@@ -380,6 +380,9 @@ namespace HWC.Gameplay
             cardBlurb.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(18, -122), new Vector2(344, 80));
             cardStats = Ui.Text(itemCard, "stats", "", 20, Palette.PostalRedDark, Ui.Bold, TextAlignmentOptions.TopLeft);
             cardStats.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(18, -204), new Vector2(344, 40));
+            // what happened to it on the last trip (when there was one)
+            cardTrip = Ui.Text(itemCard, "trip", "", 20, Palette.Ink, Ui.Body, TextAlignmentOptions.TopLeft);
+            cardTrip.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(18, -238), new Vector2(344, 56));
             // the card overlaps the left column of wide boxes: let clicks through to the box
             foreach (var gr in itemCard.GetComponentsInChildren<Graphic>(true)) gr.raycastTarget = false;
             itemCard.gameObject.SetActive(false);
@@ -710,9 +713,7 @@ namespace HWC.Gameplay
                 if (!inc.IsFailure || lines.Count >= 3) continue;
                 var kind = rec.Bodies[inc.Body].Kind;
                 string what = Catalog.Get(kind).Name;
-                string how = inc.Kind == IncidentKind.Stuck ? "stuck to the other magnet" : StatusWordForIncident(inc.Kind).ToLowerInvariant();
-                string detail = inc.Limit > 0 && (inc.Kind == IncidentKind.Broke || inc.Kind == IncidentKind.Woke || inc.Kind == IncidentKind.Squished) ? $" (jolt {inc.Value:0.#}/{inc.Limit:0.#})" : "";
-                lines.Add($"{Glyphs.Cross} {what} {how} at {EventName(rec, inc.Leg, inc.Event)}{detail}");
+                lines.Add($"{Glyphs.Cross} {what} {IncidentLine(rec, inc)}");
             }
             if (lines.Count == 0)
             {
@@ -891,9 +892,10 @@ namespace HWC.Gameplay
 
         void ShowItemCard(PieceKind? kind)
         {
-            if (kind == null) { itemCard.gameObject.SetActive(false); return; }
+            if (kind == null) { itemCard.gameObject.SetActive(false); G.Packing.HighlightTrip(null, -1); return; }
             var def = Catalog.Get(kind.Value);
             itemCard.gameObject.SetActive(true);
+            FillCardTrip(kind.Value, G.Packing.HoverTroubleBody);
             cardIcon.sprite = IconStudio.Piece(kind.Value);
             cardName.text = def.Name.ToUpperInvariant();
             cardBlurb.text = def.Blurb;
@@ -910,6 +912,7 @@ namespace HWC.Gameplay
         {
             if (s <= MaterialSlot.Foam) { ShowItemCard(s == MaterialSlot.Paper ? PieceKind.Paper : (s == MaterialSlot.Bubble ? PieceKind.Bubble : PieceKind.Foam)); return; }
             itemCard.gameObject.SetActive(true);
+            FillCardTrip(null, -1);
             cardIcon.sprite = MaterialIcon(s);
             switch (s)
             {
