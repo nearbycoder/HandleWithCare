@@ -197,7 +197,12 @@ namespace HWC.Gameplay
             if (task == null) return;
             restoring = null;
             try { task.Wait(); }
-            catch (System.Exception e) { Debug.LogException(e); return; }
+            catch (System.Exception e)
+            {
+                Debug.LogException(e);
+                if (Phase == Phase.Packing && Packing.Active && LastRun == null) Hud.ShowLastTrip(null);   // no report after all
+                return;
+            }
             var run = task.Result;
             if (Level == null || run.Level != Level) return;   // the player has moved on
             double ms = restoreClock.Elapsed.TotalMilliseconds;

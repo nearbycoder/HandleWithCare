@@ -283,8 +283,8 @@ Tools/savepilot.sh              # seven launches on one save, saving switched on
                                 # backup; garbage with no backup starts fresh; MY BEST after a restart;
                                 # START OVER (cancel, then confirm: settings and a copy of the old save kept);
                                 # a save in v0.1.0's format gets MY BEST from its last boxes shipped; a failed
-                                # trip's report, trails and hint focus come back after a restart; a tape put
-                                # on with USE IT survives a restart
+                                # trip's report (its place held meanwhile), trails and hint focus come back
+                                # after a restart; a tape put on with USE IT survives a restart
 Tools/tour.sh                   # screenshots of the menus and a delivery played with real input events,
                                 # then the whole retry loop (R, Space, Enter, P) with the keyboard only,
                                 # undo/redo with German, French and Russian key labels swapped in,
@@ -432,9 +432,10 @@ Overtime), every one validated solvable with three stars.
   MABEL, LARGER TEXT), the camera glides to fit.
 - **Saves.** Crash safety is tested by damaging the save between launches (`Tools/savepilot.sh`), not
   by cutting the power mid-write. Only the most recent backup is kept. A bench brings its last trip
-  back by simulating the last box shipped on a worker thread; the report and trails appear a fraction
-  of a second after the bench (0.1 to 1 s on the busy machine this was made on). A box that later
-  balance changes made illegal brings no report. A save from v0.1.0 kept only the last box shipped
+  back by simulating the last box shipped on a worker thread. Until it is back, the LAST TRIP report
+  holds its place with one line ("Mabel is reading the last trip…"); it fills in, and the trails
+  appear, a fraction of a second after the bench (0.1 to 1 s on the busy machine this was made on). A
+  box that later balance changes made illegal brings no report. A save from v0.1.0 kept only the last box shipped
   for each delivery: the same run makes it MY BEST if it still delivers (with the stars it really
   earns), without pausing the game. A box that fails is not kept, so MY BEST for those appears after
   the next delivered trip.

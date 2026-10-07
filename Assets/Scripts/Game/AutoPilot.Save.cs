@@ -471,6 +471,8 @@ namespace HWC.Gameplay
             g.StartLevel(5);
             float open = (Time.realtimeSinceStartup - t0) * 1000f;
             bool waiting = g.RestoringLastTrip && g.LastRun == null && g.Phase == Phase.Packing;
+            string held = g.Hud.LastTripText;
+            SaveCheck(waiting && held.Contains(Hud.ReadingLastTrip), $"the bench opens with the report's place held: '{held}'");
             float worstFrame = 0f, waited = 0f;
             while (g.RestoringLastTrip && waited < 5f) { yield return null; waited += Time.unscaledDeltaTime; worstFrame = Mathf.Max(worstFrame, Time.unscaledDeltaTime * 1000f); }
             Debug.Log($"[AutoPilot] save 6: opening delivery 5's bench took {open:0} ms on the main thread (the first bench of the launch, nothing to restore: {plain:0} ms); the trip came back after {waited * 1000f:0} ms, longest frame meanwhile {worstFrame:0} ms " +

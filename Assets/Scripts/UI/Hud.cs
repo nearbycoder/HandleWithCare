@@ -658,8 +658,19 @@ namespace HWC.Gameplay
         public void ShowLastTrip(Recording rec) => FillLastTrip(rec);
         public void RefreshBestButton() { if (G.Packing.Level != null) RefreshBest(G.Packing.Level); }
 
+        /// <summary>The report's one line while the last trip is simulated again (it fills in a moment later).</summary>
+        public const string ReadingLastTrip = "Mabel is reading the last trip\u2026";
+
         void FillLastTrip(Recording rec)
         {
+            if (rec == null && G.RestoringLastTrip && G.Level != null)
+            {
+                // hold the report's place, so it doesn't pop in
+                lastTrip.gameObject.SetActive(true);
+                lastTripText.text = $"<color=#7A6A5C>{ReadingLastTrip}</color>";
+                lastTrip.sizeDelta = new Vector2(520, 82);
+                return;
+            }
             if (rec == null) { lastTrip.gameObject.SetActive(false); return; }
             var lines = new List<string>();
             foreach (var inc in rec.Incidents)
