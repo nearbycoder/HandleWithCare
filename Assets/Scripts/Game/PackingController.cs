@@ -79,6 +79,8 @@ namespace HWC.Gameplay
             if (quirks == null) quirks = new GameObject("Quirks").AddComponent<QuirkOverlay>();
             Changed -= RefreshQuirks;
             Changed += RefreshQuirks;
+            Changed -= UpdateHintMatches;
+            Changed += UpdateHintMatches;
             Changed?.Invoke();
         }
 
@@ -111,23 +113,115 @@ namespace HWC.Gameplay
         readonly List<GameObject> hintObjects = new List<GameObject>();
         static readonly Color HintTint = new Color(1f, 0.86f, 0.3f, 0.5f);
         static readonly Color HintStaticTint = new Color(1f, 0.8f, 0.2f, 0.85f);   // dividers and shelves are thin: stronger
+        static readonly Color HintMatchedTint = new Color(0.45f, 0.95f, 0.55f, 0.16f);   // already in the box: a faint green
+        static readonly Color HintMatchedStaticTint = new Color(0.45f, 0.95f, 0.55f, 0.3f);
+        static readonly Color HintBlockedTint = new Color(1f, 0.33f, 0.28f, 0.55f);      // something else is in its spot
+        public static readonly Color ExtraTint = new Color(0.95f, 0.25f, 0.2f);           // yours, not in her packing
+
+        // the ghosts drawn for the hints, and how each one stands against the box now
+        readonly List<(PieceView view, Placement p)> hintGhosts = new List<(PieceView, Placement)>();
+        readonly List<(GameObject go, int line)> hintDividerGhosts = new List<(GameObject, int)>();
+        readonly List<(GameObject go, ShelfSpec s)> hintShelfGhosts = new List<(GameObject, ShelfSpec)>();
+        readonly Dictionary<object, int> hintShown = new Dictionary<object, int>();
+        int hintStage; PieceKind hintFocus; bool hintBudget, hintVisible;
+        /// <summary>Hint ghosts (pieces, dividers, shelves) the box already matches, of how many; ghosts whose
+        /// spot is taken; and your pieces that aren't in her packing (indices into Pk.Pieces).</summary>
+        public int HintsInPlace { get; private set; }
+        public int HintsTotal { get; private set; }
+        public int HintsBlocked { get; private set; }
+        public readonly List<int> HintExtras = new List<int>();
+        public event Action HintsMatched;
 
         void ClearHints()
         {
             foreach (var o in hintObjects) if (o != null) Destroy(o);
             hintObjects.Clear();
             HintPieces.Clear(); HintDividers.Clear(); HintShelves.Clear();
+            hintGhosts.Clear(); hintDividerGhosts.Clear(); hintShelfGhosts.Clear(); hintShown.Clear();
+            hintStage = 0;
+            HintsInPlace = HintsTotal = HintsBlocked = 0;
+            HintExtras.Clear();
+            foreach (var v in views) if (v != null) v.SetExtra(false, ExtraTint);
+        }
+
+        /// <summary>
+        /// Each hint ghost against the box as it is now: matched ones fade to a faint green, ones whose spot is
+        /// taken turn red, and (when the stage shows everything of its kind) your pieces that aren't in her
+        /// packing are tinted as extra. Runs on every change, undo and redo included.
+        /// </summary>
+        void UpdateHintMatches()
+        {
+            HintsInPlace = HintsBlocked = 0;
+            HintExtras.Clear();
+            HintsTotal = HintPieces.Count + HintDividers.Count + HintShelves.Count;
+            if (!Active || hintStage <= 0 || Pk == null) { HintsMatched?.Invoke(); return; }
+            foreach (var p in HintPieces)
+            {
+                var m = Hints.MatchOf(Pk, p);
+                if (m == Hints.Match.InPlace) HintsInPlace++;
+                else if (m == Hints.Match.Blocked) HintsBlocked++;
+            }
+            var src = Hints.Source(Level);
+            foreach (int d in HintDividers) if (Hints.HasDivider(Pk, d)) HintsInPlace++;
+            foreach (var sh in HintShelves) if (Hints.HasShelf(Pk, src, sh)) HintsInPlace++;
+            HintExtras.AddRange(Hints.Extras(Pk, Level, hintStage, hintFocus, hintBudget));
+            if (hintVisible)
+            {
+                foreach (var (view, p) in hintGhosts)
+                {
+                    var m = Hints.MatchOf(Pk, p);
+                    if (Shown(view, (int)m)) continue;
+                    view.SetGhost(true, m == Hints.Match.InPlace ? HintMatchedTint : m == Hints.Match.Blocked ? HintBlockedTint : HintTint);
+                }
+                foreach (var (go, line) in hintDividerGhosts)
+                {
+                    bool on = Hints.HasDivider(Pk, line);
+                    if (!Shown(go, on ? 1 : 0)) BoxView.TintGhost(go, on ? HintMatchedStaticTint : HintStaticTint);
+                }
+                foreach (var (go, sh) in hintShelfGhosts)
+                {
+                    bool on = Hints.HasShelf(Pk, src, sh);
+                    if (!Shown(go, on ? 1 : 0)) BoxView.TintGhost(go, on ? HintMatchedStaticTint : HintStaticTint);
+                }
+            }
+            for (int i = 0; i < views.Count; i++)
+                if (views[i] != null) views[i].SetExtra(hintVisible && HintExtras.Contains(i), ExtraTint);
+            HintsMatched?.Invoke();
+        }
+
+        /// <summary>True when a ghost already shows this state (so it isn't re-tinted every change).</summary>
+        bool Shown(object ghost, int state)
+        {
+            if (hintShown.TryGetValue(ghost, out int was) && was == state) return true;
+            hintShown[ghost] = state;
+            return false;
+        }
+
+        /// <summary>For the self-tests: how the ghost of a piece looks now (Open, InPlace or Blocked), or -1.</summary>
+        public int HintGhostState(Placement p)
+        {
+            foreach (var (view, gp) in hintGhosts)
+                if (Hints.Same(gp, p) && hintShown.TryGetValue(view, out int st)) return st;
+            return -1;
+        }
+        /// <summary>For the self-tests: the box's pieces drawn as extra now.</summary>
+        public List<int> PiecesShownExtra()
+        {
+            var list = new List<int>();
+            for (int i = 0; i < views.Count; i++) if (views[i] != null && views[i].Extra) list.Add(i);
+            return list;
         }
 
         /// <summary>Shows the hint ghosts for a stage (0 or hidden = none).</summary>
         public void ShowHints(int stage, PieceKind focus, bool visible, bool budget = false)
         {
             ClearHints();
-            if (!Active || stage <= 0) return;
+            if (!Active || stage <= 0) { UpdateHintMatches(); return; }
+            hintStage = stage; hintFocus = focus; hintBudget = budget; hintVisible = visible;
             HintPieces.AddRange(Hints.Pieces(Level, stage, focus, budget));
             var src = Hints.Source(Level);
             if (Hints.ShowsStatics(stage)) { HintDividers.AddRange(src.Dividers); HintShelves.AddRange(src.Shelves); }
-            if (!visible) return;
+            if (!visible) { UpdateHintMatches(); return; }
             foreach (var p in HintPieces)
             {
                 var v = PieceView.Create(p.Kind, Box.Contents, p.Rotated, p.Facing);
@@ -136,12 +230,16 @@ namespace HWC.Gameplay
                 v.SetGhost(true, HintTint);
                 v.name = "hint_" + p.Kind;
                 hintObjects.Add(v.gameObject);
+                hintGhosts.Add((v, p));
+                hintShown[v] = (int)Hints.Match.Open;
             }
             foreach (int d in HintDividers)
             {
                 var go = Box.MakeDivider(d, Box.Contents, true);
                 BoxView.TintGhost(go, HintStaticTint);
                 hintObjects.Add(go);
+                hintDividerGhosts.Add((go, d));
+                hintShown[go] = 0;
             }
             foreach (var sh in HintShelves)
             {
@@ -149,7 +247,10 @@ namespace HWC.Gameplay
                 var go = Box.MakeShelf(sh.Row, x0, x1, Box.Contents, true);
                 BoxView.TintGhost(go, HintStaticTint);
                 hintObjects.Add(go);
+                hintShelfGhosts.Add((go, sh));
+                hintShown[go] = 0;
             }
+            UpdateHintMatches();
         }
 
         public IReadOnlyList<PieceView> Views => views;

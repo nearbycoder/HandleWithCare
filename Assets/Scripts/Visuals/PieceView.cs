@@ -158,6 +158,15 @@ namespace HWC.Visuals
             }
         }
 
+        /// <summary>Ask Mabel: this piece of yours isn't in her packing (a reddish tint while her hints show).</summary>
+        public bool Extra { get; private set; }
+        public void SetExtra(bool on, Color tint)
+        {
+            if (on == Extra || ghost) return;
+            Extra = on;
+            SetTint(tint, on ? 0.45f : 0f);
+        }
+
         public void SetTint(Color c, float amount)
         {
             if (ghost) return;

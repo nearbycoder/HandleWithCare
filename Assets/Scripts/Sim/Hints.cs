@@ -67,6 +67,61 @@ namespace HWC.Sim
 
         public static bool ShowsStatics(int stage) => stage >= 3;
 
+        // ---- what the box already matches -------------------------------------------------------------
+
+        public enum Match { Open, InPlace, Blocked }
+
+        /// <summary>The same piece in the same spot, the same way round, strapped the same, and facing the same
+        /// way when it faces at all.</summary>
+        public static bool Same(Placement a, Placement b) =>
+            a.Kind == b.Kind && a.X == b.X && a.Y == b.Y && a.Rotated == b.Rotated && a.Strapped == b.Strapped &&
+            (!a.Def.Has(Quirk.Facing) || a.Facing == b.Facing);
+
+        /// <summary>A hint ghost against the box: matched, its spot taken by something else (a piece, a
+        /// divider or a shelf in the way), or still open.</summary>
+        public static Match MatchOf(Packing mine, Placement ghost)
+        {
+            foreach (var p in mine.Pieces) if (Same(ghost, p)) return Match.InPlace;
+            return mine.AreaFree(ghost.X, ghost.Y, ghost.W, ghost.H) && !mine.CrossesStatics(ghost.X, ghost.Y, ghost.W, ghost.H) ? Match.Open : Match.Blocked;
+        }
+
+        public static bool HasDivider(Packing mine, int line) => mine.Dividers.Contains(line);
+
+        /// <summary>Her shelf is in the box when one sits on the same line across the same columns.</summary>
+        public static bool HasShelf(Packing mine, Packing src, ShelfSpec s)
+        {
+            src.ShelfSpan(s, out int x0, out int x1);
+            foreach (var m in mine.Shelves)
+            {
+                if (m.Row != s.Row) continue;
+                mine.ShelfSpan(m, out int a0, out int a1);
+                if (a0 == x0 && a1 == x1) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Whether a stage shows everything of its kind, so a piece of yours that isn't among the
+        /// ghosts is one too many: her padding (budget hints from stage 2), her whole packing (stage 4).</summary>
+        public static bool ShowsAll(int stage, bool budget) => stage >= MaxStage || (budget && stage >= 2);
+
+        /// <summary>Your pieces that her packing doesn't have at this stage (indices into mine.Pieces): your
+        /// extra padding for budget hints, anything not in hers at the last stage. Empty for the other stages.</summary>
+        public static List<int> Extras(Packing mine, LevelDef lv, int stage, PieceKind focus, bool budget)
+        {
+            var list = new List<int>();
+            if (!ShowsAll(stage, budget)) return list;
+            var ghosts = Pieces(lv, stage, focus, budget);
+            for (int i = 0; i < mine.Pieces.Count; i++)
+            {
+                var p = mine.Pieces[i];
+                if (stage < MaxStage && !p.Def.IsPadding) continue;   // budget hints are about padding only
+                bool found = false;
+                foreach (var g in ghosts) if (Same(g, p)) { found = true; break; }
+                if (!found) list.Add(i);
+            }
+            return list;
+        }
+
         public static string Note(LevelDef lv, int stage, PieceKind focus, bool budget = false)
         {
             var src = Source(lv);
@@ -74,7 +129,12 @@ namespace HWC.Sim
             {
                 case 1: return budget ? Budget(lv, src) : Describe(src, focus);
                 case 2:
-                    if (!budget) return $"Here's exactly where I'd put {Article(focus)}.";
+                    if (!budget)
+                    {
+                        // keep what stage 1 said about where it sits: the ghost alone can float in mid-air
+                        string where = Where(src, focus);
+                        return where == null ? $"Here's exactly where I'd put {Article(focus)}." : $"Here's exactly where I'd put {Article(focus)}: {where}.";
+                    }
                     return src.UsedMaterials().Paper + src.UsedMaterials().Bubble + src.UsedMaterials().Foam == 0
                         ? "No padding at all in mine. The box does the work." : "Here's where my padding goes. Nothing more.";
                 case 3:
@@ -240,12 +300,7 @@ namespace HWC.Sim
             if (idx < 0) return "Watch what failed last time, and give it some company.";
             var p = src.Pieces[idx];
             var def = p.Def;
-            string rest;
-            if (def.Has(Quirk.Floats))
-                rest = p.Y + p.H >= src.H ? "up against the lid" : $"tucked under {Row(src, p, p.Y + p.H, idx, "the lid")}";
-            else if (p.Y == 0) rest = "on the floor";
-            else if (src.ShelfCovers(p.Y, p.X)) rest = "on a shelf";
-            else rest = "on top of " + Row(src, p, p.Y - 1, idx, "the floor");
+            string rest = Rest(src, p, idx);
             string left = Side(src, p.X, p.Y, p.H, -1, idx, focus);
             string right = Side(src, p.X + p.W, p.Y, p.H, +1, idx, focus);
             string extra = "";
@@ -257,6 +312,30 @@ namespace HWC.Sim
             string he = named ? "he" : "it", his = named ? "his" : "its", him = named ? "him" : "it";
             string sides = left == right ? (left == "nothing" ? $"nothing beside {him}" : $"{left} on both sides") : $"{left} on {his} left and {right} on {his} right";
             return $"Mind {Article(focus)}. In my packing {he} sits {rest}{extra}, with {sides}.";
+        }
+
+        /// <summary>What a piece sits on (or, floating, is tucked under).</summary>
+        static string Rest(Packing src, Placement p, int idx)
+        {
+            if (p.Def.Has(Quirk.Floats))
+                return p.Y + p.H >= src.H ? "up against the lid" : $"tucked under {Row(src, p, p.Y + p.H, idx, "the lid")}";
+            if (p.Y == 0) return "on the floor";
+            if (src.ShelfCovers(p.Y, p.X)) return "on a shelf";
+            return "on top of " + Row(src, p, p.Y - 1, idx, "the floor");
+        }
+
+        /// <summary>Stage 2's reminder of where the item sits in her packing (and which way round), or null.</summary>
+        static string Where(Packing src, PieceKind focus)
+        {
+            int idx = -1;
+            for (int i = 0; i < src.Pieces.Count; i++) if (src.Pieces[i].Kind == focus) { idx = i; break; }
+            if (idx < 0) return null;
+            var p = src.Pieces[idx];
+            string extra = "";
+            if (p.Def.Has(Quirk.Facing)) extra += p.Facing < 0 ? ", facing left" : ", facing right";
+            if (p.Rotated) extra += ", lying on its side";
+            if (p.Strapped) extra += ", strapped down";
+            return Rest(src, p, idx) + extra;
         }
 
         /// <summary>What lies along the row just under (or over) a piece.</summary>

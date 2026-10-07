@@ -164,6 +164,16 @@ static class Program
             var b2 = Hints.Pieces(lv, 2, lv.Items[0], true);
             if (b2.Count != src.Pieces.Count(p => p.Def.IsPadding) || b2.Any(p => !p.Def.IsPadding)) problems.Add("budget stage 2 isn't exactly her padding");
             if (Hints.Pieces(lv, Hints.MaxStage, lv.Items[0], true).Count != src.Pieces.Count) problems.Add("budget stage 4 isn't her whole packing");
+            // the ghosts against the box: her own packing matches all of them with nothing extra; an
+            // empty box matches none; one item moved is no longer in place
+            var all = Hints.Pieces(lv, Hints.MaxStage, lv.Items[0]);
+            if (all.Any(gp => Hints.MatchOf(src, gp) != Hints.Match.InPlace) || Hints.Extras(src, lv, Hints.MaxStage, lv.Items[0], false).Count > 0
+                || src.Dividers.Any(d => !Hints.HasDivider(src, d)) || src.Shelves.Any(sh => !Hints.HasShelf(src, src, sh)))
+                problems.Add("her packing doesn't match all of her own ghosts");
+            var emptyBox = new Packing(lv.W, lv.H);
+            if (all.Any(gp => Hints.MatchOf(emptyBox, gp) != Hints.Match.Open)) problems.Add("an empty box matches or blocks a ghost");
+            ghostChecks += all.Count * 2;
+
             // a packing that misses only the budget star (the self-test ships it), when one exists
             var over = Hints.OverBudgetSample(lv);
             if (over == null)
@@ -180,6 +190,15 @@ static class Program
                 var ro = rov.Outcome;
                 Console.Write($"  over budget: {Stars(ro)} {ro.Cost}/{lv.Par}");
                 if (over.Validate(lv) != null || !ro.Delivered || !ro.Careful || ro.UnderBudget) problems.Add("over-budget sample isn't one");
+                // budget hints mark exactly the padding of yours that isn't in hers, and count the rest in place
+                var srcPad = src.Pieces.Where(q => q.Def.IsPadding).ToList();
+                var want = Enumerable.Range(0, over.Pieces.Count).Where(i => over.Pieces[i].Def.IsPadding &&
+                    !srcPad.Any(q => q.Kind == over.Pieces[i].Kind && q.X == over.Pieces[i].X && q.Y == over.Pieces[i].Y)).ToList();
+                var extras = Hints.Extras(over, lv, 2, lv.Items[0], true);
+                int inPlace = Hints.Pieces(lv, 2, lv.Items[0], true).Count(gp => Hints.MatchOf(over, gp) == Hints.Match.InPlace);
+                int wantIn = srcPad.Count(q => over.Pieces.Any(m => m.Kind == q.Kind && m.X == q.X && m.Y == q.Y));
+                if (!extras.SequenceEqual(want) || inPlace != wantIn) problems.Add($"budget ghosts: {extras.Count} extra and {inPlace} in place, expected {want.Count} and {wantIn}");
+                Console.Write($" (extra {extras.Count}, in place {inPlace}/{srcPad.Count})");
             }
 
             if (lv.Number > 1)
@@ -195,13 +214,14 @@ static class Program
             failures += problems.Count;
         }
         Console.WriteLine($"care meters: {metersChecked} item trips end where their review does");
+        Console.WriteLine($"hint ghosts: {ghostChecks} ghosts matched against her packing and an empty box");
         Console.WriteLine(failures == 0 ? $"ALL OK ({sw.Elapsed.TotalSeconds:0.0}s)" : $"{failures} PROBLEM(S)");
         return failures == 0 ? 0 : 1;
     }
 
     /// <summary>The trip's care meters end where the review does: each item's last recorded care is its
     /// outcome's, and its last recorded state gives the same status.</summary>
-    static int metersChecked;
+    static int metersChecked, ghostChecks;
     static void Meters(Recording rec, string what, List<string> problems)
     {
         var last = rec.Frames[rec.Frames.Count - 1];

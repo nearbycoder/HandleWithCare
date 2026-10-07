@@ -283,6 +283,11 @@ namespace HWC.Gameplay
             mabelText.enableAutoSizing = true; mabelText.fontSizeMin = 15; mabelText.fontSizeMax = 23;   // hint notes run longer
             var sign = Ui.Text(sticky.transform, "sign", "— Mabel", 20, Palette.InkSoft, Ui.Bold, TextAlignmentOptions.BottomRight);
             sign.rectTransform.Stretch(16, 16, 10, 10);
+            // how much of her hint the box already matches (a row above the signature: FitSticky makes room)
+            hintCount = Ui.Text(sticky.transform, "count", "", 19, Palette.Teal, Ui.Bold, TextAlignmentOptions.BottomLeft);
+            hintCount.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(18, 34), new Vector2(NoteW - 34, CountRow));
+            hintCount.enableAutoSizing = true; hintCount.fontSizeMin = 15; hintCount.fontSizeMax = 19;
+            hintCount.textWrappingMode = TextWrappingModes.NoWrap;
             sticky.raycastTarget = false;   // the note grows (FitSticky); it must never hide a shelf item from the mouse
 
             // Ask Mabel (under the sticky note): escalating hints from her own packing
@@ -405,6 +410,7 @@ namespace HWC.Gameplay
         }
 
         RectTransform lastTrip, orderCard;
+        TextMeshProUGUI hintCount;
         UiButton hintBtn, watchBtn;
         public UiButton WatchButton => watchBtn;
         TextMeshProUGUI expertText, resExpert;
@@ -440,6 +446,7 @@ namespace HWC.Gameplay
             mabelText.rectTransform.Stretch(18, 16, stage > 0 ? 34 : 16, 34);   // clear of the HINT badge
             if (stage == 0)
             {
+                hintCount.text = "";
                 mabelText.text = lv.Mabel;
                 hintBtn.Label.text = "ASK MABEL";
                 G.Packing.ShowHints(0, lv.Items[0], false);
@@ -451,10 +458,31 @@ namespace HWC.Gameplay
             hintBadgeText.text = $"HINT {stage}/{Hints.MaxStage}";
             mabelText.text = Hints.Note(lv, stage, focus, budget);
             hintBtn.Label.text = stage < Hints.MaxStage ? "ANOTHER HINT" : (rec.HintsHidden ? "SHOW HINTS" : "HIDE HINTS");
+            G.Packing.HintsMatched -= RefreshHintCount;
+            G.Packing.HintsMatched += RefreshHintCount;
             G.Packing.ShowHints(stage, focus, !rec.HintsHidden, budget);
         }
+
+        /// <summary>The note's count of her ghosts the box already matches ("5/9 in place · 1 in the way · 2 extra").
+        /// Shown from stage 2, when there are ghosts to match.</summary>
+        void RefreshHintCount()
+        {
+            var pc = G.Packing;
+            var rec = G.Level != null ? G.Save.Get(G.Level.Number) : null;
+            bool show = rec != null && rec.HintStage >= 2 && !rec.HintsHidden && (pc.HintsTotal > 0 || pc.HintExtras.Count > 0);
+            if (!show) { hintCount.text = ""; return; }
+            var parts = new List<string>();
+            // (a budget hint with no padding in hers has nothing to put in place, only extras)
+            if (pc.HintsTotal > 0) parts.Add(pc.HintsInPlace == pc.HintsTotal ? $"{Glyphs.Check} all {pc.HintsTotal} in place" : $"{pc.HintsInPlace}/{pc.HintsTotal} in place");
+            if (pc.HintsBlocked > 0) parts.Add($"<color=#C0392B>{pc.HintsBlocked} in the way</color>");
+            // budget hints: padding she doesn't use is extra; her whole packing: anything that isn't hers is elsewhere
+            bool budget = rec.HintFocus == Hints.BudgetFocus && rec.HintStage < Hints.MaxStage;
+            if (pc.HintExtras.Count > 0) parts.Add($"<color=#C0392B>{pc.HintExtras.Count} {(budget ? "extra" : "not in mine")}</color>");
+            hintCount.text = string.Join("  ·  ", parts);
+        }
+        public string HintCountText => hintCount.text;
         // ---- Mabel's note grows to fit -------------------------------------------------------------------
-        const float NoteW = 330f, NoteH = 150f, NoteTop = -166f, NoteToButton = 16f;
+        const float NoteW = 330f, NoteH = 150f, NoteTop = -166f, NoteToButton = 16f, CountRow = 26f;
         /// <summary>The smallest size a note may shrink to before the note grows instead (LARGER TEXT: 30% more).</summary>
         public static float NoteReadable => TextScale.Larger ? 19f * TextScale.Grow : 19f;
         string fittedText;
@@ -471,7 +499,11 @@ namespace HWC.Gameplay
             float canvasH = ((RectTransform)root).rect.height;
             // "— Mabel" grows with LARGER TEXT too: keep the note's text clear of it
             var mo = mabelText.rectTransform.offsetMin;
-            float bottom = TextScale.Larger ? 42f : 34f;
+            float sign = TextScale.Larger ? 42f : 34f;
+            bool counting = !string.IsNullOrEmpty(hintCount.text);
+            float bottom = sign + (counting ? CountRow * (TextScale.Larger ? TextScale.Grow : 1f) : 0f);
+            hintCount.rectTransform.anchoredPosition = new Vector2(18, sign);
+            hintCount.rectTransform.sizeDelta = new Vector2(NoteW - 34, CountRow * (TextScale.Larger ? TextScale.Grow : 1f));
             if (!Mathf.Approximately(mo.y, bottom)) { mabelText.rectTransform.offsetMin = new Vector2(mo.x, bottom); fittedText = null; }
             if (fittedText == mabelText.text && fittedLarger == TextScale.Larger && Mathf.Approximately(fittedCanvasH, canvasH)) return;
             fittedText = mabelText.text; fittedLarger = TextScale.Larger; fittedCanvasH = canvasH;

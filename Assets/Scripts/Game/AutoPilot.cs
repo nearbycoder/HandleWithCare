@@ -621,9 +621,10 @@ namespace HWC.Gameplay
             {
                 InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
                 for (int n = 1; n <= Levels.All.Count; n++) yield return RunHinted(n, n == 18);
+                Debug.Log($"[AutoPilot] {(offByOne + offByOneSkipped == Levels.All.Count && offByOne >= 20 ? "PASS" : "FAIL")} ghosts: building Mabel's packings counted {ghostSteps} ghosts into place one at a time; an item one cell off was not in place on {offByOne} deliveries ({offByOneSkipped} had no spot to try)");
                 int budgetRuns = 0;
                 for (int n = 1; n <= Levels.All.Count; n++) yield return RunBudgetHinted(n, n == 18, () => budgetRuns++);
-                Debug.Log($"[AutoPilot] {(budgetRuns >= 24 ? "PASS" : "FAIL")} budget hints: {budgetRuns} deliveries shipped over budget and hinted about money (SimCheck finds a sample on 24; on A Cup for Edna it can't happen)");
+                Debug.Log($"[AutoPilot] {(budgetRuns >= 24 ? "PASS" : "FAIL")} budget hints: {budgetRuns} deliveries shipped over budget and hinted about money, {budgetExtras} pieces of extra padding marked (SimCheck finds a sample on 24; on A Cup for Edna it can't happen)");
                 // the story finale: Next after The Dragon Egg rolls credits and opens Overtime
                 var g = Game.I;
                 g.StartLevel(20);
@@ -1355,17 +1356,35 @@ namespace HWC.Gameplay
             pk.Shelves.AddRange(g.Packing.HintShelves);
             var order = pk.Clone();
             order.Pieces.Sort((a, b) => a.Y != b.Y ? a.Y.CompareTo(b.Y) : a.X.CompareTo(b.X));
+            // an item one cell off its ghost isn't in place: it is "not in mine", and it blocks any ghost under it
+            yield return OffByOne(n, order, shots);
+            if (g.Packing.HintsInPlace != 0 || g.Packing.HintExtras.Count != 0) { Fail(n, $"ghosts: after undo, {g.Packing.HintsInPlace} in place and {g.Packing.HintExtras.Count} extra in an empty box"); yield break; }
+            // building the ghosts one by one counts them in place, one at a time
+            int total = g.Packing.HintsTotal, counted = 0, steps = 0;
             foreach (int d in order.Dividers) g.Packing.DebugAddDivider(d);
             foreach (var sh in order.Shelves) g.Packing.DebugAddShelf(sh);
+            counted = order.Dividers.Count + order.Shelves.Count;
+            if (g.Packing.HintsInPlace != counted) { Fail(n, $"ghosts: {order.Dividers.Count} dividers and {order.Shelves.Count} shelves in, but {g.Packing.HintsInPlace} counted in place"); yield break; }
             var pending = new System.Collections.Generic.List<Placement>(order.Pieces);
             while (pending.Count > 0)
             {
                 int before = pending.Count;
-                for (int i = 0; i < pending.Count; i++) if (g.Packing.DebugPlace(pending[i])) pending.RemoveAt(i--);
+                for (int i = 0; i < pending.Count; i++)
+                {
+                    if (!g.Packing.DebugPlace(pending[i])) continue;
+                    counted++; steps++;
+                    if (g.Packing.HintsInPlace != counted || g.Packing.HintGhostState(pending[i]) != (int)Hints.Match.InPlace)
+                    { Fail(n, $"ghosts: after placing {pending[i].Kind} at {pending[i].X},{pending[i].Y}, {g.Packing.HintsInPlace} in place (expected {counted}), its ghost {g.Packing.HintGhostState(pending[i])}"); yield break; }
+                    if (shots && steps == order.Pieces.Count / 2) { yield return new WaitForSecondsRealtime(0.5f); Shot($"hint_L{n:00}_half_built"); yield return AfterShot(); }
+                    pending.RemoveAt(i--);
+                }
                 if (pending.Count == before) { Fail(n, $"could not place hinted {pending[0].Kind} at {pending[0].X},{pending[0].Y}"); yield break; }
             }
             yield return new WaitForSecondsRealtime(shots ? 0.6f : 0.1f);
             if (shots) { Shot($"hint_L{n:00}_built"); yield return AfterShot(); }
+            if (g.Packing.HintsInPlace != total || total == 0 || g.Packing.HintsBlocked != 0 || g.Packing.HintExtras.Count != 0 || !g.Hud.HintCountText.Contains($"all {total} in place"))
+            { Fail(n, $"ghosts: built, but {g.Packing.HintsInPlace}/{total} in place, {g.Packing.HintsBlocked} in the way, {g.Packing.HintExtras.Count} extra, note \"{g.Hud.HintCountText}\""); yield break; }
+            ghostSteps += steps + order.Dividers.Count + order.Shelves.Count;
             if (!g.Packing.ReadyToSeal) { Fail(n, "hinted packing not ready to seal: " + g.CurrentPacking.Validate(lv)); yield break; }
             var expected = Simulator.Run(lv, pk, false);
             g.SealAndShip();
@@ -1378,6 +1397,40 @@ namespace HWC.Gameplay
             string line = $"hints #{n:00} {lv.Title}: stars {got.Outcome.Stars} hash {(got.Hash == expected.Hash ? "match" : "MISMATCH")} note \"{Hints.Note(lv, 1, (PieceKind)Math.Max(0, rec.HintFocus))}\"";
             Debug.Log($"[AutoPilot] {(pass ? "PASS" : "FAIL")} {line}");
             report.AppendLine((pass ? "PASS " : "FAIL ") + line);
+        }
+
+        int ghostSteps, offByOne, offByOneSkipped, budgetExtras;
+
+        /// <summary>Puts the first item of Mabel's packing one cell off its ghost (in an empty box, at the last
+        /// stage): its ghost isn't in place, the piece is drawn as not in hers, and every ghost it overlaps is in
+        /// the way. Then undoes it.</summary>
+        IEnumerator OffByOne(int n, Packing order, bool shots)
+        {
+            var g = Game.I;
+            Placement ghost = default; bool found = false;
+            foreach (var p in order.Pieces) if (!p.Def.IsPadding) { ghost = p; found = true; break; }
+            if (!found) { offByOneSkipped++; yield break; }
+            foreach (var (dx, y) in new[] { (1, ghost.Y), (-1, ghost.Y), (1, 0), (-1, 0) })
+            {
+                var moved = new Placement(ghost.Kind, ghost.X + dx, y, ghost.Rotated, ghost.Facing, false);
+                if (moved.X < 0 || moved.X + moved.W > order.W) continue;
+                if (order.Pieces.Exists(q => Hints.Same(q, moved))) continue;   // a twin's spot (two magnets): that one is in place
+                if (!g.Packing.DebugPlace(moved)) continue;
+                // independently of the game: the ghosts whose cells it overlaps
+                int overlapped = 0;
+                foreach (var q in order.Pieces)
+                    if (moved.X < q.X + q.W && moved.X + moved.W > q.X && moved.Y < q.Y + q.H && moved.Y + moved.H > q.Y) overlapped++;
+                bool ok = g.Packing.HintsInPlace == 0 && g.Packing.HintGhostState(ghost) != (int)Hints.Match.InPlace
+                       && g.Packing.PiecesShownExtra().Count == 1 && g.Packing.HintsBlocked == overlapped && g.Hud.HintCountText.Contains("not in mine");
+                string what = $"{ghost.Kind} one cell off ({moved.X},{moved.Y}): {g.Packing.HintsInPlace} in place, ghost {g.Packing.HintGhostState(ghost)}, {g.Packing.PiecesShownExtra().Count} drawn extra, {g.Packing.HintsBlocked} in the way (expected {overlapped}), note \"{g.Hud.HintCountText}\"";
+                if (shots) { yield return new WaitForSecondsRealtime(0.5f); Shot($"hint_L{n:00}_off_by_one"); yield return AfterShot(); }
+                g.Packing.Undo();
+                yield return null;
+                if (!ok) Fail(n, "ghosts: " + what);
+                else offByOne++;
+                yield break;
+            }
+            offByOneSkipped++;
         }
 
         /// <summary>
@@ -1436,10 +1489,25 @@ namespace HWC.Gameplay
                         : st == 3 ? padOnly && g.Packing.HintPieces.Count == padding && g.Packing.HintDividers.Count == src.Dividers.Count && g.Packing.HintShelves.Count == src.Shelves.Count
                         : g.Packing.HintPieces.Count == src.Pieces.Count;
                 if (!ok) { Fail(n, $"budget: stage {st} shows {g.Packing.HintPieces.Count} pieces, note \"{g.Hud.NoteText}\""); yield break; }
+                if (st == 2)
+                {
+                    // your padding that isn't in hers is drawn as extra, and hers that you have is in place
+                    var mine = g.CurrentPacking;
+                    var srcPad = new System.Collections.Generic.List<Placement>();
+                    foreach (var p in src.Pieces) if (p.Def.IsPadding) srcPad.Add(p);
+                    var want = new System.Collections.Generic.List<int>();
+                    for (int i = 0; i < mine.Pieces.Count; i++)
+                        if (mine.Pieces[i].Def.IsPadding && !srcPad.Exists(q => q.Kind == mine.Pieces[i].Kind && q.X == mine.Pieces[i].X && q.Y == mine.Pieces[i].Y)) want.Add(i);
+                    int wantIn = srcPad.FindAll(q => mine.Pieces.Exists(m => m.Kind == q.Kind && m.X == q.X && m.Y == q.Y)).Count;
+                    var shown = g.Packing.PiecesShownExtra();
+                    if (string.Join(",", shown) != string.Join(",", want) || g.Packing.HintsInPlace != wantIn || want.Count == 0 || !g.Hud.HintCountText.Contains($"{want.Count} extra"))
+                    { Fail(n, $"budget: stage 2 draws pieces {string.Join(",", shown)} as extra (expected {string.Join(",", want)}), {g.Packing.HintsInPlace} in place (expected {wantIn}), note \"{g.Hud.HintCountText}\""); yield break; }
+                    budgetExtras += want.Count;
+                }
                 if (shots) { Shot($"budget_L{n:00}_stage{st}"); yield return AfterShot(); }
             }
             ran();
-            Debug.Log($"[AutoPilot] PASS budget #{n:00} {lv.Title}: shipped at {got.Cost}/{lv.Par} (2 stars, hash match); report and hints about the budget: \"{Hints.Note(lv, 1, lv.Items[0], true)}\"");
+            Debug.Log($"[AutoPilot] PASS budget #{n:00} {lv.Title}: shipped at {got.Cost}/{lv.Par} (2 stars, hash match); report and hints about the budget: \"{Hints.Note(lv, 1, lv.Items[0], true)}\"; stage 2: \"{g.Hud.HintCountText}\"");
         }
 
         void Fail(int n, string why)

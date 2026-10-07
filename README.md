@@ -109,8 +109,11 @@ stay at or under par for a star.
 about the item at risk (where it sits in her packing and what is beside it). The next ones show that
 item's exact spot as a ghost in the box, then her dividers and shelves, then her whole packing. If the
 trip arrived safely and gently but over par, her hints are about money instead: what her packing
-costs and uses (and leaves out), then where her padding goes. Hints never cost stars; the delivery
-log just pencils in "hinted".
+costs and uses (and leaves out), then where her padding goes. The ghosts follow your box: one you've
+matched fades to a faint green, one whose spot something else has taken turns red, your pieces that
+aren't in her packing (extra padding, an item somewhere else) get a red tint, and her note counts
+them ("7/9 in place · 2 in the way · 2 extra"). Hints never cost stars; the delivery log just pencils
+in "hinted".
 
 **Watch the trip.** Seal the box and the journey plays out with a director camera that knows the
 future: it slows down and leans in just before something goes wrong, and shakes on the big hits.
@@ -266,7 +269,7 @@ Tools/simcheck.sh check         # every delivery: reference packing valid, deliv
                                 # Mabel's best is a stored 3-star packing at or under par; the budget hints
                                 # match her packing; a packing that misses only the budget star (24 of 25;
                                 # on the 25th, everything on offer costs par); the trip's care meters end
-                                # where the review does
+                                # where the review does; her ghosts all match her own packing
 Tools/simcheck.sh hashes        # the trip hash of every delivery's stored packings (a change that must not
                                 # alter any trip leaves these exactly as they were)
 Tools/simcheck.sh hints         # print Mabel's hint notes for every delivery
@@ -276,9 +279,11 @@ Tools/simcheck.sh explore 21    # random item-only packings: how many get delive
 Tools/autopilot.sh              # the built player plays all 25 references through the real packing code
                                 # and checks each outcome and hash against the validator, and the trip's
                                 # care meters against the review
-Tools/hintpilot.sh              # Ask Mabel on all 25: click through every hint, build what the ghosts show,
-                                # expect three stars and the validator's hash; ship an over-budget packing on
-                                # 24 and check the report and the budget hints; then the finale opens Overtime
+Tools/hintpilot.sh              # Ask Mabel on all 25: click through every hint, build what the ghosts show
+                                # (counted into place one at a time; an item one cell off isn't), expect three
+                                # stars and the validator's hash; ship an over-budget packing on 24 and check
+                                # the report, the budget hints and the extra padding they mark; then the
+                                # finale opens Overtime
 Tools/padpilot.sh               # gamepad only (a virtual pad at 1280x800): title to delivery 2, dividers,
                                 # undo/redo, turning Ember, Ask Mabel, pause, settings and the delivery log;
                                 # PlayStation prompts with a virtual DualShock 4 and the BUTTON ICONS setting;
