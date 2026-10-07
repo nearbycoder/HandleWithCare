@@ -360,3 +360,79 @@ Mistakes and limits:
 Still not verified here: a physical controller or Steam Deck, real alt-tab focus loss, a power cut
 mid-write, and the Mac build on a Mac. Still for the owner: Windows Build Support, Mac signing and
 notarization, publishing a release, and a license.
+
+## Round 4 scope
+
+Started 2026-10-06 on `improvements-4`, from main after round 3 (8147912). The ranked list is done
+or blocked (#9 needs the Windows module, #10 a quiet machine or other hardware, #11 human ears, #12 a
+40-minute art rebuild for background scenery, #13 and #14 are not planned). This round looks again at
+what a player runs into, from reading the code and the round 3 screenshots:
+
+- **Your best packing gets overwritten.** The save keeps one packing per delivery: the last one
+  shipped, and since round 3 also the unsealed box. A player who earns three stars and then tries for
+  Mabel's best loses the three-star layout with the first experiment.
+- **Undo and redo are swapped on German keyboards.** Shortcuts read physical key positions (US
+  layout). On QWERTZ the key labelled Z sits where US has Y, so Z redoes and Y (and Ctrl+Z) undoes.
+  On AZERTY the key labelled Z does nothing and the hint on the button still says Z.
+- **Small text on handhelds.** The UI is laid out for 1920×1080 and scaled. At the Steam Deck's
+  1280×800 the item cards, Mabel's notes, the order card and the log detail line (18–22 units)
+  render at about 13–15 px. There is no way to make text bigger.
+- **No way to start over.** Starting a fresh game means finding and deleting `save.json` by hand.
+
+Every item keeps `simcheck check`, `autopilot.sh`, `hintpilot.sh`, `padpilot.sh`, `tour.sh` and
+`savepilot.sh` green, and every self-test still leaves the real config folder unchanged. Screenshots
+go to `docs/media/improvements/round4/`.
+
+### R4-A. Your best packing is kept (S–M)
+
+- Each delivery keeps the best packing you have shipped, apart from the box on the bench. Better
+  means more stars, then lower cost, then a lower peak jolt.
+- On the bench, a **MY BEST** button (with its stars) puts that packing in the box. It shows when a
+  best exists and the box is different. Z undoes it, like any other change. The gamepad cursor
+  reaches it.
+
+**Acceptance:** after a three-star trip and then a failed one, MY BEST brings back the three-star
+layout, and shipping it gets three stars again. Undo returns the failed layout. The best packing
+survives a restart. **Verify:** `savepilot.sh`: after the restart, ship a failing packing, click
+MY BEST with real mouse events, compare the box to the three-star one, undo and redo, ship it and
+compare the outcome to the validator's. Plus a screenshot.
+
+### R4-B. Shortcuts follow the keyboard's labels (S–M)
+
+- Letter shortcuts (Z, Y, R, P, C) find the key by the label the keyboard layout reports, using the
+  Input System's layout names, and fall back to the US position when the platform reports no names.
+  The key hints on the buttons show the same labels.
+
+**Acceptance:** with a German layout, the key labelled Z undoes and the key labelled Y redoes; with
+French AZERTY, the key labelled Z undoes; with US, nothing changes. **Verify:** `tour.sh` sends real
+key events for the physical keys while the layout names are swapped in through a test hook (the
+platform can't be given another layout without changing the desktop's), checks undo and redo, and
+logs what this Linux player reports for the real keyboard. **Not verifiable here:** a real non-US
+layout on Linux, Windows or macOS.
+
+### R4-C. Larger text (S–M)
+
+- A **LARGER TEXT** setting. Body text (cards, notes, the order card, the log detail line, results
+  labels, key hints) grows by up to about 30% wherever its box has room, and never shrinks below
+  today's size. Saved like every other setting.
+
+**Acceptance:** with it on, the small texts are larger and none of them overflows its box when it
+didn't before. **Verify:** a self-test step that counts overflowing texts with the setting off and
+on, and logs the sizes; `padpilot.sh` screenshots at 1280×800 of packing, an item card, the log,
+settings and results, with the setting on, reviewed by eye.
+
+### R4-D. Start over (S)
+
+- **START OVER** in Settings, with a confirmation. It clears progress (stars, records, boxes, seen
+  tips) and keeps the settings. The old save is kept as `save.erased-<time>.json`, never deleted.
+
+**Acceptance:** cancelling changes nothing; confirming gives a fresh game with the same settings and
+a copy of the old save on disk. **Verify:** `savepilot.sh` clicks both with real mouse events in its
+sandbox and checks the files and the title menu.
+
+### Not in this round
+
+Controller rumble was considered, but Unity's Linux gamepad backend may not drive motors and nothing
+here could feel it, so it would land untested. PlayStation button glyphs need a font or sprites for
+the shapes. Physical controller and Steam Deck testing, real alt-tab focus loss and the Mac build on
+a Mac still need hardware.
