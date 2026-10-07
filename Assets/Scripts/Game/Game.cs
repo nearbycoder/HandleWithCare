@@ -288,7 +288,7 @@ namespace HWC.Gameplay
 
         void OnJourneyDone()
         {
-            Save.Record(Level, LastRun.Outcome);
+            Save.Record(Level, LastRun.Outcome, LastRun.Packing);
             if (SkipReveal) { ShowResultsNow(); return; }
             Phase = Phase.Reveal;
             Hud.ShowReveal();

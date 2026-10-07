@@ -15,7 +15,9 @@ namespace HWC.Gameplay
     ///   1  fresh save: settings clicked, delivery 1 delivered, an unsealed box kept through Main Menu and quit
     ///   2  restart: progress, settings and the unsealed box are back
     ///   3  (save.json cut in half) the backup loads, the damaged file is kept, the title says so
-    ///   4  (garbage, no backup) a fresh save, both damaged files kept, and it saves again
+    ///   4  (garbage, no backup) a fresh save, both damaged files kept, and it saves again;
+    ///      then delivery 1 with three stars (its best packing)
+    ///   5  restart: a failed trip, then MY BEST brings the three-star packing back (undo, redo, ship it)
     /// </summary>
     public sealed partial class AutoPilot
     {
@@ -63,6 +65,7 @@ namespace HWC.Gameplay
                     case 2: yield return SaveStep2(g); break;
                     case 3: yield return SaveStep3(g); break;
                     case 4: yield return SaveStep4(g); break;
+                    case 5: yield return SaveStep5(g); break;
                 }
                 SaveCheck(Directory.GetFiles(DataDir, "*.tmp").Length == 0, "no temporary file left behind");
                 yield return ShotsWritten();
@@ -209,6 +212,62 @@ namespace HWC.Gameplay
             SaveData back = null;
             try { back = JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath)); } catch { }
             SaveCheck(back != null && back.Records.Count == 0, "the fresh save is written normally");
+
+            // three stars on delivery 1: that packing becomes its best
+            g.Save.SeenTips.Add("basics");
+            g.Save.SeenTips.Add("shift_1");
+            yield return RunLevel(1, "ref", false);
+            string best = SaveData.Serialize(g.LastRun.Packing);
+            SaveCheck(g.LastRun.Outcome.Stars == 3 && g.Save.Get(1)?.BestPacking == best && g.Save.Get(1)?.BestPackingStars == 3,
+                      "a three-star trip is kept as the best packing");
+            File.WriteAllText(ExpectedFile("best"), best);
+        }
+
+        IEnumerator SaveStep5(Game g)
+        {
+            string best = File.Exists(ExpectedFile("best")) ? File.ReadAllText(ExpectedFile("best")) : null;
+            SaveCheck(best != null && g.Save.Get(1)?.BestPacking == best, "the best packing survives a restart");
+            yield return new WaitForSecondsRealtime(0.9f);
+            g.StartLevel(1);                                  // what picking it in the delivery log does
+            yield return new WaitForSecondsRealtime(0.6f);
+            var bestBtn = g.Hud.BestButton;
+            SaveCheck(g.Level?.Number == 1 && !bestBtn.gameObject.activeInHierarchy, "MY BEST is hidden while the box already holds the best packing");
+
+            // a failed trip: items only
+            yield return RunLevel(1, "naive", false);
+            string failed = SaveData.Serialize(g.LastRun.Packing);
+            SaveCheck(!g.LastRun.Outcome.Delivered && g.Save.Get(1)?.BestPacking == best, "a failed trip doesn't replace the best packing");
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return Key(UnityEngine.InputSystem.Key.R);
+            yield return new WaitForSecondsRealtime(0.6f);
+            SaveCheck(g.Phase == Phase.Packing && SaveData.Serialize(g.CurrentPacking) == failed, "R repacks: the failed box is on the bench");
+            int gold = 0;
+            foreach (var img in bestBtn.GetComponentsInChildren<UnityEngine.UI.Image>()) if (img.name.StartsWith("star") && img.color == HWC.Visuals.Palette.Gold) gold++;
+            SaveCheck(bestBtn.gameObject.activeInHierarchy && gold == 3, $"MY BEST shows, with {gold} gold stars");
+            Shot("S5_my_best_button");
+            yield return AfterShot();
+
+            yield return ClickButton(bestBtn);
+            yield return new WaitForSecondsRealtime(0.4f);
+            SaveCheck(SaveData.Serialize(g.CurrentPacking) == best && !bestBtn.gameObject.activeInHierarchy, "clicking MY BEST puts the three-star packing in the box");
+            Shot("S5_my_best_loaded");
+            yield return AfterShot();
+            yield return Key(UnityEngine.InputSystem.Key.Z);
+            SaveCheck(SaveData.Serialize(g.CurrentPacking) == failed, "Z undoes it");
+            yield return Key(UnityEngine.InputSystem.Key.Y);
+            SaveCheck(SaveData.Serialize(g.CurrentPacking) == best, "Y redoes it");
+
+            // ship it again: three stars, and the same trip as the validator's
+            var expected = Simulator.Run(g.Level, SaveData.Deserialize(g.Level, best), false);
+            yield return Key(UnityEngine.InputSystem.Key.Space);
+            SaveCheck(g.Phase == Phase.Sealing, "Space seals it");
+            yield return WaitPhase(Phase.Journey, 8f);
+            g.Journey.Skip();
+            yield return WaitPhase(Phase.Reveal, 3f);
+            yield return Key(UnityEngine.InputSystem.Key.Enter);
+            yield return WaitPhase(Phase.Results, 5f);
+            SaveCheck(g.Phase == Phase.Results && g.LastRun.Outcome.Stars == 3 && g.LastRun.Hash == expected.Hash,
+                      $"shipped from MY BEST: {g.LastRun.Outcome.Stars} stars, hash {(g.LastRun.Hash == expected.Hash ? "matches" : "DIFFERS")}");
         }
     }
 }

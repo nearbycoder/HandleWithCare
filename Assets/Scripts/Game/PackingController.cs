@@ -242,6 +242,17 @@ namespace HWC.Gameplay
             Changed?.Invoke();
         }
 
+        /// <summary>Puts a whole packing in the box (MY BEST). Undoable.</summary>
+        public void LoadPacking(Packing pk)
+        {
+            if (pk == null) return;
+            string s = SaveData.Serialize(pk);
+            if (s == SaveData.Serialize(Pk)) return;
+            Snapshot();
+            Restore(s);
+            G.Hud.Sfx("clear");
+        }
+
         public void ClearAll()
         {
             if (Pk.Pieces.Count == 0 && Pk.Dividers.Count == 0 && Pk.Shelves.Count == 0) return;

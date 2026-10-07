@@ -4,7 +4,9 @@
 #   1  fresh save: settings clicked, delivery 1 delivered, an unsealed box kept through Main Menu and quit
 #   2  restart: progress, settings (VSync, frame-rate limit...) and the unsealed box are back
 #   3  save.json cut in half: the backup loads, the damaged file is kept, the title screen says so
-#   4  garbage and no backup: a fresh save without an exception, both damaged files kept
+#   4  garbage and no backup: a fresh save without an exception, both damaged files kept; then
+#      delivery 1 with three stars
+#   5  restart: a failed trip, then MY BEST brings the three-star packing back (undo, redo, ship it)
 #   Tools/savepilot.sh [OUTDIR]
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -31,7 +33,8 @@ launch 3
 printf 'not a save {{{' > "$DATA/save.json"
 rm -f "$DATA/save.json.bak"
 launch 4
-for i in 1 2 3 4; do
+launch 5
+for i in 1 2 3 4 5; do
   grep -q "\[AutoPilot\] done" "$OUT/player$i.log" || { echo "FAIL launch $i did not finish"; status=1; }
 done
 if grep -qE "\[AutoPilot\] FAIL|Exception" "$OUT"/player?.log; then status=1; fi

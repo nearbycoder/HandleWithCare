@@ -27,6 +27,11 @@ namespace HWC.Gameplay
             public int HintFocus = -1;     // the item the hints are about (PieceKind), fixed when first asked
             public bool HintsHidden;
             public bool Expert;            // three stars at or under Mabel's best
+            // the best packing shipped (more stars, then cheaper, then gentler), apart from the box on the bench
+            public string BestPacking;
+            public int BestPackingStars;
+            public int BestPackingCost = -1;
+            public float BestPackingCare = -1;
         }
 
         public int Version = 1;
@@ -188,7 +193,7 @@ namespace HWC.Gameplay
             return IsDelivered(number - 1);
         }
 
-        public void Record(LevelDef lv, Outcome o)
+        public void Record(LevelDef lv, Outcome o, Packing shipped = null)
         {
             var r = Get(lv.Number, true);
             r.Attempts++;
@@ -204,8 +209,33 @@ namespace HWC.Gameplay
                 if (r.BestCost < 0 || o.Cost < r.BestCost) r.BestCost = o.Cost;
                 if (o.Stars == 3 && o.Cost <= lv.Expert) r.Expert = true;
                 if (r.BestCare < 0 || o.WorstCare < r.BestCare) r.BestCare = o.WorstCare;
+                if (shipped != null && BetterThanBest(r, o))
+                {
+                    r.BestPacking = Serialize(shipped);
+                    r.BestPackingStars = o.Stars;
+                    r.BestPackingCost = o.Cost;
+                    r.BestPackingCare = o.WorstCare;
+                }
             }
             Write();
+        }
+
+        /// <summary>More stars, then a lower cost, then a lower peak jolt.</summary>
+        static bool BetterThanBest(LevelRecord r, Outcome o)
+        {
+            if (string.IsNullOrEmpty(r.BestPacking)) return true;
+            if (o.Stars != r.BestPackingStars) return o.Stars > r.BestPackingStars;
+            if (o.Cost != r.BestPackingCost) return o.Cost < r.BestPackingCost;
+            return o.WorstCare < r.BestPackingCare;
+        }
+
+        /// <summary>The best packing shipped for this delivery, or null.</summary>
+        public Packing GetBestPacking(LevelDef lv)
+        {
+            var r = Get(lv.Number);
+            if (r == null || string.IsNullOrEmpty(r.BestPacking)) return null;
+            try { return Deserialize(lv, r.BestPacking); }
+            catch { return null; }
         }
 
         public Packing GetPacking(LevelDef lv)

@@ -21,7 +21,8 @@ namespace HWC.Gameplay
         // packing widgets
         TextMeshProUGUI orderNum, orderTitle, orderCustomer, orderText, mabelText, budgetText, sealHint, feedbackText;
         Image budgetFill, sticky;
-        UiButton sealBtn, undoBtn, redoBtn, clearBtn;
+        UiButton sealBtn, undoBtn, redoBtn, clearBtn, bestBtn;
+        readonly Image[] bestStars = new Image[3];
         readonly List<(MaterialSlot slot, UiButton btn, TextMeshProUGUI count, Image icon)> slots = new List<(MaterialSlot, UiButton, TextMeshProUGUI, Image)>();
         RectTransform itemCard;
         TextMeshProUGUI cardName, cardBlurb, cardStats;
@@ -345,6 +346,19 @@ namespace HWC.Gameplay
             redoBtn.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(156, 40), new Vector2(120, 56));
             clearBtn = Ui.Button(packRoot, "clear", "EMPTY BOX", () => G.Packing.ClearAll(), Palette.Cream, Palette.Ink, 26);
             clearBtn.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(28, 104), new Vector2(248, 56));
+            // MY BEST: the best packing shipped for this delivery, back in the box (undoable)
+            bestBtn = Ui.Button(packRoot, "myBest", "MY BEST", LoadBest, Palette.Cream, Palette.Ink, 26);
+            bestBtn.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(28, 168), new Vector2(248, 56));
+            var bestLabel = bestBtn.Label;
+            bestLabel.rectTransform.Stretch(14, 100, 2, 4);
+            bestLabel.alignment = TextAlignmentOptions.Left;
+            for (int i = 0; i < 3; i++)
+            {
+                bestStars[i] = Ui.Icon(bestBtn.transform, "star" + i, Ui.Star, Palette.Gold);
+                bestStars[i].rectTransform.Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-82 + i * 30, 0), new Vector2(28, 28));
+                bestStars[i].raycastTarget = false;
+            }
+            bestBtn.gameObject.SetActive(false);
 
             // item card (left)
             var ic = Ui.Panel(packRoot, "itemCard", Palette.Paper, Ui.Rounded(14, 3));
@@ -643,7 +657,22 @@ namespace HWC.Gameplay
             if (pc.ReadyToSeal && !wasReady) { sealBtn.Pulse(); Sfx("stamp_ok", 0.5f); }
             wasReady = pc.ReadyToSeal;
             sealHint.text = remaining > 0 ? $"Pack {remaining} more item{(remaining > 1 ? "s" : "")}" : (ready ? (PadPrompts ? "View to seal" : "Space to seal") : "");
+            RefreshBest(lv);
         }
+
+        void LoadBest() => G.Packing.LoadPacking(G.Save.GetBestPacking(G.Packing.Level));
+
+        /// <summary>MY BEST shows when a best packing exists and the box holds something else.</summary>
+        void RefreshBest(LevelDef lv)
+        {
+            var r = G.Save.Get(lv.Number);
+            bool show = r != null && !string.IsNullOrEmpty(r.BestPacking) && r.BestPacking != SaveData.Serialize(G.Packing.Pk);
+            bestBtn.gameObject.SetActive(show);
+            if (!show) return;
+            for (int i = 0; i < 3; i++) bestStars[i].color = i < r.BestPackingStars ? Palette.Gold : new Color(0, 0, 0, 0.13f);
+        }
+
+        public UiButton BestButton => bestBtn;
 
         static MaterialSlot SlotFor(PieceKind k) => k == PieceKind.Paper ? MaterialSlot.Paper : (k == PieceKind.Bubble ? MaterialSlot.Bubble : MaterialSlot.Foam);
 
