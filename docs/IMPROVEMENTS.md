@@ -716,3 +716,85 @@ Still not verified here: a physical controller (Xbox-style or PlayStation) or St
 non-US keyboard, real alt-tab focus loss, a power cut mid-write, and the Mac build on a Mac (not rebuilt
 this round). Still for the owner: Windows Build Support, Mac signing and notarization, publishing a
 release, a license, and re-cutting the trailer.
+
+## Round 7 scope
+
+Started 2026-10-07 on `improvements-7`, from main after round 6 (dccc781). The ranked list is still
+done or blocked (#9 Windows module, #10 a quiet machine or other hardware, #11 human ears, #12 a
+40-minute art rebuild, #13 and #14 not planned). Baseline: `simcheck check` ALL OK (25). Found while
+planning, from the code and the round 6 screenshots:
+
+- **The HUD covers the box.** The bench camera fits the box and the shelf to the screen and ignores
+  the panels drawn over it. On wide boxes the LAST TRIP report sits over the box's top-left cells
+  (round 6's screenshot of The Vase and the Dragon: a paper ball half under the report), which is
+  where a player is looking right after a failed trip. At 16:9 Mabel's tallest notes and ASK MABEL
+  reach over the top-right shelf cubby (open since round 5).
+- **Tape designs unlock silently.** Stars unlock six tapes (8, 16, 24, 34 and 48 stars), but nothing
+  says so: they wait in Settings. The review doesn't say whether a trip earned a new star for the
+  delivery (stars add up across attempts) or how far the next tape is.
+- **The LAST TRIP report pops in.** A bench that brings its last trip back shows nothing where the
+  report goes for 0.1–1 s, then the report appears (round 6).
+- **Budget hints aren't tested on deliveries 10, 12 and 22.** SimCheck's search (swaps and extra
+  padding on her packing, in order) finds no packing there that misses only the budget star.
+
+Every item keeps `simcheck check`, `autopilot.sh`, `hintpilot.sh`, `padpilot.sh`, `tour.sh` and
+`savepilot.sh` green, and every self-test still leaves the real config folder unchanged. No new
+delivery this round. Screenshots go to `docs/media/improvements/round7/`.
+
+### R7-A. The bench is framed around the HUD (M)
+
+- The bench camera keeps the box and the shelf clear of the order card, the LAST TRIP report (room
+  for it is kept whenever the delivery has a last trip), the materials meter, Mabel's note and ASK
+  MABEL, the toolbar and the corner buttons. It moves and shrinks the shot only as much as needed,
+  at any aspect ratio, and re-frames (with the usual glide) only if the note or report outgrow the
+  room kept for them.
+
+**Acceptance:** on all 25 benches, at 1920×1080, 1280×800, 2560×1080 and 1600×1200, with the
+tallest LAST TRIP report and Mabel's tallest hint note (LARGER TEXT on), no box cell and no shelf
+slot is under a HUD panel; box cells stay at least 80% of today's size on screen. **Verify:** a new
+`Tools/layoutpilot.sh` (`-hwcLayout`) that opens every bench at each resolution, measures the screen
+rectangles of the cells, slots and panels, and logs overlaps and cell sizes for today's framing and
+the new one; screenshots of the widest boxes before and after.
+
+### R7-B. The review says what you earned (S–M)
+
+- Under the stars, one line: a new star for this delivery ("+1 star: UNDER BUDGET"), the total
+  ("23 of 75 stars") and the next tape ("FRAGILE tape at 24").
+- When a trip unlocks a tape, a NEW TAPE sticker on the review shows the swatch and a **USE IT**
+  button (`T`; the gamepad cursor reaches it) that puts it on every box from then on.
+
+**Acceptance:** a trip that crosses a tape threshold shows the sticker, and USE IT sets that tape
+(saved); a trip with no new star says nothing about gains; REPLAY and back shows the same line.
+**Verify:** `tour.sh` with a seeded sandbox save one star short of a tape: ship, check the line and
+the sticker, press `T` with a real key event, check the save; `padpilot.sh` reaches USE IT with the
+d-pad; screenshots.
+
+### R7-C. The LAST TRIP report holds its place (S)
+
+- While the last trip is being simulated again, the report is already there with one line ("Mabel
+  is reading the last trip…"), then fills in. If the box can't be simulated (made illegal by later
+  balance changes), it goes away as today.
+
+**Acceptance:** after a restart the first frame of the bench shows the report with the placeholder,
+then the same text and hash as round 6 checks. **Verify:** `savepilot.sh` (launch 6) logs the
+report's text on the first bench frame and after the restore.
+
+### R7-D. Budget hints tested on 10, 12 and 22 (S)
+
+- `Hints.OverBudgetSample` also tries seeded random extra padding and swaps when the ordered search
+  finds nothing, so SimCheck and `hintpilot.sh` can test the budget hints on more deliveries.
+
+**Acceptance:** a packing that misses only the budget star is found on more than 21 deliveries, or
+the ones left are explained. **Verify:** `simcheck check`, `hintpilot.sh` ships the new ones.
+
+### R7-E. Refresh the local macOS build (S)
+
+- Rebuild `Builds/Mac/HandleWithCare.app` from this branch (rounds 4–7 aren't in it).
+
+**Acceptance:** 0 errors, universal binary, bundle id and version. **Verify:** build log, `file`,
+Info.plist. **Not verifiable here:** running it on a Mac.
+
+### Not in this round
+
+Rumble, a physical controller or Steam Deck, a real non-US keyboard, real alt-tab focus loss, the
+Mac build on a Mac.
