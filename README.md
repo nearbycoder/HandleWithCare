@@ -260,7 +260,8 @@ Tools/hintpilot.sh              # Ask Mabel on all 25: click through every hint,
                                 # expect three stars and the validator's hash; then the finale opens Overtime
 Tools/padpilot.sh               # gamepad only (a virtual pad at 1280x800): title to delivery 2, dividers,
                                 # undo/redo, turning Ember, Ask Mabel, pause, settings and the delivery log;
-                                # then LARGER TEXT: bigger on four screens, and nothing that fit overflows
+                                # then LARGER TEXT: bigger on four screens, and nothing that fit overflows;
+                                # every hint note of every delivery at a readable size, off and on
 Tools/savepilot.sh              # six launches on one save, saving switched on: settings, progress and an
                                 # unsealed box survive a restart; a half-written save comes back from the
                                 # backup; garbage with no backup starts fresh; MY BEST after a restart;
@@ -392,8 +393,10 @@ Overtime), every one validated solvable with three stars.
   the focus handler, not by really switching windows. Letter shortcuts follow the keyboard layout's
   labels. That is tested by swapping in German, French and Russian labels (`Tools/tour.sh`), not
   with a real non-US keyboard; this Linux player does report the layout ('us') and the key names.
-- **Text size.** LARGER TEXT grows small text by up to 30%, but only as far as its box allows. Text
-  that already fills its box stays the same size, such as Mabel's longer hint notes.
+- **Text size.** LARGER TEXT grows small text by up to 30%, but only as far as its box allows. Mabel's
+  sticky note is the exception: it gets taller instead, so her hints are never smaller than 19 units
+  (about 25 with LARGER TEXT). A tall note can overlap the top-right shelf cubby at 16:9; it lets
+  clicks through and fades while the pointer is over it.
 - **Saves.** Crash safety is tested by damaging the save between launches (`Tools/savepilot.sh`), not
   by cutting the power mid-write. Only the most recent backup is kept. A save from before this
   version has no best packing stored, so MY BEST appears after the next delivered trip.

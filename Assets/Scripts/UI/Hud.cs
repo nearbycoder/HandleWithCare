@@ -283,6 +283,7 @@ namespace HWC.Gameplay
             mabelText.enableAutoSizing = true; mabelText.fontSizeMin = 15; mabelText.fontSizeMax = 23;   // hint notes run longer
             var sign = Ui.Text(sticky.transform, "sign", "— Mabel", 20, Palette.InkSoft, Ui.Bold, TextAlignmentOptions.BottomRight);
             sign.rectTransform.Stretch(16, 16, 10, 10);
+            sticky.raycastTarget = false;   // the note grows (FitSticky); it must never hide a shelf item from the mouse
 
             // Ask Mabel (under the sticky note): escalating hints from her own packing
             hintBtn = Ui.Button(packRoot, "askMabel", "ASK MABEL", AskMabel, Palette.Sticky, Palette.Ink, 26);
@@ -294,6 +295,7 @@ namespace HWC.Gameplay
             hintBadge.rectTransform.Place(new Vector2(0, 1), new Vector2(0.5f, 0.5f), new Vector2(40, -4), new Vector2(120, 34));
             hintBadgeText = Ui.Text(hintBadge.transform, "t", "HINT 1/4", 22, Palette.Cream, Ui.Display);
             hintBadgeText.rectTransform.Stretch();
+            foreach (var gr in sticky.GetComponentsInChildren<Graphic>(true)) gr.raycastTarget = false;
 
             // toolbar
             var bar = Ui.Panel(packRoot, "toolbar", new Color(0.16f, 0.12f, 0.1f, 0.82f), Ui.Rounded(20));
@@ -443,6 +445,68 @@ namespace HWC.Gameplay
             hintBtn.Label.text = stage < Hints.MaxStage ? "ANOTHER HINT" : (rec.HintsHidden ? "SHOW HINTS" : "HIDE HINTS");
             G.Packing.ShowHints(stage, focus, !rec.HintsHidden);
         }
+        // ---- Mabel's note grows to fit -------------------------------------------------------------------
+        const float NoteW = 330f, NoteH = 150f, NoteTop = -166f, NoteToButton = 16f;
+        /// <summary>The smallest size a note may shrink to before the note grows instead (LARGER TEXT: 30% more).</summary>
+        public static float NoteReadable => TextScale.Larger ? 19f * TextScale.Grow : 19f;
+        string fittedText;
+        bool fittedLarger;
+        float fittedCanvasH;
+
+        /// <summary>
+        /// Long notes (Mabel's hints) used to shrink to fit the sticky note. Now the note gets taller
+        /// until its text fits at a readable size, and ASK MABEL moves down with it. Short notes keep
+        /// the normal note.
+        /// </summary>
+        void FitSticky()
+        {
+            float canvasH = ((RectTransform)root).rect.height;
+            // "— Mabel" grows with LARGER TEXT too: keep the note's text clear of it
+            var mo = mabelText.rectTransform.offsetMin;
+            float bottom = TextScale.Larger ? 42f : 34f;
+            if (!Mathf.Approximately(mo.y, bottom)) { mabelText.rectTransform.offsetMin = new Vector2(mo.x, bottom); fittedText = null; }
+            if (fittedText == mabelText.text && fittedLarger == TextScale.Larger && Mathf.Approximately(fittedCanvasH, canvasH)) return;
+            fittedText = mabelText.text; fittedLarger = TextScale.Larger; fittedCanvasH = canvasH;
+            var m = mabelText.rectTransform;
+            float insetV = -m.offsetMax.y + m.offsetMin.y, insetH = m.offsetMin.x - m.offsetMax.x;
+            // measure at the readable size, with auto-size off for the measurement
+            bool auto = mabelText.enableAutoSizing; float size = mabelText.fontSize;
+            mabelText.enableAutoSizing = false;
+            mabelText.fontSize = NoteReadable;
+            float need = mabelText.GetPreferredValues(mabelText.text, NoteW - insetH, 0).y + insetV + 4f;
+            mabelText.enableAutoSizing = auto; mabelText.fontSize = size;
+            // keep clear of the seal button and its hint at the bottom right (they reach about 200 up)
+            float room = canvasH + NoteTop - NoteToButton - 54f - 230f;
+            float h = Mathf.Clamp(Mathf.Ceil(need), NoteH, Mathf.Max(NoteH, room));
+            sticky.rectTransform.sizeDelta = new Vector2(NoteW, h);
+            hintBtn.Image.rectTransform.anchoredPosition = new Vector2(-40, NoteTop - h - NoteToButton);
+            mabelText.ForceMeshUpdate();
+        }
+
+        CanvasGroup stickyFade;
+        /// <summary>The note fades while the pointer is over it, so a shelf item behind a tall note stays in view.</summary>
+        void PeekUnderSticky(float dt)
+        {
+            if (stickyFade == null) stickyFade = sticky.gameObject.AddComponent<CanvasGroup>();
+            Vector2 p = PadPrompts ? PadInput.I.CursorPosition : (Mouse.current != null ? Mouse.current.position.ReadValue() : new Vector2(-1, -1));
+            bool over = RectTransformUtility.RectangleContainsScreenPoint(sticky.rectTransform, p, null);
+            stickyFade.alpha = Mathf.MoveTowards(stickyFade.alpha, over ? 0.3f : 1f, dt * 6f);
+        }
+        public float StickyAlpha => stickyFade != null ? stickyFade.alpha : 1f;
+
+        /// <summary>For the self-test: show a note, fit it, and report its font size and the note's height.</summary>
+        public (float size, float height) FitNoteForTest(string text)
+        {
+            mabelText.text = text;
+            FitSticky();
+            mabelText.ForceMeshUpdate();
+            return (mabelText.fontSize, sticky.rectTransform.rect.height);
+        }
+        public RectTransform StickyRect => sticky.rectTransform;
+        public RectTransform BudgetRect => budgetText.transform.parent as RectTransform;
+        public float NoteFontSize => mabelText.fontSize;
+        public string NoteText => mabelText.text;
+
         bool wasReady;
         TextMeshProUGUI routeText;
 
@@ -1151,6 +1215,8 @@ namespace HWC.Gameplay
             UpdateShiftCard(dt);
             if (packRoot.gameObject.activeSelf)
             {
+                FitSticky();
+                PeekUnderSticky(dt);
                 packT += dt;
                 float s = packT < 0.25f ? Mathf.Lerp(0.85f, 1f, 1f - Mathf.Pow(1f - packT / 0.25f, 3f)) : 1f;
                 sticky.rectTransform.localScale = Vector3.one * s;

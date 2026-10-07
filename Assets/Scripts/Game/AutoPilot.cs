@@ -457,6 +457,7 @@ namespace HWC.Gameplay
             {
                 yield return PadTour();
                 yield return LargerTextTour();
+                yield return NoteFitCheck();
                 yield return ShotsWritten();
                 Debug.Log("[AutoPilot] done");
                 yield return new WaitForSecondsRealtime(0.3f);
@@ -633,6 +634,22 @@ namespace HWC.Gameplay
             yield return null;
         }
 
+        /// <summary>The left stick until the cursor is inside this rectangle (the d-pad only jumps between targets).</summary>
+        IEnumerator PadStickInto(RectTransform rt, float timeout = 3f)
+        {
+            var target = RectScreen(rt);
+            float t0 = Time.unscaledTime;
+            while (!RectTransformUtility.RectangleContainsScreenPoint(rt, PadInput.I.CursorPosition, null) && Time.unscaledTime - t0 < timeout)
+            {
+                var d = target - PadInput.I.CursorPosition;
+                gs.leftStick = d.normalized * Mathf.Clamp(d.magnitude / 200f, 0.5f, 1f);
+                PadSend();
+                yield return null;
+            }
+            gs.leftStick = Vector2.zero; PadSend();
+            yield return null;
+        }
+
         void PadCheck(bool ok, string what) => Debug.Log($"[AutoPilot] {(ok ? "PASS" : "FAIL")} pad: {what}");
 
         static bool Near(Vector2 a, Vector2 b) => (a - b).sqrMagnitude < 9f;
@@ -755,6 +772,92 @@ namespace HWC.Gameplay
             yield return TextCheck("results");
             Shot("T4_results_larger");
             yield return AfterShot();
+        }
+
+        static Rect ScreenRectOf(RectTransform rt)
+        {
+            var c = new Vector3[4];
+            rt.GetWorldCorners(c);   // overlay canvas: world corners are screen pixels
+            float x0 = Mathf.Min(c[0].x, c[1].x, c[2].x, c[3].x), x1 = Mathf.Max(c[0].x, c[1].x, c[2].x, c[3].x);
+            float y0 = Mathf.Min(c[0].y, c[1].y, c[2].y, c[3].y), y1 = Mathf.Max(c[0].y, c[1].y, c[2].y, c[3].y);
+            return Rect.MinMaxRect(x0, y0, x1, y1);
+        }
+
+        /// <summary>
+        /// Mabel's notes grow to fit: every hint note of every delivery (each stage, each item it can be
+        /// about) is shown at a readable size with LARGER TEXT off and on, intro notes keep the normal
+        /// note, and the tallest note stays clear of the materials meter and the seal button.
+        /// </summary>
+        IEnumerator NoteFitCheck()
+        {
+            var g = Game.I;
+            if (!g.Save.SeenTips.Contains("basics")) g.Save.SeenTips.Add("basics");
+            string longest = null; int longN = 1, longStage = 1; PieceKind longFocus = PieceKind.Teacup;
+            foreach (bool larger in new[] { false, true })
+            {
+                TextScale.Set(larger);
+                g.StartLevel(15);
+                yield return new WaitForSecondsRealtime(0.4f);
+                float minSize = 99f, maxH = 0f; int notes = 0, grown = 0, introGrown = 0; string smallest = "";
+                foreach (var lv in Levels.All)
+                {
+                    var (isz, ih) = g.Hud.FitNoteForTest(lv.Mabel);
+                    if (ih > 150.5f) introGrown++;
+                    var kinds = new List<PieceKind>();
+                    foreach (var k in lv.Items) if (!kinds.Contains(k)) kinds.Add(k);
+                    for (int st = 1; st <= Hints.MaxStage; st++)
+                        foreach (var k in kinds)
+                        {
+                            string text = Hints.Note(lv, st, k);
+                            var (sz, h) = g.Hud.FitNoteForTest(text);
+                            notes++;
+                            if (h > 150.5f) grown++;
+                            if (sz < minSize) { minSize = sz; smallest = $"#{lv.Number} stage {st} {k}"; }
+                            if (h > maxH) { maxH = h; longest = text; longN = lv.Number; longStage = st; longFocus = k; }
+                        }
+                }
+                Debug.Log($"[AutoPilot] note: larger text {(larger ? "on" : "off")}: {notes} hint notes, smallest {minSize:0.0} ({smallest}), {grown} needed a taller note, tallest {maxH:0}, intro notes that grew {introGrown}");
+                Check2(minSize >= Hud.NoteReadable - 0.1f, "note", $"larger text {(larger ? "on" : "off")}: every hint note at {Hud.NoteReadable:0.#} or more (smallest {minSize:0.0}, {smallest})");
+                if (!larger) Check2(introGrown == 0, "note", $"intro notes keep the normal note ({introGrown} grew)");
+
+                // the tallest one, shown the real way (hint stage and focus in the record) on its delivery
+                var rec = g.Save.Get(longN, true);
+                rec.Attempts = Mathf.Max(1, rec.Attempts);
+                rec.HintStage = longStage; rec.HintFocus = (int)longFocus; rec.HintsHidden = false;
+                g.StartLevel(longN);
+                yield return new WaitForSecondsRealtime(0.6f);
+                var sticky = ScreenRectOf(g.Hud.StickyRect);
+                var btn = ScreenRectOf(g.Hud.HintButton.Image.rectTransform);
+                var seal = ScreenRectOf(g.Hud.SealButton.Image.rectTransform);
+                var budget = ScreenRectOf(g.Hud.BudgetRect);
+                bool clear = !sticky.Overlaps(budget) && btn.yMin > seal.yMax + 40f && g.Hud.HintButton.isActiveAndEnabled && btn.yMin > 0;
+                Debug.Log($"[AutoPilot] note: #{longN} stage {longStage}: font {g.Hud.NoteFontSize:0.0}, note {sticky.height:0}px of {UnityEngine.Screen.height}, button bottom {btn.yMin:0} vs seal top {seal.yMax:0}");
+                Check2(clear && g.Hud.NoteText == longest, "note", $"larger text {(larger ? "on" : "off")}: the tallest note on its bench clears the meter and the seal button, ASK MABEL below it");
+                // the button still works where it moved to (A with the pad cursor on it)
+                yield return PadOnto(g.Hud.HintButton.Image.rectTransform);
+                int before = rec.HintStage; bool hidden = rec.HintsHidden;
+                yield return PadButton(GamepadButton.South);
+                yield return new WaitForSecondsRealtime(0.2f);
+                Check2(rec.HintStage != before || rec.HintsHidden != hidden, "note", "A on ASK MABEL (moved down) still asks");
+                if (rec.HintStage != before) { rec.HintStage = before; } else rec.HintsHidden = hidden;
+                g.StartLevel(longN);
+                yield return new WaitForSecondsRealtime(0.6f);
+                Shot(larger ? "N2_note_larger" : "N1_note");
+                yield return AfterShot();
+                if (!larger)
+                {
+                    // the cursor over the note: it fades so a shelf item behind it shows; away again: back
+                    yield return PadStickInto(g.Hud.StickyRect);
+                    yield return new WaitForSecondsRealtime(0.4f);
+                    float faded = g.Hud.StickyAlpha;
+                    Shot("N3_note_peek");
+                    yield return AfterShot();
+                    yield return PadStickInto(g.Hud.SealButton.Image.rectTransform);
+                    yield return new WaitForSecondsRealtime(0.4f);
+                    Check2(faded < 0.5f && g.Hud.StickyAlpha > 0.99f, "note", $"the note fades under the cursor ({faded:0.00}) and comes back ({g.Hud.StickyAlpha:0.00})");
+                }
+            }
+            TextScale.Set(g.Save.LargerText);
         }
 
         IEnumerator PadTo(Vector2 target, int maxSteps = 12)
