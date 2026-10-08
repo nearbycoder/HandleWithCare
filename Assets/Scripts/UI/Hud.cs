@@ -1507,10 +1507,12 @@ namespace HWC.Gameplay
         void BuildPause()
         {
             pauseRoot = Ui.Rect("Pause", root).Stretch();
-            var dim = Ui.Panel(pauseRoot, "dim", new Color(0.05f, 0.03f, 0.02f, 0.6f), Ui.Rounded(2));
+            var dim = Ui.Panel(pauseRoot, "dim", new Color(0.05f, 0.03f, 0.02f, 0.72f), Ui.Rounded(2));
             dim.rectTransform.Stretch();
             var p = Ui.Panel(pauseRoot, "panel", Palette.Cream, Ui.Rounded(18, 4));
             p.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(520, 520));
+            Ui.Shadow(p, 10);
+            UiIntro.Add(pauseRoot, p.rectTransform);
             var t = Ui.Text(p.transform, "t", "PAUSED", 72, Palette.Ink, Ui.Display);
             t.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -30), new Vector2(480, 90));
             p.rectTransform.sizeDelta = new Vector2(520, 680);

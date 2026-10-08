@@ -112,6 +112,37 @@ namespace HWC.UI
 
         public static Sprite Circle => Rounded(32);
 
+        /// <summary>
+        /// A rounded-rectangle outline (9-sliced) for the focus ring: a dark line with a light rim outside it,
+        /// so it reads on the cream panels and over the dark bench alike. Drawn in its own colours (tint white).
+        /// </summary>
+        public static Sprite Ring(int radius = 22, int thickness = 5)
+        {
+            string key = $"ring{radius}_{thickness}";
+            if (sprites.TryGetValue(key, out var sp)) return sp;
+            int n = radius * 2 + 8;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { name = key, wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color32[n * n];
+            float c = n * 0.5f;
+            var ink = (Color32)Palette.Ink;
+            var rim = (Color32)Palette.Cream;
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    float dx = Mathf.Max(Mathf.Abs(x + 0.5f - c) - (c - radius), 0f);
+                    float dy = Mathf.Max(Mathf.Abs(y + 0.5f - c) - (c - radius), 0f);
+                    float d = radius - Mathf.Sqrt(dx * dx + dy * dy);          // depth inside the outer edge
+                    float a = Mathf.Clamp01(d + 0.5f) * Mathf.Clamp01(thickness - d + 0.5f);
+                    var col = d < 2f ? rim : ink;                                 // the outer 2 pixels light, the rest dark
+                    px[y * n + x] = new Color32(col.r, col.g, col.b, (byte)(a * 255));
+                }
+            tex.SetPixels32(px);
+            tex.Apply();
+            sp = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(radius + 2, radius + 2, radius + 2, radius + 2));
+            sprites[key] = sp;
+            return sp;
+        }
+
         public static Sprite FromTexture(Texture2D tex)
         {
             if (tex == null) return null;
@@ -298,6 +329,56 @@ namespace HWC.UI
         }
     }
 
+    /// <summary>
+    /// A screen that eases in when it opens: it fades in over 0.18 s and its panel settles from 96.5% size
+    /// (with REDUCED MOTION it only fades). It takes clicks from the first frame.
+    /// </summary>
+    public sealed class UiIntro : MonoBehaviour
+    {
+        public const float Duration = 0.18f;
+        public RectTransform Panel;
+        CanvasGroup group;
+        float t = Duration;
+
+        public static UiIntro Add(RectTransform screen, RectTransform panel)
+        {
+            var i = screen.gameObject.AddComponent<UiIntro>();
+            i.Panel = panel;
+            return i;
+        }
+
+        public float Alpha => group != null ? group.alpha : 1f;
+
+        void OnEnable()
+        {
+            if (group == null) group = gameObject.GetComponent<CanvasGroup>();
+            if (group == null) group = gameObject.AddComponent<CanvasGroup>();
+            t = 0f;
+            Apply();
+        }
+
+        void Update()
+        {
+            if (t >= Duration) return;
+            t += Mathf.Min(Clock.UnscaledDelta, 1f / 30f);   // a screen's first frame can hitch; the fade still plays
+            Apply();
+        }
+
+        void Apply()
+        {
+            float k = Mathf.Clamp01(t / Duration);
+            float e = 1f - (1f - k) * (1f - k) * (1f - k);
+            group.alpha = e;
+            if (Panel != null) Panel.localScale = Vector3.one * (Fx.Reduced ? 1f : Mathf.Lerp(0.965f, 1f, e));
+        }
+    }
+
+    /// <summary>The hover tick of a button, for the controls that aren't buttons (toggles, sliders).</summary>
+    public sealed class HoverSfx : MonoBehaviour, IPointerEnterHandler
+    {
+        public void OnPointerEnter(PointerEventData e) => UiButton.HoverSound?.Invoke();
+    }
+
     /// <summary>A tactile button: grows on hover, presses down like a rubber stamp, clicks.</summary>
     public sealed class UiButton : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler, IPointerClickHandler
     {
@@ -310,6 +391,10 @@ namespace HWC.UI
         public float HoverScale = 1.05f;
         bool hover, down;
         float scale = 1f;
+        // the focus marks under the pointer or the pad's cursor: a ring around the button and a light sheen on it
+        Image ring, sheen;
+        float focus;
+        public bool FocusShown => ring != null && ring.color.a > 0.9f;
         float flash;
         public static Action ClickSound, HoverSound;
 
@@ -362,6 +447,26 @@ namespace HWC.UI
             if (flash > 0) flash = Mathf.Max(0, flash - Clock.UnscaledDelta * 1.5f);
             float pulse = flash > 0 ? 1f + Mathf.Sin(flash * Mathf.PI * 3f) * 0.06f * flash : 1f;
             transform.localScale = Vector3.one * scale * pulse;
+            // buttons that react to hover (not the full-screen catchers or the timeline) show the focus marks
+            float want = Interactable && hover && HoverScale > 1f ? 1f : 0f;
+            if (want > 0f || focus > 0f)
+            {
+                focus = Mathf.MoveTowards(focus, want, Clock.UnscaledDelta * 9f);
+                if (ring == null) BuildFocusMarks();
+                ring.color = new Color(1f, 1f, 1f, focus);
+                sheen.color = new Color(1f, 1f, 1f, 0.05f * focus);   // blended in linear space: a little goes a long way
+            }
+        }
+
+        void BuildFocusMarks()
+        {
+            sheen = Ui.Panel(transform, "sheen", new Color(1f, 1f, 1f, 0f), Ui.Rounded(16));
+            sheen.raycastTarget = false;
+            sheen.rectTransform.Stretch();
+            sheen.transform.SetSiblingIndex(0);   // under the label and any icon
+            ring = Ui.Panel(transform, "focusRing", new Color(1f, 1f, 1f, 0f), Ui.Ring());
+            ring.raycastTarget = false;
+            ring.rectTransform.Stretch(-8, -8, -8, -8);
         }
     }
 }

@@ -183,6 +183,7 @@ namespace HWC.Gameplay
             var board = Ui.Panel(select, "board", Palette.Hex("B98A55"), Ui.Rounded(20, 6));
             board.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -10), new Vector2(1760, 960));
             Ui.Shadow(board, 12, 0.4f);
+            UiIntro.Add(select, board.rectTransform);
             var h = Ui.Text(board.transform, "h", "DELIVERY LOG", 64, Palette.Cream, Ui.Display);
             h.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -18), new Vector2(900, 80));
             h.outlineWidth = 0.15f;
@@ -334,10 +335,11 @@ namespace HWC.Gameplay
         void BuildSettings()
         {
             settings = Ui.Rect("Settings", root).Stretch();
-            var dim = Ui.Panel(settings, "dim", new Color(0.08f, 0.05f, 0.04f, 0.55f), Ui.Rounded(2));
+            var dim = Ui.Panel(settings, "dim", new Color(0.08f, 0.05f, 0.04f, 0.66f), Ui.Rounded(2));
             dim.rectTransform.Stretch();
             var p = Ui.Panel(settings, "panel", Palette.Cream, Ui.Rounded(18, 4));
             p.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1540, 940));
+            UiIntro.Add(settings, p.rectTransform);
             Ui.Shadow(p, 10);
             var h = Ui.Text(p.transform, "h", "SETTINGS", 64, Palette.Ink, Ui.Display);
             h.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -20), new Vector2(800, 80));
@@ -388,6 +390,7 @@ namespace HWC.Gameplay
             dim.rectTransform.Stretch();
             var p = Ui.Panel(confirm, "panel", Palette.Cream, Ui.Rounded(18, 4));
             p.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(860, 420));
+            UiIntro.Add(confirm, p.rectTransform);
             Ui.Shadow(p, 10);
             var h = Ui.Text(p.transform, "h", "START OVER?", 58, Palette.PostalRedDark, Ui.Display);
             h.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -26), new Vector2(760, 72));
@@ -504,6 +507,7 @@ namespace HWC.Gameplay
             var handleArea = Ui.Rect("handleArea", go).Stretch(12, 12, 0, 0);
             var handle = Ui.Panel(handleArea, "handle", Palette.PostalRed, Ui.Circle);
             handle.rectTransform.sizeDelta = new Vector2(34, 34);
+            go.gameObject.AddComponent<HoverSfx>();
             var s = go.gameObject.AddComponent<Slider>();
             s.fillRect = fill.rectTransform;
             s.handleRect = handle.rectTransform;
@@ -576,6 +580,7 @@ namespace HWC.Gameplay
             bg.rectTransform.Stretch();
             var knob = Ui.Panel(go, "knob", Palette.Cream, Ui.Circle);
             knob.rectTransform.Place(new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(22, 0), new Vector2(36, 36));
+            go.gameObject.AddComponent<HoverSfx>();
             var t = go.gameObject.AddComponent<Toggle>();
             t.targetGraphic = bg;
             t.onValueChanged.AddListener(on =>
@@ -658,6 +663,7 @@ namespace HWC.Gameplay
             dim.rectTransform.Stretch();
             var p = Ui.Panel(credits, "panel", Palette.Cream, Ui.Rounded(18, 4));
             p.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1000, 760));
+            UiIntro.Add(credits, p.rectTransform);
             var h = Ui.Text(p.transform, "h", "CREDITS", 64, Palette.Ink, Ui.Display);
             h.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -20), new Vector2(800, 80));
             var body = Ui.Text(p.transform, "body",

@@ -499,6 +499,10 @@ Overtime), every one validated solvable with three stars.
   layout's labels. That is tested by swapping in German, French and Russian labels
   (`Tools/tour.sh`), not with a real non-US keyboard; this Linux player does report the layout
   ('us') and the key names.
+- **Menus.** Settings, pause, the delivery log, credits and START OVER fade in over 0.18 s while their panel
+  settles from 96.5% size (only the fade with REDUCED MOTION), and take clicks from the first frame. They close
+  at once. The button under the pointer or the pad's cursor gets a ring (dark, with a light rim, so it reads on
+  cream and on the dark bench) and a light sheen; toggles and sliders tick on hover like buttons.
 - **Text size.** LARGER TEXT grows small text by up to 30%, but only as far as its box allows. Mabel's
   sticky note is the exception: it gets taller instead, so her hints are never smaller than 19 units
   (about 25 with LARGER TEXT).

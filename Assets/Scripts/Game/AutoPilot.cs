@@ -185,9 +185,26 @@ namespace HWC.Gameplay
             yield return AfterShot();
             yield return DeliveryLogDetail();
             g.Menus.ShowSettings(g.ShowTitle);
+            // it eases in: part-way after a frame, there after 0.3 s
+            yield return null;
+            float early = g.Menus.ActiveScreen.GetComponent<UiIntro>().Alpha;
+            Shot("M3a_settings_easing_in");
+            yield return AfterShot();
             yield return new WaitForSecondsRealtime(0.8f);
+            float later = g.Menus.ActiveScreen.GetComponent<UiIntro>().Alpha;
+            Check2(early > 0.02f && early < 0.98f && later == 1f, "polish", $"Settings fades in (alpha {early:0.00} after a frame, {later:0.00} later)");
             Shot("M3_settings");
             yield return AfterShot();
+            // the button under the pointer gets the focus ring (and loses it when the pointer leaves)
+            mousePos = new Vector2(UnityEngine.Screen.width * 0.5f, UnityEngine.Screen.height * 0.5f);
+            yield return MoveMouse(RectScreen(g.Menus.DefaultButton.Image.rectTransform));
+            yield return new WaitForSecondsRealtime(0.3f);
+            bool ringOn = g.Menus.DefaultButton.FocusShown;
+            Shot("M3e_settings_focus_ring");
+            yield return AfterShot();
+            yield return MoveMouse(new Vector2(UnityEngine.Screen.width * 0.5f, UnityEngine.Screen.height * 0.5f));
+            yield return new WaitForSecondsRealtime(0.3f);
+            Check2(ringOn && !g.Menus.DefaultButton.FocusShown, "polish", "pointing at DONE rings it; moving off clears the ring");
             yield return DisplaySettings();
             g.Menus.HideAll();
             g.StartLevel(1);
@@ -212,7 +229,10 @@ namespace HWC.Gameplay
             Shot("M7_results");
             yield return AfterShot();
             g.Hud.SetPaused(true);
+            yield return null;
+            float pauseEarly = g.Hud.PauseRoot.GetComponent<UiIntro>().Alpha;
             yield return new WaitForSecondsRealtime(0.4f);
+            Check2(pauseEarly < 0.98f && g.Hud.PauseRoot.GetComponent<UiIntro>().Alpha == 1f, "polish", $"the pause menu fades in (alpha {pauseEarly:0.00} after a frame)");
             Shot("M8_pause");
             yield return AfterShot();
             g.Hud.SetPaused(false);
@@ -1827,6 +1847,7 @@ namespace HWC.Gameplay
             PadCheck(g.Menus.Open, "d-pad down twice and A opens Settings");
             yield return new WaitForSecondsRealtime(0.5f);
             PadCheck(Near(PadInput.I.CursorPosition, ButtonScreen(g.Menus.DefaultButton)), "the cursor starts on DONE in Settings opened from pause");
+            PadCheck(g.Menus.DefaultButton.FocusShown, "and DONE shows the focus ring");
             var atDone = PadInput.I.CursorPosition;
             yield return PadButton(GamepadButton.DpadUp);
             PadCheck(PadInput.I.CursorPosition.y > atDone.y + 20f, "the d-pad moves between the settings opened from pause");
