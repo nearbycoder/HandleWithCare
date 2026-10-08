@@ -136,6 +136,28 @@ namespace HWC.Gameplay
         public int HintsBlocked { get; private set; }
         public readonly List<int> HintExtras = new List<int>();
         public event Action HintsMatched;
+        /// <summary>The badges drawn now: checks on ghosts in place, crosses on ghosts in the way, crosses on your
+        /// pieces that aren't in her packing (so the states read without their colours).</summary>
+        public int BadgeChecks { get; private set; }
+        public int BadgeBlocked { get; private set; }
+        public int BadgeExtras { get; private set; }
+        readonly List<GameObject> badges = new List<GameObject>();
+
+        void ClearBadges()
+        {
+            foreach (var b in badges) if (b != null) Destroy(b);
+            badges.Clear();
+            BadgeChecks = BadgeBlocked = BadgeExtras = 0;
+        }
+
+        // in front of the box, inset from a corner of the piece's cells
+        Vector3 BadgeAt(float x, float y) => new Vector3(x * BoxView.Cell, y * BoxView.Cell, -BoxView.Depth * 0.5f - 0.03f);
+        const float BadgeInset = 0.19f;   // cells
+
+        void Badge(bool check, Vector3 at)
+        {
+            badges.Add(MarkBadge.Make(Box.Contents, check, at));
+        }
 
         void ClearHints()
         {
@@ -144,6 +166,7 @@ namespace HWC.Gameplay
             HintPieces.Clear(); HintDividers.Clear(); HintShelves.Clear();
             hintGhosts.Clear(); hintDividerGhosts.Clear(); hintShelfGhosts.Clear(); hintShown.Clear();
             hintStage = 0;
+            ClearBadges();
             HintsInPlace = HintsTotal = HintsBlocked = 0;
             HintExtras.Clear();
             foreach (var v in views) if (v != null) v.SetExtra(false, ExtraTint);
@@ -191,6 +214,29 @@ namespace HWC.Gameplay
             }
             for (int i = 0; i < views.Count; i++)
                 if (views[i] != null) views[i].SetExtra(hintVisible && HintExtras.Contains(i), ExtraTint);
+            // the same states as marks: a ghost's in its top-right corner, your piece's in its top-left
+            ClearBadges();
+            if (hintVisible)
+            {
+                foreach (var (view, p) in hintGhosts)
+                {
+                    var m = Hints.MatchOf(Pk, p);
+                    if (m == Hints.Match.Open) continue;
+                    Badge(m == Hints.Match.InPlace, BadgeAt(p.X + p.W - BadgeInset, p.Y + p.H - BadgeInset));
+                    if (m == Hints.Match.InPlace) BadgeChecks++; else BadgeBlocked++;
+                }
+                foreach (var (go, line) in hintDividerGhosts)
+                    if (Hints.HasDivider(Pk, line)) { Badge(true, BadgeAt(line, Pk.H - BadgeInset)); BadgeChecks++; }
+                foreach (var (go, sh) in hintShelfGhosts)
+                    if (Hints.HasShelf(Pk, src, sh)) { src.ShelfSpan(sh, out int x0, out int x1); Badge(true, BadgeAt((x0 + x1) * 0.5f, sh.Row)); BadgeChecks++; }
+                foreach (int i in HintExtras)
+                {
+                    if (i < 0 || i >= Pk.Pieces.Count) continue;
+                    var p = Pk.Pieces[i];
+                    Badge(false, BadgeAt(p.X + BadgeInset, p.Y + p.H - BadgeInset));
+                    BadgeExtras++;
+                }
+            }
             HintsMatched?.Invoke();
         }
 

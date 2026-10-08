@@ -118,9 +118,10 @@ about the item at risk (where it sits in her packing and what is beside it). The
 item's exact spot as a ghost in the box, then her dividers and shelves, then her whole packing. If the
 trip arrived safely and gently but over par, her hints are about money instead: what her packing
 costs and uses (and leaves out), then where her padding goes. The ghosts follow your box: one you've
-matched fades to a faint green, one whose spot something else has taken turns red, your pieces that
-aren't in her packing (extra padding, an item somewhere else) get a red tint, and her note counts
-them ("7/9 in place · 2 in the way · 2 extra"). Hints never cost stars; the delivery log just pencils
+matched fades to a faint green with a check mark, one whose spot something else has taken turns red
+with a cross, your pieces that aren't in her packing (extra padding, an item somewhere else) get a red
+tint and a cross too (so none of it depends on telling red from green), and her note counts them ("7/9 in
+place · 2 in the way · 2 extra"). Hints never cost stars; the delivery log just pencils
 in "hinted".
 
 **Watch the trip.** Seal the box and the journey plays out with a director camera that knows the
@@ -303,7 +304,8 @@ Tools/autopilot.sh              # the built player plays all 25 references throu
                                 # only the care star, the review stamps exactly the rattled items RATTLED and
                                 # compares them with the reference trip, the bench marks each near miss
 Tools/hintpilot.sh              # Ask Mabel on all 25: click through every hint, build what the ghosts show
-                                # (counted into place one at a time; an item one cell off isn't), expect three
+                                # (counted into place one at a time; an item one cell off isn't; the check and
+                                # cross badges match the note's counts at every step), expect three
                                 # stars and the validator's hash; ship an over-budget packing on 24 and check
                                 # the report, the budget hints and the extra padding they mark; then the
                                 # finale opens Overtime

@@ -1115,7 +1115,9 @@ namespace HWC.Gameplay
                 for (int n = 1; n <= Levels.All.Count; n++) yield return RunHinted(n, n == 18);
                 Debug.Log($"[AutoPilot] {(offByOne + offByOneSkipped == Levels.All.Count && offByOne >= 20 ? "PASS" : "FAIL")} ghosts: building Mabel's packings counted {ghostSteps} ghosts into place one at a time; an item one cell off was not in place on {offByOne} deliveries ({offByOneSkipped} had no spot to try)");
                 int budgetRuns = 0;
+                int ghostBadgeChecks = badgeChecks;
                 for (int n = 1; n <= Levels.All.Count; n++) yield return RunBudgetHinted(n, n == 18, () => budgetRuns++);
+                Debug.Log($"[AutoPilot] {(badgeChecksBad == 0 && badgeChecks > 200 ? "PASS" : "FAIL")} badges: at {badgeChecks} steps ({ghostBadgeChecks} on the 25 hinted runs, {badgeChecks - ghostBadgeChecks} on the over-budget runs) the ghosts' checks and crosses matched the note's counts ({badgeMarks} badges drawn in all), {badgeChecksBad} did not");
                 Debug.Log($"[AutoPilot] {(budgetRuns >= 24 ? "PASS" : "FAIL")} budget hints: {budgetRuns} deliveries shipped over budget and hinted about money, {budgetExtras} pieces of extra padding marked (SimCheck finds a sample on 24; on A Cup for Edna it can't happen)");
                 // the story finale: Next after The Dragon Egg rolls credits and opens Overtime
                 var g = Game.I;
@@ -1936,6 +1938,7 @@ namespace HWC.Gameplay
             foreach (var sh in order.Shelves) g.Packing.DebugAddShelf(sh);
             counted = order.Dividers.Count + order.Shelves.Count;
             if (g.Packing.HintsInPlace != counted) { Fail(n, $"ghosts: {order.Dividers.Count} dividers and {order.Shelves.Count} shelves in, but {g.Packing.HintsInPlace} counted in place"); yield break; }
+            CheckBadges(n, "with the dividers and shelves in");
             var pending = new System.Collections.Generic.List<Placement>(order.Pieces);
             while (pending.Count > 0)
             {
@@ -1946,6 +1949,7 @@ namespace HWC.Gameplay
                     counted++; steps++;
                     if (g.Packing.HintsInPlace != counted || g.Packing.HintGhostState(pending[i]) != (int)Hints.Match.InPlace)
                     { Fail(n, $"ghosts: after placing {pending[i].Kind} at {pending[i].X},{pending[i].Y}, {g.Packing.HintsInPlace} in place (expected {counted}), its ghost {g.Packing.HintGhostState(pending[i])}"); yield break; }
+                    CheckBadges(n, $"after placing {pending[i].Kind} at {pending[i].X},{pending[i].Y}");
                     if (shots && steps == order.Pieces.Count / 2) { yield return new WaitForSecondsRealtime(0.5f); Shot($"hint_L{n:00}_half_built"); yield return AfterShot(); }
                     pending.RemoveAt(i--);
                 }
@@ -1953,6 +1957,7 @@ namespace HWC.Gameplay
             }
             yield return new WaitForSecondsRealtime(shots ? 0.6f : 0.1f);
             if (shots) { Shot($"hint_L{n:00}_built"); yield return AfterShot(); }
+            CheckBadges(n, "built");
             if (g.Packing.HintsInPlace != total || total == 0 || g.Packing.HintsBlocked != 0 || g.Packing.HintExtras.Count != 0 || !g.Hud.HintCountText.Contains($"all {total} in place"))
             { Fail(n, $"ghosts: built, but {g.Packing.HintsInPlace}/{total} in place, {g.Packing.HintsBlocked} in the way, {g.Packing.HintExtras.Count} extra, note \"{g.Hud.HintCountText}\""); yield break; }
             ghostSteps += steps + order.Dividers.Count + order.Shelves.Count;
@@ -1971,6 +1976,19 @@ namespace HWC.Gameplay
         }
 
         int ghostSteps, offByOne, offByOneSkipped, budgetExtras;
+        int badgeChecks, badgeChecksBad, badgeMarks;
+
+        /// <summary>The ghosts' badges say what the counts say: a check per ghost in place, a cross per ghost in the
+        /// way and per piece of yours that isn't in her packing. Logs the first mismatch of each delivery.</summary>
+        void CheckBadges(int n, string when)
+        {
+            var pc = Game.I.Packing;
+            badgeChecks++;
+            badgeMarks += pc.BadgeChecks + pc.BadgeBlocked + pc.BadgeExtras;
+            if (pc.BadgeChecks == pc.HintsInPlace && pc.BadgeBlocked == pc.HintsBlocked && pc.BadgeExtras == pc.HintExtras.Count) return;
+            badgeChecksBad++;
+            Fail(n, $"badges {when}: {pc.BadgeChecks} checks / {pc.HintsInPlace} in place, {pc.BadgeBlocked} crosses / {pc.HintsBlocked} in the way, {pc.BadgeExtras} crosses / {pc.HintExtras.Count} not in mine");
+        }
 
         /// <summary>Puts the first item of Mabel's packing one cell off its ghost (in an empty box, at the last
         /// stage): its ghost isn't in place, the piece is drawn as not in hers, and every ghost it overlaps is in
@@ -1994,6 +2012,8 @@ namespace HWC.Gameplay
                 bool ok = g.Packing.HintsInPlace == 0 && g.Packing.HintGhostState(ghost) != (int)Hints.Match.InPlace
                        && g.Packing.PiecesShownExtra().Count == 1 && g.Packing.HintsBlocked == overlapped && g.Hud.HintCountText.Contains("not in mine");
                 string what = $"{ghost.Kind} one cell off ({moved.X},{moved.Y}): {g.Packing.HintsInPlace} in place, ghost {g.Packing.HintGhostState(ghost)}, {g.Packing.PiecesShownExtra().Count} drawn extra, {g.Packing.HintsBlocked} in the way (expected {overlapped}), note \"{g.Hud.HintCountText}\"";
+                CheckBadges(n, $"with {ghost.Kind} one cell off");
+                ok &= g.Packing.BadgeExtras == 1 && g.Packing.BadgeBlocked == overlapped;
                 if (shots) { yield return new WaitForSecondsRealtime(0.5f); Shot($"hint_L{n:00}_off_by_one"); yield return AfterShot(); }
                 g.Packing.Undo();
                 yield return null;
@@ -2074,6 +2094,7 @@ namespace HWC.Gameplay
                     if (string.Join(",", shown) != string.Join(",", want) || g.Packing.HintsInPlace != wantIn || want.Count == 0 || !g.Hud.HintCountText.Contains($"{want.Count} extra"))
                     { Fail(n, $"budget: stage 2 draws pieces {string.Join(",", shown)} as extra (expected {string.Join(",", want)}), {g.Packing.HintsInPlace} in place (expected {wantIn}), note \"{g.Hud.HintCountText}\""); yield break; }
                     budgetExtras += want.Count;
+                    CheckBadges(n, "budget stage 2");
                 }
                 if (shots) { Shot($"budget_L{n:00}_stage{st}"); yield return AfterShot(); }
             }
