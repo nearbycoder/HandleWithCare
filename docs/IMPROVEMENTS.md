@@ -1476,3 +1476,66 @@ opening them still pass, and the ring shows on the hovered button with the mouse
 Moving the shelf art (76% in one configuration of 400), careless samples on Strike! and Ember (none exists
 in practice), new art from Blender (a 40-minute rebuild), rumble, a physical controller or Steam Deck, a real
 non-US keyboard, real alt-tab focus loss, frame rates on a quiet GPU, the Mac build on a Mac.
+
+## Round 12 results (2026-10-08)
+
+| Item | Commit | Verified by |
+| --- | --- | --- |
+| R12-B. The post-processing reaches the build | 359512f, then 1d9f8d5 | 359512f added two never-rendered volume profiles. They didn't hold: URP's `DepthOfField.IsActive()` is false when the batch build has no graphics device, so every build after the first stripped the depth of field again (found in the A and C suites' player logs). 1d9f8d5 turns off URP's "strip unused post-processing variants" and removes the profiles (+2 MB, 247 MB). On 1d9f8d5 no player log of the suite has a "stripped from the build" line (round 11: GaussianDepthOfField, BokehDepthOfField, PaniniProjection). Same-frame screenshots of delivery 18 (`shots.sh 18 ref`, round 11 against 1d9f8d5): the room behind the box on the unboxing and behind the review is now softly blurred, as `Post.cs` intended (`b-review-background-blur.jpg`). The low-quality bloom and the chromatic-aberration kick are no longer stripped either; at today's bloom threshold (0.95) the glow is subtle, and the kick wasn't captured on its own |
+| R12-A. GRAPHICS FIDELITY: LOW, MEDIUM, HIGH, ULTRA | 10ede13 | `tour.sh`, real mouse and keys: a click on ULTRA chooses it (the pipeline reads "scale 1.25, MSAA 4x, shadows 4096 x4 to 55 m…"), ← steps to HIGH, MEDIUM, LOW and stays on LOW, → back to HIGH, and it survives the save file. `padpilot.sh`: the d-pad reaches the row, A picks MEDIUM, then HIGH. `savepilot.sh`: ULTRA clicked, still ULTRA (and applied) after a restart; an older save's switch on loads as HIGH, off as MEDIUM. LARGER TEXT check on the settings screen: no new overflow. `fidelity.sh`: the same three frames at every step (table below, `a-fidelity-*.jpg`) |
+| R12-C. Menus ease in; the button you're on is marked | c2c7603 | `tour.sh`: Settings' alpha is 0.46 one frame after it opens and 1.00 later; the pause menu 0.46 after a frame; pointing at DONE shows the ring, moving off clears it (`c-settings-easing-in.jpg`, `c-pause-focus-ring.jpg`). `padpilot.sh`: with the cursor on DONE in Settings, the ring shows. The first build's settings fade was swallowed by the screen's first, slow frame (alpha 1.00 after a frame); the fade's step is now capped at 1/30 s. The first sheen (16% white) washed the navy buttons grey (UI blends in linear space); it is 5% |
+| R12-D. Local macOS build refreshed | (build only, from 1d9f8d5) | 0 errors, 258 MB; universal x86_64 + arm64 Mach-O; `com.nearbycoder.handlewithcare`, 0.2.0; `GraphicsQuality`, `UiIntro`, `HoverSfx`, `FidelityProbe` in `Assembly-CSharp.dll` (`Logs/r12/build-mac.log`). **Not run on a Mac.** |
+
+Each code commit was built and tested with the whole suite inside `Tools/nested.sh`, one test at a time after the
+load fell under 24 (`Logs/r12/{B,A,C,D}/results.txt` and the `run-*.txt` beside them):
+
+| Tree | simcheck | hashes | tour | padpilot | autopilot | savepilot | hintpilot | layoutpilot |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 359512f (B) | ALL OK | = main | 119 | 81 | 118 | 79 | 53 | 24 |
+| 10ede13 (A) | ALL OK | = main | 122 | 82 | 118 | 82 | 53 | 24 |
+| c2c7603 (C) | ALL OK | = main | 125 | 83 | 118 | 82 | 53 | 24 |
+| 1d9f8d5 (B fix) | ALL OK | = main | 125 | 83 | 118 | 82 | 53 | 24 |
+
+Every run PASS, 0 FAIL, and every run left the real config and Pictures folders unchanged. Load at the start of
+the runs: 13–24 (the 5-minute average reached 60 between runs). Two tours on C's first builds are not in the
+table: one failed the new fade check (above), the next passed 125 before the sheen was toned down.
+
+**GRAPHICS FIDELITY steps.** `Tools/fidelity.sh` on 1d9f8d5, 1920×1080 windowed in the nested KWin, VSync off, no
+frame cap; each cell is the median frame time of 300 frames (average in brackets) in two runs, with the load
+average at the time. The machine's iGPU is shared with ~15 other sessions and reads busy throughout, and the GPU
+time reads 0 here, so these are whole-frame times; the main thread took 2–3 ms at every step.
+
+| Step | What it changes | Bench | Trip (depot sneeze) | Unboxing |
+| --- | --- | --- | --- | --- |
+| LOW | 67% render scale, no MSAA, one hard 1024 shadow cascade to 18 m, no SSAO, bloom or blur, half-size textures without anisotropic filtering, a 64 px reflection probe, a 16-step LUT, half the particles, no shadow from the unboxing's spotlight | 10.7 (11.1) · 9.7 (12.0) ms | 13.5 (12.9) · 5.3 (7.4) | 9.7 (11.9) · 7.3 (7.7) |
+| MEDIUM | the old switch's off: 80% render scale, no MSAA, shadows to 22 m, no SSAO | 13.4 (13.9) · 17.5 (17.9) | 11.0 (10.7) · 6.1 (6.4) | 11.7 (14.9) · 9.6 (9.4) |
+| HIGH (default) | the look as shipped: full resolution, 4× MSAA, soft shadows in two 2048 cascades to 40 m, SSAO, bloom, blur | 16.9 (33.6) · 14.7 (15.9) | 15.7 (16.2) · 11.4 (10.8) | 8.5 (10.8) · 6.0 (5.9) |
+| ULTRA | 125% supersampling with 4× MSAA, four 4096 cascades to 55 m, soft shadows from the bench lamp, high-quality bloom (8 passes) and blur sampling, 16× anisotropic, a 512 px probe, a 64-step LUT, 1.6× particles | 16.0 (18.3) · 14.6 (14.5) | 13.2 (15.0) · 12.1 (11.8) | 12.4 (13.3) · 8.8 (9.0) |
+
+Loads: run 1 15.6–19.3, run 2 14.1–15.8. What the numbers support: LOW is the fastest step on the bench in both
+runs and on the trip in run 2. Beyond that there is no consistent order: the other sessions' GPU use swings a cell
+by up to 2× between runs (MEDIUM beat LOW on the trip in run 1, HIGH beat LOW on the unboxing twice), so these
+numbers can't rank the steps, and ULTRA's cost on a quiet GPU is unknown. What each step changes is checked in the screenshots: LOW's stair-stepped
+hard shadows and plain background, MEDIUM's missing contact shadows (no SSAO), ULTRA's crisper shadow edges and
+texture detail, the lamp's extra shadows on the bench, and the blur behind the unboxing from MEDIUM up.
+
+Limits and notes:
+
+- **Not in ULTRA.** URP 6.6's screen-space reflections are behind an experimental scripting define
+  (`URP_SCREEN_SPACE_REFLECTION`); turning it on changes how the URP package compiles, so it was left alone.
+  SSAO is the same on HIGH and ULTRA: the build keeps only the medium sample count's variants, so ULTRA's
+  SSAO gains only from the supersampling. The blur on ULTRA is the Gaussian one with high-quality sampling, not
+  bokeh (bokeh blurs the box in front of the focus too). Nothing changes the animation rate.
+- **HIGH is today's look** with R12-B's blur and bloom now actually drawn; its pipeline values are read from the
+  asset as shipped.
+- **Menus** fade in but close at once (a fade-out would have delayed every screen change that the tests and the
+  pad's cursor rely on). The results screen and the title keep their own entrances.
+- **Round 11's open layoutpilot gap** (one screenshot that never reached disk) didn't recur in this round's four
+  runs.
+- **History:** the R12-C edits were written while A's suite ran and applied after A was committed; no commit was
+  amended.
+
+Still not verified here: frame times on a quiet or dedicated GPU, a physical controller or Steam Deck, a real
+non-US keyboard, real alt-tab focus loss, the Mac build on a Mac. Still for the owner: Windows Build Support, Mac
+signing and notarization, a release and version tag, a licence, and re-cutting the trailer (the settings screen
+and the menus changed).
