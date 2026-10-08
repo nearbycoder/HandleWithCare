@@ -1239,3 +1239,97 @@ keyboard, real alt-tab focus loss, a power cut mid-write, and the Mac build on a
 Windows Build Support, Mac signing and notarization, publishing a release, a license, and re-cutting the
 trailer (its cinematic mode hides the HUD's new marks and meters; the order card's knock icons would show
 in its packing shots if it were captured again).
+
+## Round 11 scope
+
+Started 2026-10-08 on `improvements-11`, from main after round 10 (849855f). The ranked list is still
+done or blocked (#9 Windows module, #10 a quiet GPU or other hardware: the shared iGPU read 98% busy
+while planning, #11 human ears, #12 a 40-minute art rebuild, #13 and #14 not planned). Baseline:
+`simcheck check` ALL OK (25), careless samples on 23. Rounds 6–10 were about reading a trip. This round
+goes back to the brief's third pillar ("funny, shareable failures") and to what a player can't find out
+in the game itself. Found while planning, from the code and the round 10 screenshots:
+
+- **Nothing in the game says how to turn, erase or put back.** The tutorial teaches picking, dropping,
+  painting and sealing. Turning a piece (R, the wheel or a right click while holding it; X on a pad),
+  turning Ember or Snoozles to face the other way, erasing padding (right drag; B), picking a placed piece
+  back up and sending it back to the shelf (right click; B) are only in the README. On Ember, where the
+  sneeze has to point at something fireproof, a player who doesn't know R turns him is stuck.
+- **Hint ghosts tell their state by colour alone.** Mabel's ghosts are yellow, a ghost in the way is
+  red, your pieces that aren't in her packing are tinted red, and matched ones a faint green. Through a
+  deuteranopia filter (Machado 2009) the red-tinted teacup in round 8's screenshot and the yellow ghosts
+  around it are both olive; only the note's count tells them apart.
+- **A funny failure can't be shared.** The trip is the game's best moment, and the only way to keep it
+  is a screen recorder. There is no screenshot key either.
+- `Tools/nested.sh` leaves its D-Bus helpers running: round 10's test desktops left about 80 `ksecretd`
+  processes (84 were running when this round started; they aren't this round's and are left alone).
+- The local macOS build doesn't have this round's code.
+
+Every item keeps `simcheck check`, `autopilot.sh`, `hintpilot.sh`, `padpilot.sh`, `tour.sh`,
+`savepilot.sh` and `layoutpilot.sh` green (inside `Tools/nested.sh`), every self-test still leaves the
+real config folder unchanged, and each commit is built and tested on its own before the next item starts.
+No new delivery and no change to any trip (`simcheck hashes` identical to main). Screenshots go to
+`docs/media/improvements/round11/`.
+
+### R11-0. `Tools/nested.sh` stops the helpers its own session started (S)
+
+- The session script records its private bus address; when KWin exits, every process still running on
+  that bus (found by the address in its environment, so never another session's) is stopped.
+
+**Acceptance:** after a nested run, no process has the run's bus address. **Verify:** count the
+processes with that address after a nested `tour.sh` (and `ksecretd` before and after).
+
+### R11-A. The item card says what you can do (S–M)
+
+- The card shown for what you point at or hold gets a line of controls, in the device's prompts (keys
+  and mouse, Xbox letters or PlayStation shapes): holding an item, "click drop · R turn · Esc back to
+  the shelf" ("turn to face the other way" for Ember, Snoozles, Clank and the frog; nothing for an item
+  that can't turn); holding padding, "drag paint · right drag erase"; pointing at a placed piece, "click
+  pick up · right click back to the shelf" (or "bin it" for padding); on the shelf, "click pick up".
+
+**Acceptance:** each of those states shows its line with the mouse and with the pad (Xbox and
+PlayStation), and every action it names does what it says; LARGER TEXT on, nothing that fit overflows;
+the bench framing is unchanged (the card is not avoided by the camera). **Verify:** `tour.sh` with real
+mouse moves and key presses reads each line and does what it says (R turns Ember's ghost, right click
+returns a piece); `padpilot.sh` reads the pad lines (Xbox, then the DualShock 4) and its LARGER TEXT
+check; `layoutpilot.sh`; screenshots.
+
+### R11-B. Hint ghosts carry a mark, not only a colour (S–M)
+
+- A small drawn badge over each hint ghost and piece: a check on a ghost you've matched, a cross on a
+  ghost whose spot something else has taken, and a cross on your own pieces that aren't in her packing.
+  The colours stay; the marks make the states readable without them.
+
+**Acceptance:** at every step of building her packing, the badges equal the note's counts (in place,
+in the way, not in mine); through a deuteranopia and a protanopia filter the three states still differ.
+**Verify:** `hintpilot.sh` counts the badges after every piece it places, on all 25 deliveries and the
+over-budget runs; screenshots, and the same screenshots through the filters.
+
+### R11-C. Save a GIF of the trip, and F12 photos (M–L)
+
+- **SAVE GIF** (`G`) on the review and in the replay bar (the pad's cursor reaches both) records a few
+  seconds of the trip as an animated GIF: on the review, around its big moment (the first failure, else
+  the worst near miss, else the hardest knock); in a replay, around the moment on screen. It replays that
+  stretch without the HUD at a fixed clock, so every frame is kept however slow the machine is, and
+  encodes it on a worker thread (no package, no ffmpeg). `F12` saves a PNG of the screen.
+- Files go to `~/Pictures/Handle With Care/` (the platform's Pictures folder), and a toast says where.
+  Self-tests write to their own folder (a test run without one refuses to save).
+
+**Acceptance:** after a failed trip, `G` writes a GIF that ImageMagick reads, at the expected size and
+frame count, looping, that shows the failure, under 10 MB; in a replay `G` saves around the current
+moment; the review and the replay come back as they were; F12 writes a PNG; nothing is written under the
+real home's Pictures folder by a test. **Verify:** `tour.sh` (real key and mouse events; `identify` and
+frames pulled from the GIF looked at by eye), `padpilot.sh` (the cursor on SAVE GIF and A); a sample GIF in
+the round's media folder.
+
+### R11-D. Refresh the local macOS build (S)
+
+- Rebuild `Builds/Mac/HandleWithCare.app` from this branch.
+
+**Acceptance:** 0 errors, universal binary, bundle id and version, this round's code in the assembly.
+**Verify:** build log, `file`, Info.plist. **Not verifiable here:** running it on a Mac.
+
+### Not in this round
+
+Moving the shelf art (still 76% in one configuration of 400; it moves every bench), careless samples on
+Strike! and Ember (round 10: none exists in practice), rumble, a physical controller or Steam Deck, a real
+non-US keyboard, real alt-tab focus loss, frame rates on a quiet GPU, the Mac build on a Mac.
