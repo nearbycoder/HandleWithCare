@@ -62,6 +62,7 @@ namespace HWC.Gameplay
             }
             routeCardShown = true;
             itemCard.gameObject.SetActive(true);
+            SetCardDo(null);
             FillCardTrip(null, -1);
             KnockWall icon = KnockWall.Floor;
             foreach (var k in Knocks.Of(lv)) if (k.Wall != KnockWall.Floor) { icon = k.Wall; break; }

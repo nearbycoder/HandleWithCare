@@ -39,7 +39,9 @@ watch the replay, see exactly where the vase went over, and repack.
 
 ## How to play
 
-Pick an item off the shelf, drop it in the box, paint padding around it, seal, and watch.
+Pick an item off the shelf, drop it in the box, paint padding around it, seal, and watch. Whatever
+you point at or hold, its card ends with what you can do with it ("Click drop · R face the other way
+· Esc back to the shelf"), in the keys or the gamepad buttons you're using.
 
 | Input | Action |
 | --- | --- |
@@ -308,7 +310,8 @@ Tools/hintpilot.sh              # Ask Mabel on all 25: click through every hint,
 Tools/padpilot.sh               # gamepad only (a virtual pad at 1280x800): title to delivery 2, dividers,
                                 # undo/redo, turning Ember, Ask Mabel, pause, settings and the delivery log;
                                 # PlayStation prompts with a virtual DualShock 4 and the BUTTON ICONS setting;
-                                # then LARGER TEXT: bigger on four screens, and nothing that fit overflows;
+                                # the item card's controls line (shelf, in hand, padding), with the PlayStation
+                                # shapes too; then LARGER TEXT: bigger on four screens, and nothing that fit overflows;
                                 # every hint note of every delivery at a readable size, off and on; WATCH
                                 # on the bench with the d-pad, RB to the trouble, B back to the box, the
                                 # vase's card says it shattered; USE IT
@@ -333,7 +336,8 @@ Tools/tour.sh                   # screenshots of the menus and a delivery played
                                 # on the bench and the timeline, N, clicking the care meters, RATTLED on the
                                 # unboxing and the review, then Mabel's packing compared with it; the
                                 # toolbar's prices against each material's card; the knock icons each ROUTE
-                                # line draws, and its card
+                                # line draws, and its card; the item card's controls line in each state, and
+                                # each action it names (R turns Ember, Esc, right click, drag and right drag)
 Tools/layoutpilot.sh            # every bench at 1920x1080, 1280x800, 2560x1080 and 1600x1200, on a first visit
                                 # and on a retry (LAST TRIP report, Mabel's tallest note), LARGER TEXT off and
                                 # on: no box cell or shelf cubby under a HUD panel, and the cells' size;

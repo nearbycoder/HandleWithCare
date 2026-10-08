@@ -408,6 +408,9 @@ namespace HWC.Gameplay
             // what happened to it on the last trip (when there was one)
             cardTrip = Ui.Text(itemCard, "trip", "", 20, Palette.Ink, Ui.Body, TextAlignmentOptions.TopLeft);
             cardTrip.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(18, -238), new Vector2(344, 56));
+            cardDo = Ui.Text(itemCard, "do", "", 19, Palette.InkSoft, Ui.Body, TextAlignmentOptions.TopLeft);
+            cardDo.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(18, -238), new Vector2(344, 30));
+            cardDo.gameObject.SetActive(false);
             // the card overlaps the left column of wide boxes: let clicks through to the box
             foreach (var gr in itemCard.GetComponentsInChildren<Graphic>(true)) gr.raycastTarget = false;
             itemCard.gameObject.SetActive(false);
@@ -881,12 +884,20 @@ namespace HWC.Gameplay
 
         static MaterialSlot SlotFor(PieceKind k) => k == PieceKind.Paper ? MaterialSlot.Paper : (k == PieceKind.Bubble ? MaterialSlot.Bubble : MaterialSlot.Foam);
 
-        void ShowItemCard(PieceKind? kind)
+        void ShowItemCard(PieceKind? kind) => ShowItemCard(kind, false);
+
+        PieceKind? cardKind;
+        MaterialSlot? cardSlot;
+        bool cardFromToolbar;
+
+        void ShowItemCard(PieceKind? kind, bool fromToolbar)
         {
             routeCardShown = false;
+            cardKind = kind; cardFromToolbar = fromToolbar; cardSlot = null;
             if (kind == null) { itemCard.gameObject.SetActive(false); G.Packing.HighlightTrip(null, -1); return; }
             var def = Catalog.Get(kind.Value);
             itemCard.gameObject.SetActive(true);
+            SetCardDo(CardDoLine(kind.Value, fromToolbar ? PackingController.CardUse.None : G.Packing.CardFor, fromToolbar));
             FillCardTrip(kind.Value, G.Packing.HoverTroubleBody);
             cardIcon.sprite = IconStudio.Piece(kind.Value);
             cardName.text = def.Name.ToUpperInvariant();
@@ -903,8 +914,10 @@ namespace HWC.Gameplay
         void ShowMaterialCard(MaterialSlot s)
         {
             routeCardShown = false;
-            if (s <= MaterialSlot.Foam) { ShowItemCard(s == MaterialSlot.Paper ? PieceKind.Paper : (s == MaterialSlot.Bubble ? PieceKind.Bubble : PieceKind.Foam)); return; }
+            if (s <= MaterialSlot.Foam) { ShowItemCard(s == MaterialSlot.Paper ? PieceKind.Paper : (s == MaterialSlot.Bubble ? PieceKind.Bubble : PieceKind.Foam), true); return; }
             itemCard.gameObject.SetActive(true);
+            cardKind = null; cardSlot = s;
+            SetCardDo(ToolbarDoLine(s));
             FillCardTrip(null, -1);
             cardIcon.sprite = MaterialIcon(s);
             switch (s)
@@ -1286,6 +1299,12 @@ namespace HWC.Gameplay
             glyphsVersion = PadGlyphs.Version;
             foreach (var (t, kb, pad) in prompts) if (t != null) t.text = padPrompts ? PadGlyphs.Label(pad) : KeyLabel(kb);
             if (packRoot.gameObject.activeSelf && G.Packing.Level != null) RefreshPacking();
+            // the item card's controls line is written in the device's prompts too
+            if (itemCard.gameObject.activeSelf && !routeCardShown)
+            {
+                if (cardSlot.HasValue) ShowMaterialCard(cardSlot.Value);
+                else if (cardKind.HasValue) ShowItemCard(cardKind, cardFromToolbar);
+            }
         }
 
         /// <summary>Keyboard shortcuts for the unboxing and the results, so a retry never needs the mouse.</summary>

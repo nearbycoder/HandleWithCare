@@ -28,6 +28,9 @@ namespace HWC.Gameplay
 
         public event Action Changed;
         public event Action<PieceKind?> Hovered;   // item card
+        /// <summary>What the item card is for, so it can say what you can do with it.</summary>
+        public enum CardUse { None, Shelf, Placed, HoldItem, HoldPadding, Strap }
+        public CardUse CardFor { get; private set; }
         public event Action<string> Feedback;      // short messages ("Needs support")
 
         readonly List<PieceView> views = new List<PieceView>();
@@ -47,6 +50,7 @@ namespace HWC.Gameplay
         int hoverPiece = -1;
         int lastHover = -1;
         PieceKind? lastHovered;
+        CardUse lastCardFor;
         Recording lastRun;
         TrailOverlay trails;
 
@@ -102,6 +106,7 @@ namespace HWC.Gameplay
             if (trails != null) trails.Hide();
             if (quirks != null) quirks.Clear();
             ClearHints();
+            lastHovered = null; CardFor = lastCardFor = CardUse.None;
             Hovered?.Invoke(null);
         }
 
@@ -501,7 +506,15 @@ namespace HWC.Gameplay
             int trouble = !overUi && inBox && Tool == Tool.None && hoverTray == null ? TroubleAt(cell) : -1;
             PieceKind? hk = trouble >= 0 ? lastRun.Bodies[trouble].Kind
                           : hoverTray != null ? hoverTray.Kind : (hoverPiece >= 0 ? Pk.Pieces[hoverPiece].Kind : (Tool == Tool.Item || Tool == Tool.Padding ? HeldKind : (PieceKind?)null));
-            if (hk != lastHovered || trouble != HoverTroubleBody) { lastHovered = hk; HoverTroubleBody = trouble; Hovered?.Invoke(hk); }
+            var use = trouble >= 0 ? CardUse.None
+                    : hoverTray != null ? CardUse.Shelf
+                    : hoverPiece >= 0 ? (Tool == Tool.None ? CardUse.Placed : Tool == Tool.Strap && !Pk.Pieces[hoverPiece].Def.IsPadding ? CardUse.Strap : CardUse.None)
+                    : Tool == Tool.Item ? CardUse.HoldItem : Tool == Tool.Padding ? CardUse.HoldPadding : CardUse.None;
+            if (hk != lastHovered || trouble != HoverTroubleBody || use != lastCardFor)
+            {
+                lastHovered = hk; HoverTroubleBody = trouble; lastCardFor = CardFor = use;
+                Hovered?.Invoke(hk);
+            }
             for (int i = 0; i < tray.Count; i++)
             {
                 var t = tray[i];

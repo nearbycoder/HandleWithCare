@@ -517,6 +517,94 @@ namespace HWC.Gameplay
             yield return new WaitForSecondsRealtime(0.4f);
             yield return ToolbarPrices();
             yield return RouteKnocks();
+            yield return CardControls();
+        }
+
+        IEnumerator RightClick()
+        {
+            InputSystem.QueueStateEvent(Mouse.current, new MouseState { position = mousePos }.WithButton(MouseButton.Right, true));
+            yield return null; yield return null;
+            InputSystem.QueueStateEvent(Mouse.current, new MouseState { position = mousePos });
+            yield return null; yield return null;
+        }
+
+        /// <summary>
+        /// The item card's controls line (round 11), with real mouse moves, clicks and keys on The Vase and the
+        /// Dragon: each state's line is shown, and each action it names does what it says.
+        /// </summary>
+        IEnumerator CardControls()
+        {
+            var g = Game.I;
+            var pc = g.Packing;
+            var box = g.Station.Box;
+            if (pc.Pk.Pieces.Count > 0 || pc.Pk.Dividers.Count > 0 || pc.Pk.Shelves.Count > 0) pc.ClearAll();
+            yield return null;
+            int slot = System.Array.IndexOf(g.Level.Items, PieceKind.Dragon);
+            if (slot < 0 || !pc.RemainingItems().Contains(PieceKind.Dragon)) { Check2(false, "card", $"Ember is on delivery {g.Level.Number}'s shelf"); yield break; }
+            string R = Shortcuts.Label('r');
+            string Line() => Plain(g.Hud.ItemCardDoText);
+            Vector2 shelf = Screen(g.Station.SlotPosition(slot) + Vector3.up * 0.1f);
+            Vector2 cell = Screen(box.CellToWorld(1.0f, 0.6f)), away = new Vector2(UnityEngine.Screen.width * 0.5f, UnityEngine.Screen.height * 0.88f);
+
+            yield return MoveMouse(shelf); yield return null; yield return null;
+            Check2(Line() == "Click to pick it up", "card", $"pointing at Ember on the shelf: \"{Line()}\"");
+            yield return Press(true); yield return Press(false);
+            yield return MoveMouse(cell); yield return null; yield return null;
+            string want = $"Click drop  \u00B7  {R} face the other way  \u00B7  Esc back to the shelf";
+            Check2(pc.Tool == Tool.Item && pc.HeldKind == PieceKind.Dragon && Line() == want, "card", $"holding Ember: \"{Line()}\"");
+            Shot("A1_card_holding_ember");
+            yield return AfterShot();
+            int facing = pc.HeldFacing;
+            yield return Key(UnityEngine.InputSystem.Key.R);
+            Check2(pc.HeldFacing == -facing, "card", $"{R} turns him to face the other way ({facing} -> {pc.HeldFacing})");
+            yield return Key(UnityEngine.InputSystem.Key.Escape);
+            yield return null;
+            Check2(pc.Tool == Tool.None && pc.RemainingItems().Contains(PieceKind.Dragon) && !g.Hud.Paused, "card", "Esc puts him back on the shelf (and doesn't pause)");
+
+            // in the box: click picks him up, right click sends him back to the shelf
+            yield return MoveMouse(shelf);
+            yield return Press(true); yield return Press(false);
+            yield return MoveMouse(cell);
+            yield return Press(true); yield return Press(false);
+            bool placed = !pc.RemainingItems().Contains(PieceKind.Dragon);
+            yield return MoveMouse(away); yield return null;
+            yield return MoveMouse(cell); yield return null; yield return null;
+            Check2(placed && Line() == "Click pick up  \u00B7  Right click back to the shelf", "card", $"pointing at Ember in the box: \"{Line()}\"");
+            Shot("A2_card_placed");
+            yield return AfterShot();
+            yield return RightClick();
+            Check2(pc.RemainingItems().Contains(PieceKind.Dragon) && pc.Pk.Pieces.Count == 0, "card", "right click puts him back on the shelf");
+
+            // padding in hand: drag paints, right drag erases, Esc puts it down
+            yield return Key(UnityEngine.InputSystem.Key.Digit1);
+            Vector2 c1 = Screen(box.CellToWorld(3.5f, 0.5f)), c2 = Screen(box.CellToWorld(4.5f, 0.5f));
+            yield return MoveMouse(c1); yield return null; yield return null;
+            Check2(pc.Tool == Tool.Padding && Line() == "Drag to paint  \u00B7  right drag to erase  \u00B7  Esc put it down", "card", $"holding paper: \"{Line()}\"");
+            yield return Press(true);
+            yield return MoveMouse(c2);
+            yield return Press(false);
+            int painted = pc.Pk.UsedMaterials().Paper;
+            yield return RightClick();
+            int left = pc.Pk.UsedMaterials().Paper;
+            Check2(painted == 2 && left == 1, "card", $"dragging painted {painted} paper, a right click erased one ({left} left)");
+            yield return Key(UnityEngine.InputSystem.Key.Escape);
+            yield return null;
+            Check2(pc.Tool == Tool.None && !g.Hud.Paused, "card", "Esc puts the paper down");
+            yield return MoveMouse(away); yield return null;
+            yield return MoveMouse(c1); yield return null; yield return null;
+            Check2(Line() == "Click pick up  \u00B7  Right click bin it", "card", $"pointing at paper in the box: \"{Line()}\"");
+            yield return RightClick();
+            Check2(pc.Pk.UsedMaterials().Paper == 0, "card", "right click bins it");
+
+            // dividers and shelves, pointed at on the toolbar
+            foreach (var (tslot, price, count, button) in g.Hud.ToolbarTags())
+            {
+                if (tslot != MaterialSlot.Divider) continue;
+                yield return MoveMouse(RectTransformUtility.WorldToScreenPoint(null, button.TransformPoint(button.rect.center)));
+                yield return null; yield return null;
+                Check2(Line() == "Click, then a line in the box (click one to take it out)", "card", $"pointing at DIVIDER on the toolbar: \"{Line()}\"");
+            }
+            yield return MoveMouse(away);
         }
 
         static readonly Dictionary<int, Packing> carelessMemo = new Dictionary<int, Packing>();
@@ -755,7 +843,7 @@ namespace HWC.Gameplay
             return null;
         }
 
-        static string Plain(string rich) => System.Text.RegularExpressions.Regex.Replace(rich, "<[^>]+>", "");
+        static string Plain(string rich) => System.Text.RegularExpressions.Regex.Replace(rich, "<[^>]+>", "").Replace('\u00A0', ' ');
 
         /// <summary>
         /// After a failed trip, with real mouse moves: pointing at each item in the box shows its card with a
@@ -1483,6 +1571,16 @@ namespace HWC.Gameplay
             yield return PadButton(GamepadButton.East);
             yield return new WaitForSecondsRealtime(0.4f);
             Check2(g.Hud.PromptFor("VIEW") == "SHARE" && g.Hud.PromptFor("LT") == "L2", "ps", "the bench follows the setting");
+            {
+                Vector2 cupAt = Vector2.zero;
+                foreach (var t in g.Packing.TrayPositions) cupAt = g.Rig.Cam.WorldToScreenPoint(t + Vector3.up * 0.06f);
+                yield return PadTo(cupAt);
+                yield return null;
+                Check2(g.Hud.ItemCardDoDrawn == Glyphs.PsCross && Plain(g.Hud.ItemCardDoText).EndsWith(" pick it up"), "ps",
+                       $"the item card's controls draw the cross: \"{Plain(g.Hud.ItemCardDoText)}\" (drawn: {g.Hud.ItemCardDoDrawn})");
+                Shot("C2b_ps_card");
+                yield return AfterShot();
+            }
 
             // ship the teacup with no padding: it breaks; the review reads square / triangle / cross
             g.Packing.ClearAll();
@@ -1556,8 +1654,11 @@ namespace HWC.Gameplay
             Vector2 cup = Vector2.zero;
             foreach (var t in g.Packing.TrayPositions) cup = cam.WorldToScreenPoint(t + Vector3.up * 0.06f);
             yield return PadTo(cup);
+            yield return null;
+            PadCheck(Plain(g.Hud.ItemCardDoText) == "A pick it up", $"the teacup's card on the shelf: \"{Plain(g.Hud.ItemCardDoText)}\"");
             yield return PadButton(GamepadButton.South);
             PadCheck(g.Packing.Tool == Tool.Item, "d-pad to the teacup on the shelf, A picks it up");
+            PadCheck(Plain(g.Hud.ItemCardDoText) == "A drop  \u00B7  B back to the shelf", $"holding the teacup (it can't turn): \"{Plain(g.Hud.ItemCardDoText)}\"");
             Shot("P2_holding_cup");
             yield return AfterShot();
             yield return PadTo(CellScreen(1.5f, 0.5f));
@@ -1567,6 +1668,7 @@ namespace HWC.Gameplay
             // paper: RB, then hold A and sweep with the d-pad
             yield return PadButton(GamepadButton.RightShoulder);
             PadCheck(g.Packing.Tool == Tool.Padding && g.Packing.HeldKind == PieceKind.Paper, "RB picks the first material (paper)");
+            PadCheck(Plain(g.Hud.ItemCardDoText) == "Hold A to paint  \u00B7  hold B to erase  \u00B7  START put it down", $"holding paper: \"{Plain(g.Hud.ItemCardDoText)}\"");
             yield return PadTo(CellScreen(0.5f, 0.5f));
             yield return PadHold(GamepadButton.South, true);
             foreach (var c in new[] { new Vector2(0.5f, 1.5f), new Vector2(1.5f, 1.5f), new Vector2(2.5f, 1.5f), new Vector2(2.5f, 0.5f) })
@@ -1667,6 +1769,9 @@ namespace HWC.Gameplay
             yield return PadTo(ember);
             yield return PadButton(GamepadButton.South);
             int facing = g.Packing.HeldFacing; bool rot = g.Packing.HeldRotated;
+            PadCheck(Plain(g.Hud.ItemCardDoText) == "A drop  \u00B7  X face the other way  \u00B7  B back to the shelf", $"holding Ember: \"{Plain(g.Hud.ItemCardDoText)}\"");
+            Shot("P6a_card_holding_ember");
+            yield return AfterShot();
             yield return PadButton(GamepadButton.West);
             PadCheck(g.Packing.Tool == Tool.Item && (g.Packing.HeldFacing != facing || g.Packing.HeldRotated != rot), $"X turns the held {g.Packing.HeldKind}");
             yield return PadButton(GamepadButton.East);
