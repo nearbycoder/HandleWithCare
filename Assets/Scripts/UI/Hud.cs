@@ -24,6 +24,15 @@ namespace HWC.Gameplay
         UiButton sealBtn, undoBtn, redoBtn, clearBtn, bestBtn;
         readonly Image[] bestStars = new Image[3];
         readonly List<(MaterialSlot slot, UiButton btn, TextMeshProUGUI count, Image icon)> slots = new List<(MaterialSlot, UiButton, TextMeshProUGUI, Image)>();
+        readonly List<TextMeshProUGUI> prices = new List<TextMeshProUGUI>();
+        /// <summary>For the self-tests: the toolbar's shown materials with their price tags and counts.</summary>
+        public List<(MaterialSlot slot, string price, string count, RectTransform button)> ToolbarTags()
+        {
+            var l = new List<(MaterialSlot, string, string, RectTransform)>();
+            for (int i = 0; i < slots.Count; i++)
+                if (slots[i].btn.gameObject.activeInHierarchy) l.Add((slots[i].slot, prices[i].text, slots[i].count.text, slots[i].btn.Image.rectTransform));
+            return l;
+        }
         RectTransform itemCard;
         TextMeshProUGUI cardName, cardBlurb, cardStats;
         Image cardIcon;
@@ -324,6 +333,17 @@ namespace HWC.Gameplay
                 cbg.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(4, 6), new Vector2(46, 30));
                 cnt.transform.SetParent(cbg.transform, false);
                 cnt.rectTransform.Stretch();
+                // what one piece costs: a gold coin on the left (the badge on the right is how many are left)
+                var coin = Ui.Panel(b.transform, "price", Palette.Gold, Ui.Rounded(16));
+                coin.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(5, -40), new Vector2(32, 32));
+                coin.raycastTarget = false;
+                var rim = coin.gameObject.AddComponent<Outline>();
+                rim.effectColor = new Color(0.55f, 0.4f, 0.1f, 0.9f); rim.effectDistance = new Vector2(1.5f, -1.5f);
+                var price = Ui.Text(coin.transform, "cost", MaterialCounts.UnitCost(slot).ToString(), 21, Palette.Ink, Ui.Display);
+                price.rectTransform.Stretch();
+                price.enableAutoSizing = true; price.fontSizeMin = 14; price.fontSizeMax = 21;
+                price.raycastTarget = false;
+                prices.Add(price);
                 var key = Prompt(Ui.Text(b.transform, "key", (i + 1).ToString(), 18, new Color(0.3f, 0.25f, 0.2f, 0.6f), Ui.Bold, TextAlignmentOptions.TopLeft), (i + 1).ToString(), "");
                 key.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(8, -4), new Vector2(30, 24));
                 int idx = i;
@@ -840,7 +860,7 @@ namespace HWC.Gameplay
             foreach (var s in slots)
             {
                 int left = pc.Remaining(s.slot);
-                s.count.text = left.ToString();
+                s.count.text = "×" + left;   // how many are left (the gold coin is the price)
                 bool active = (pc.Tool == Tool.Padding && SlotFor(pc.HeldKind) == s.slot) ||
                               (pc.Tool == Tool.Divider && s.slot == MaterialSlot.Divider) ||
                               (pc.Tool == Tool.Shelf && s.slot == MaterialSlot.Shelf) ||

@@ -65,6 +65,14 @@ namespace HWC.Sim
             Foam * Catalog.Get(PieceKind.Foam).Cost + Divider * SimConst.DividerCost +
             Shelf * SimConst.ShelfCost + Strap * SimConst.StrapCost;
 
+        /// <summary>What one piece of a material costs (the toolbar's price tags).</summary>
+        public static int UnitCost(MaterialSlot s)
+        {
+            var one = new MaterialCounts();
+            one.Set(s, 1);
+            return one.Cost;
+        }
+
         public override string ToString() =>
             $"paper {Paper}, bubble {Bubble}, foam {Foam}, divider {Divider}, shelf {Shelf}, strap {Strap}";
     }

@@ -515,6 +515,31 @@ namespace HWC.Gameplay
             yield return Key(UnityEngine.InputSystem.Key.R);
             yield return WaitPhase(Phase.Packing, 3f);
             yield return new WaitForSecondsRealtime(0.4f);
+            yield return ToolbarPrices();
+        }
+
+        /// <summary>
+        /// Every material on the toolbar has a price tag with what one piece costs (as the packing's cost counts
+        /// it), and pointing at the button shows the card with the same COST.
+        /// </summary>
+        IEnumerator ToolbarPrices()
+        {
+            var g = Game.I;
+            var tags = g.Hud.ToolbarTags();
+            int ok = 0;
+            foreach (var (slot, price, count, button) in tags)
+            {
+                yield return MoveMouse(RectTransformUtility.WorldToScreenPoint(null, button.TransformPoint(button.rect.center)));
+                yield return null; yield return null;
+                string want = MaterialCounts.UnitCost(slot).ToString();
+                string card = g.Hud.ItemCardShown ? g.Hud.ItemCardStats : "(no card)";
+                bool good = price == want && card.Contains("COST " + want) && count == "×" + g.Packing.Remaining(slot);
+                if (good) ok++;
+                Check2(good, "prices", $"{slot}: the tag says {price} (one costs {want}), {count} left; its card: \"{card}\"");
+                if (slot == MaterialSlot.Foam) { Shot("D1_toolbar_prices"); yield return AfterShot(); }
+            }
+            Check2(tags.Count > 0 && ok == tags.Count, "prices", $"{ok} of {tags.Count} toolbar materials show their price");
+            yield return MoveMouse(new Vector2(UnityEngine.Screen.width * 0.5f, UnityEngine.Screen.height * 0.88f));
         }
 
         /// <summary>
@@ -1478,6 +1503,12 @@ namespace HWC.Gameplay
             if (g.Hud.ShiftCardShowing) { yield return PadButton(GamepadButton.South); yield return new WaitForSecondsRealtime(0.6f); }
             for (int i = 0; i < 6 && g.Packing.Tool != Tool.Divider; i++) yield return PadButton(GamepadButton.RightShoulder);
             PadCheck(g.Packing.Tool == Tool.Divider, "RB cycles to the divider");
+            {
+                // the toolbar's price tags show for a pad player too (LB / RB never show the hover card)
+                var tags = g.Hud.ToolbarTags();
+                bool prices = tags.Count > 0 && tags.TrueForAll(t => t.price == MaterialCounts.UnitCost(t.slot).ToString());
+                PadCheck(prices, $"the toolbar shows each material's price: {string.Join(", ", tags.Select(t => $"{t.slot} {t.price}"))}");
+            }
             yield return PadButton(GamepadButton.DpadLeft);
             yield return PadButton(GamepadButton.South);
             PadCheck(g.Packing.Pk.Dividers.Count == 1, "A places a divider on the line under the cursor");

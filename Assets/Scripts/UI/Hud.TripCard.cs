@@ -105,6 +105,7 @@ namespace HWC.Gameplay
         // ---- for the self-tests ----------------------------------------------------------------------------
         public bool ItemCardShown => itemCard.gameObject.activeInHierarchy;
         public string ItemCardName => cardName.text;
+        public string ItemCardStats => cardStats.text;
         public string ItemCardTrip => cardTrip.gameObject.activeSelf ? cardTrip.text : "";
     }
 }
