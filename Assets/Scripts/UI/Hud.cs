@@ -1328,7 +1328,8 @@ namespace HWC.Gameplay
             {
                 var it = o.Items[i];
                 var cell = Ui.Rect("item", resItems);
-                float w = Mathf.Min(170, 900f / n);
+                // two or three items get wider columns: "64%  was SHATTERED" fits at full size
+                float w = n <= 3 ? 210f : Mathf.Min(170, 900f / n);
                 cell.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2((i - (n - 1) * 0.5f) * w, 0), new Vector2(w - 10, 150));
                 var icon = Ui.Icon(cell, "icon", IconStudio.Piece(it.Kind), Color.white);
                 icon.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, 4), new Vector2(100, 100));
@@ -1339,7 +1340,7 @@ namespace HWC.Gameplay
                 // its care, and what it was on the trip before
                 string line = ItemCareLine(it, prev != null ? MatchingItem(prev.Outcome, o, i) : null, prev != null);
                 var cl = Ui.Text(cell, "care", line, 18, Palette.InkSoft, Ui.Bold);
-                cl.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, -6), new Vector2(w, 26));
+                cl.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, -6), new Vector2(w - 16, 26));   // a gap to the next item's line
                 cl.enableAutoSizing = true; cl.fontSizeMin = 12; cl.fontSizeMax = 18;
                 cl.textWrappingMode = TextWrappingModes.NoWrap;
                 resItemLines.Add(cl);
@@ -1391,6 +1392,20 @@ namespace HWC.Gameplay
         readonly List<TextMeshProUGUI> resItemLines = new List<TextMeshProUGUI>();
         /// <summary>For the self-tests: the line under each item on the review (its care, and what it was).</summary>
         public List<string> ResultItemLines() { var l = new List<string>(); foreach (var t in resItemLines) l.Add(t != null ? t.text : ""); return l; }
+        /// <summary>For the self-tests: the left and right screen edges of each item line's text as drawn (none for
+        /// an empty line).</summary>
+        public List<(float left, float right)?> ResultItemLineExtents()
+        {
+            var l = new List<(float, float)?>();
+            foreach (var t in resItemLines)
+            {
+                if (t == null || string.IsNullOrEmpty(t.text)) { l.Add(null); continue; }
+                t.ForceMeshUpdate();
+                var b = t.textBounds;
+                l.Add((t.rectTransform.TransformPoint(new Vector3(b.min.x, b.center.y, 0)).x, t.rectTransform.TransformPoint(new Vector3(b.max.x, b.center.y, 0)).x));
+            }
+            return l;
+        }
         public List<string> ResultItemStamps()
         {
             var l = new List<string>();

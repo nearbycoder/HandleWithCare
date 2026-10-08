@@ -681,6 +681,16 @@ namespace HWC.Gameplay
                 string then = was == null ? "" : (was.Failed ? Hud.StatusWord(was.Status) : (limit ? $"{was.Care * 100:0}%" : ""));
                 if (then.Length > 0 ? !lines[i].EndsWith("was " + then) : lines[i].Contains("was")) problems.Add($"{it.Kind}'s line \"{lines[i]}\" (expected {(then.Length > 0 ? "was " + then : "no comparison")})");
             }
+            // the lines are drawn apart: each ends at least a few pixels before the next one starts
+            var ext = g.Hud.ResultItemLineExtents();
+            (float left, float right)? prevExt = null;
+            for (int i = 0; i < ext.Count; i++)
+            {
+                if (ext[i] == null) continue;
+                if (prevExt != null && ext[i].Value.left - prevExt.Value.right < 4f)
+                    problems.Add($"the line under {o.Items[i].Kind} starts {ext[i].Value.left - prevExt.Value.right:0} px after the one before it ends");
+                prevExt = ext[i];
+            }
             // the unboxing stamped the same words (it can be skipped part-way: those it got to)
             var shown = g.Hud.RevealStampWords;
             for (int i = 0; i < shown.Count && i < stamps.Count; i++)
