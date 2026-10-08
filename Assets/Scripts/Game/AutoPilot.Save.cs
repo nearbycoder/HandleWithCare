@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using HWC.Sim;
 using HWC.UI;
 using UnityEngine;
@@ -517,6 +518,30 @@ namespace HWC.Gameplay
             float worst = 0f; foreach (var f in frames) worst = Mathf.Max(worst, f);
             Debug.Log($"[AutoPilot] save 6: delivery 5 again (models loaded): the trip came back over {frames.Count} frames, longest {worst:0} ms (longest of 30 frames before: {before:0} ms)");
             SaveCheck(frames.Count >= 2 || worst < 100f, $"the bench keeps drawing while the trip is simulated ({frames.Count} frames, longest {worst:0} ms)");
+            yield return ReviewAfterRestart(g, hash);
+        }
+
+        /// <summary>
+        /// The review after a restart: delivery 5's trip from before the restart came back on the bench, so
+        /// shipping Mabel's packing now compares every item with it ("was SHATTERED", "was WIDE AWAKE"), exactly
+        /// as the tour checks the same comparison within one session.
+        /// </summary>
+        IEnumerator ReviewAfterRestart(Game g, string hash)
+        {
+            yield return new WaitForSecondsRealtime(0.2f);
+            var before = g.LastRun;
+            SaveCheck(before != null && before.Level == Levels.Get(5) && before.Hash.ToString("x16") == hash && !before.Outcome.Delivered,
+                      "the failed trip from before the restart is back, for the review to compare with");
+            if (before == null) yield break;
+            yield return RunLevel(5, "ref", false);
+            var now = g.LastRun;
+            yield return ReviewItems(now, before);
+            var lines = g.Hud.ResultItemLines().Select(Plain).ToList();
+            var failedWords = before.Outcome.Items.Where(it => it.Failed).Select(it => "was " + Hud.StatusWord(it.Status)).ToList();
+            SaveCheck(now.Outcome.Stars == 3 && failedWords.Count >= 2 && failedWords.All(w => lines.Any(l => l.EndsWith(w))),
+                      $"after the restart, the review compares Mabel's packing with the trip from before it: {string.Join(" | ", lines)}");
+            Shot("S6_review_after_restart");
+            yield return AfterShot();
         }
     }
 }

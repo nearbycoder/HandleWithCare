@@ -9,7 +9,8 @@
 #   5  restart: a failed trip, then MY BEST brings the three-star packing back (undo, redo, ship it);
 #      then a failed trip on delivery 5, and back to it through the main menu
 #   6  restart: delivery 5's last trip comes back (report, trails, hash, Ask Mabel's focus) while the
-#      bench is already open; then Settings > START OVER: cancel changes nothing; confirm clears
+#      bench is already open, and the next trip's review compares with it; then Settings > START OVER:
+#      cancel changes nothing; confirm clears
 #      progress, keeps the settings and a copy of the old save
 #   7  a save in v0.1.0's format: the last box shipped becomes MY BEST if it still delivers, checked
 #      on a worker thread when each bench opens

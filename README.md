@@ -321,7 +321,8 @@ Tools/savepilot.sh              # seven launches on one save, saving switched on
                                 # START OVER (cancel, then confirm: settings and a copy of the old save kept);
                                 # a save in v0.1.0's format gets MY BEST from its last boxes shipped; a failed
                                 # trip's report (its place held meanwhile), trails and hint focus come back
-                                # after a restart; a tape put on with USE IT survives a restart
+                                # after a restart, and the next trip's review compares with it; a tape put
+                                # on with USE IT survives a restart
 Tools/tour.sh                   # screenshots of the menus and a delivery played with real input events,
                                 # then the whole retry loop (R, Space, Enter, P) with the keyboard only,
                                 # undo/redo with German, French and Russian key labels swapped in,
@@ -502,7 +503,8 @@ Overtime), every one validated solvable with three stars.
   check this on every delivery). A near miss is each knock that took an item past the care line or higher;
   knocks less than a second apart are one mark, so a long rough stretch can show as a few marks. The
   review's "was" values compare with the delivery's previous trip only when it is known (this session, or
-  brought back on the bench), and twin items are matched in order. Mabel's ghosts are compared with the box cell for cell: a red ghost
+  brought back on the bench, which `Tools/savepilot.sh` checks across a restart), and twin items are
+  matched in order. Mabel's ghosts are compared with the box cell for cell: a red ghost
   under one of your own pieces is hidden by it, so her note also counts the ghosts "in the way". When an
   order has two of the same item (two magnets), pointing at one in the box shows the card of whichever
   had the worse trip; pointing at a red cross shows that very item. The item card is not kept clear of
