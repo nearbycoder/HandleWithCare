@@ -1125,3 +1125,78 @@ non-US keyboard, real alt-tab focus loss, a power cut mid-write, and the Mac bui
 the owner: Windows Build Support, Mac signing and notarization, publishing a release, a license, and
 re-cutting the trailer (its cinematic mode hides the care meters and the timeline, so the new marks don't
 show in it).
+
+## Round 10 scope
+
+Started 2026-10-07 on `improvements-10`, from main after round 9 (f1c4f81). The ranked list is still
+done or blocked (#9 Windows module, #10 a quiet machine or other hardware, #11 human ears, #12 a
+40-minute art rebuild, #13 and #14 not planned). Baseline: `simcheck check` ALL OK (25), careless samples
+on 13. Rounds 6–9 taught a player to read a trip after it happened; this round is about the first trip of
+a delivery, before anything has gone wrong, and closes what round 9 left untested. Found while planning:
+
+- **Nothing says which way a knock throws things.** The order card lists the knocks ("Van (pothole,
+  speed bump, hard brake)"), but not which wall each one slams the items into, so the first trip of
+  every delivery is a guess about the box's orientation: which side is the van's front, which way the
+  robot arm tips the box. A probe of every delivery's items-only and reference trips (which wall the
+  items hit during each event) shows that each kind of knock has one clear direction: hard brakes throw
+  items into the right wall (858 hits against 19 on the left), pulling away, robot arms and the catapult
+  launch into the left, potholes, belt drops, stairs, tosses and waves into the floor, speed bumps up into
+  the lid, and the ferry's rocking into both sides.
+- **Careless samples exist on only 13 of 25 deliveries** (round 9), so the RATTLED stamp, the amber
+  marks and NEXT TROUBLE on near misses are tested in the game on one delivery only.
+- **The review's "was" isn't tested across a restart** (round 9): after a restart it relies on the
+  last trip brought back on the bench.
+- The local macOS build doesn't have this round's code.
+
+Every item keeps `simcheck check`, `autopilot.sh`, `hintpilot.sh`, `padpilot.sh`, `tour.sh`,
+`savepilot.sh` and `layoutpilot.sh` green (run inside `Tools/nested.sh`), every self-test still leaves the
+real config folder unchanged, and each commit is built and tested on its own before the next item
+starts. No new delivery and no change to any trip (`simcheck hashes` identical to main). Screenshots go
+to `docs/media/improvements/round10/`.
+
+### R10-A. The route says which way each knock throws things (M)
+
+- After each knock on the order card's ROUTE line, a small icon of the box with an arrow into the wall
+  that knock throws the items against: right or left wall, the floor, the lid, or both sides. Drawn in
+  code into the existing sprite sheet (like the PlayStation shapes), so no font or asset is needed.
+- The direction comes from the simulation side (pure C#): a side knock's direction from the route's own
+  motion (which way the contents are pushed in the box's frame), the rest by kind (floor, lid, both).
+
+**Acceptance:** SimCheck checks every icon against the trips themselves: for each kind of knock, summed
+over every delivery's items-only, reference, three-star and expert trips, the wall its icon shows is the
+one the items hit hardest during it; per delivery, it says how often the side arrows agree. The order card
+draws one icon per knock, in order, with the mouse and the pad, LARGER TEXT off and on, with no new
+overflow, and every bench still keeps its cells clear of the HUD. **Verify:** `simcheck check` (and a new
+`simcheck knocks` listing); `tour.sh` reads which sprites the ROUTE line really draws on two deliveries;
+`padpilot.sh`'s LARGER TEXT bench check; `layoutpilot.sh` at four sizes; screenshots.
+
+### R10-B. Careless samples on more deliveries, played in the game (S–M)
+
+- `Hints.CarelessSample` also tries an item moved into a padding cell beside it, a strap or a divider
+  gone, and more seeded random changes, starting from her three-star packing and from her best.
+- `autopilot.sh` ships every careless sample through the real packing code and checks the outcome and
+  hash against SimCheck, the RATTLED stamps on the review, and one near-miss mark per near miss.
+
+**Acceptance:** careless samples on more than 13 deliveries, or the ones left explained; every one of
+them, shipped in the game, misses only the care star with the validator's hash and stamps exactly the
+rattled items RATTLED. **Verify:** `simcheck check`, `autopilot.sh`.
+
+### R10-C. The review's "was" after a restart (S)
+
+- `savepilot.sh`: ship a careless trip, quit, launch again, open the same bench (the trip comes back),
+  ship a better packing, and check the review compares it with the trip from before the restart.
+
+**Acceptance:** the "was" values after the restart equal the ones the same two trips give without one.
+**Verify:** `savepilot.sh`.
+
+### R10-D. Refresh the local macOS build (S)
+
+- Rebuild `Builds/Mac/HandleWithCare.app` from this branch.
+
+**Acceptance:** 0 errors, universal binary, bundle id and version, this round's code in the assembly.
+**Verify:** build log, `file`, Info.plist. **Not verifiable here:** running it on a Mac.
+
+### Not in this round
+
+Moving the shelf art (still 76% in one configuration of 400; it moves every bench), rumble, a physical
+controller or Steam Deck, a real non-US keyboard, real alt-tab focus loss, the Mac build on a Mac.
