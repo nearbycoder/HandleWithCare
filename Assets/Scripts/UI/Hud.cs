@@ -267,6 +267,7 @@ namespace HWC.Gameplay
             orderText.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -144), new Vector2(480, 70));
             routeText = Ui.Text(card.transform, "route", "", 18, Palette.Ink, Ui.Body, TextAlignmentOptions.TopLeft);
             routeText.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -212), new Vector2(480, 60));
+            MakeRouteHover();
             orderCard = card.rectTransform;
 
             // budget (top-right)
@@ -641,42 +642,6 @@ namespace HWC.Gameplay
         bool wasReady;
         TextMeshProUGUI routeText;
 
-        static string RouteSummary(LevelDef lv)
-        {
-            var parts = new List<string>();
-            foreach (var leg in lv.Route.Legs)
-            {
-                var evs = new List<string>();
-                foreach (var e in leg.Events)
-                {
-                    string n = null;
-                    switch (e.Kind)
-                    {
-                        case EventKind.Brake: n = "hard brake"; break;
-                        case EventKind.Pothole: n = "pothole"; break;
-                        case EventKind.SpeedBump: n = "speed bump"; break;
-                        case EventKind.Bump: n = "bumps"; break;
-                        case EventKind.Cobbles: n = "cobbles"; break;
-                        case EventKind.Drop: n = e.Label == "SET DOWN" ? null : "belt drop"; break;
-                        case EventKind.ArmTip: n = "robot arm"; break;
-                        case EventKind.Chute: n = "chute"; break;
-                        case EventKind.Stairs: n = "stairs"; break;
-                        case EventKind.Toss: n = "toss"; break;
-                        case EventKind.Rock: n = "rocking"; break;
-                        case EventKind.WaveSlam: n = "big wave"; break;
-                        case EventKind.Turbulence: n = "turbulence"; break;
-                        case EventKind.AirPocket: n = "air pocket"; break;
-                        case EventKind.Launch: n = "launch"; break;
-                        case EventKind.HayLand: n = "landing"; break;
-                    }
-                    if (n != null && !evs.Contains(n)) evs.Add(n);
-                }
-                string legName = leg.Kind == LegKind.Van ? "Van" : leg.Kind == LegKind.Depot ? "Depot" : leg.Kind == LegKind.Doorstep ? "Doorstep" :
-                                 leg.Kind == LegKind.Ship ? "Ferry" : leg.Kind == LegKind.Plane ? "Air mail" : "Catapult";
-                parts.Add($"<b>{legName}</b> <color=#6A5A4A>({string.Join(", ", evs)})</color>");
-            }
-            return "<b>ROUTE</b>  " + string.Join("  \u2192  ", parts);
-        }
         TextMeshProUGUI lastTripText;
         Image newBadge;
         float packT;
@@ -793,8 +758,10 @@ namespace HWC.Gameplay
             orderCustomer.text = "To: " + lv.Customer;
             orderText.text = "\u201C" + lv.Order + "\u201D";
             routeText.text = RouteSummary(lv);
-            orderCard.sizeDelta = new Vector2(520, 282);
-            lastTrip.anchoredPosition = new Vector2(28, -322);
+            // a long route (three lines with its knock icons) makes the card taller, and the report moves down
+            float routeGrow = FitRoute();
+            orderCard.sizeDelta = new Vector2(520, 282 + routeGrow);
+            lastTrip.anchoredPosition = new Vector2(28, -322 - routeGrow);
             mabelText.text = lv.Mabel;
             RefreshHints(lv);
             for (int i = 0; i < slots.Count; i++)
@@ -916,6 +883,7 @@ namespace HWC.Gameplay
 
         void ShowItemCard(PieceKind? kind)
         {
+            routeCardShown = false;
             if (kind == null) { itemCard.gameObject.SetActive(false); G.Packing.HighlightTrip(null, -1); return; }
             var def = Catalog.Get(kind.Value);
             itemCard.gameObject.SetActive(true);
@@ -934,6 +902,7 @@ namespace HWC.Gameplay
 
         void ShowMaterialCard(MaterialSlot s)
         {
+            routeCardShown = false;
             if (s <= MaterialSlot.Foam) { ShowItemCard(s == MaterialSlot.Paper ? PieceKind.Paper : (s == MaterialSlot.Bubble ? PieceKind.Bubble : PieceKind.Foam)); return; }
             itemCard.gameObject.SetActive(true);
             FillCardTrip(null, -1);

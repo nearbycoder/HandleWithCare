@@ -26,6 +26,7 @@ static class Program
                 case "trace": return RunOne(int.Parse(args[1]), args.Length > 2 ? args[2] : "ref", true);
                 case "map": return RunMap(args);
                 case "route": return PrintRoute(int.Parse(args[1]));
+                case "knocks": { var pr = KnockCheck.Run(true, out var sum); Console.WriteLine(sum); foreach (var x in pr) Console.WriteLine("     !! " + x); return pr.Count == 0 ? 0 : 1; }
                 case "hints": return PrintHints();
                 case "hashes": return PrintHashes();
                 case "debug":
@@ -232,6 +233,13 @@ static class Program
         Console.WriteLine($"care meters: {metersChecked} item trips end where their review does");
         Console.WriteLine($"hint ghosts: {ghostChecks} ghosts matched against her packing and an empty box");
         Console.WriteLine($"troubles: {troubleTrips} trips checked, {nearMisses} near misses; a careless sample (only the care star missed) on {carelessFound} deliveries");
+        if (args.Length == 0)
+        {
+            var kp = KnockCheck.Run(false, out var ksum);
+            Console.WriteLine(ksum);
+            foreach (var x in kp) Console.WriteLine("     !! " + x);
+            failures += kp.Count;
+        }
         Console.WriteLine(failures == 0 ? $"ALL OK ({sw.Elapsed.TotalSeconds:0.0}s)" : $"{failures} PROBLEM(S)");
         return failures == 0 ? 0 : 1;
     }

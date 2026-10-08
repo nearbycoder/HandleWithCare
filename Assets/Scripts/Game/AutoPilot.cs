@@ -516,6 +516,44 @@ namespace HWC.Gameplay
             yield return WaitPhase(Phase.Packing, 3f);
             yield return new WaitForSecondsRealtime(0.4f);
             yield return ToolbarPrices();
+            yield return RouteKnocks();
+        }
+
+        /// <summary>The knock icons each route line should draw, in order (from the simulation side).</summary>
+        static string ExpectedKnocks(LevelDef lv) => string.Join(",", Knocks.Of(lv).Select(k => Glyphs.Knock(k.Wall)));
+
+        /// <summary>
+        /// The ROUTE line draws one knock icon per knock, in order, the one for the wall that knock throws things
+        /// into; pointing at the line (real mouse moves) shows the route card with the side knocks by wall, and
+        /// pointing away hides it. On this bench (High Seas) and on The Vase and the Dragon (both side walls).
+        /// </summary>
+        IEnumerator RouteKnocks()
+        {
+            var g = Game.I;
+            foreach (int n in new[] { CarelessLevel, 18 })
+            {
+                if (g.Level.Number != n)
+                {
+                    g.StartLevel(n);
+                    yield return new WaitForSecondsRealtime(0.8f);
+                    if (g.Hud.ShiftCardShowing) { yield return ClickAt(new Vector2(UnityEngine.Screen.width * 0.5f, UnityEngine.Screen.height * 0.5f)); yield return new WaitForSecondsRealtime(0.6f); }
+                }
+                var lv = g.Level;
+                string want = ExpectedKnocks(lv), drawn = g.Hud.RouteDrawn;
+                Check2(drawn == want && drawn.Length > 0, "route", $"delivery {n}'s ROUTE line draws {drawn} (expected {want}): \"{Plain(g.Hud.RouteText)}\"");
+                yield return MoveMouse(RectScreen(g.Hud.RouteRect));
+                yield return null; yield return null;
+                string walls = g.Hud.ItemCardTripText, wallsDrawn = g.Hud.ItemCardTripDrawn;
+                bool sides = Knocks.Of(lv).Any(k => k.Wall != KnockWall.Floor);
+                Check2(g.Hud.RouteCardShown && g.Hud.ItemCardTitle == "THE ROUTE" && wallsDrawn.EndsWith(Glyphs.KnockFloor)
+                       && Knocks.Of(lv).Where(k => k.Wall != KnockWall.Floor).All(k => Plain(walls).Contains(k.Name) && wallsDrawn.Contains(Glyphs.Knock(k.Wall))) && (sides || Plain(walls).Contains("Every knock")),
+                       "route", $"pointing at the ROUTE line shows the route card: \"{Plain(walls).Replace("\n", " / ")}\" ({wallsDrawn})");
+                Shot(n == 18 ? "R2_route_card_vase_dragon" : "R1_route_card");
+                yield return AfterShot();
+                yield return MoveMouse(new Vector2(UnityEngine.Screen.width * 0.5f, UnityEngine.Screen.height * 0.88f));
+                yield return null; yield return null;
+                Check2(!g.Hud.RouteCardShown && !g.Hud.ItemCardShown, "route", "pointing away hides it");
+            }
         }
 
         /// <summary>
@@ -1521,6 +1559,15 @@ namespace HWC.Gameplay
             yield return PadButton(GamepadButton.RightShoulder);
             yield return PadButton(GamepadButton.Start);
             PadCheck(g.Packing.Tool == Tool.None && !g.Hud.Paused, "Start puts the tool down first");
+            {
+                // the stick onto the ROUTE line: the route card, the same as with the mouse
+                yield return PadStickInto(g.Hud.RouteRect);
+                yield return null; yield return null;
+                PadCheck(g.Hud.RouteDrawn == ExpectedKnocks(g.Level) && g.Hud.RouteCardShown && g.Hud.ItemCardTitle == "THE ROUTE",
+                         $"the cursor on the ROUTE line ({g.Hud.RouteDrawn}) shows the route card: \"{Plain(g.Hud.ItemCardTripText).Replace("\n", " / ")}\"");
+                Shot("P5b_route_card");
+                yield return AfterShot();
+            }
 
             // Ember turns round with X; Ask Mabel with Y after a missed star
             var rec = g.Save.Get(15, true); rec.Attempts = 1; rec.Stars = 0;

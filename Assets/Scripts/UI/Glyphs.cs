@@ -6,14 +6,20 @@ namespace HWC.UI
 {
     /// <summary>
     /// Button shapes and marks that no UI font here has (PlayStation's cross, circle, square and
-    /// triangle, a check and a cross), drawn in code at start-up into one TextMeshPro sprite sheet.
+    /// triangle, a check and a cross, and the route's knock icons: a box with an arrow into the wall a knock
+    /// throws things against), drawn in code at start-up into one TextMeshPro sprite sheet.
     /// Every text built by <see cref="Ui.Text"/> can show them inline: <c>&lt;sprite name="ps_cross"&gt;</c>.
     /// </summary>
     public static class Glyphs
     {
         public const string PsCross = "ps_cross", PsCircle = "ps_circle", PsSquare = "ps_square", PsTriangle = "ps_triangle";
         public const string MarkCheck = "mark_check", MarkCross = "mark_cross";
-        static readonly string[] Names = { PsCross, PsCircle, PsSquare, PsTriangle, MarkCheck, MarkCross };
+        public const string KnockFloor = "knock_floor", KnockLeft = "knock_left", KnockRight = "knock_right", KnockSides = "knock_sides";
+        static readonly string[] Names = { PsCross, PsCircle, PsSquare, PsTriangle, MarkCheck, MarkCross, KnockFloor, KnockLeft, KnockRight, KnockSides };
+
+        /// <summary>The knock icon for a wall.</summary>
+        public static string Knock(HWC.Sim.KnockWall w) =>
+            w == HWC.Sim.KnockWall.Left ? KnockLeft : w == HWC.Sim.KnockWall.Right ? KnockRight : w == HWC.Sim.KnockWall.Sides ? KnockSides : KnockFloor;
         const int Cell = 128, Pad = 4, Stride = Cell + Pad * 2;
 
         static TMP_SpriteAsset asset;
@@ -47,6 +53,21 @@ namespace HWC.UI
             return string.Join(",", names);
         }
 
+        static readonly Dictionary<string, Sprite> sprites = new Dictionary<string, Sprite>();
+
+        /// <summary>One of the glyphs as a UI sprite (for an Image), or null if the sheet couldn't be made.</summary>
+        public static Sprite Sprite(string name)
+        {
+            if (!Ok) return null;
+            if (sprites.TryGetValue(name, out var sp) && sp != null) return sp;
+            int i = System.Array.IndexOf(Names, name);
+            if (i < 0) return null;
+            sp = UnityEngine.Sprite.Create((Texture2D)asset.spriteSheet, new Rect(i * Stride + Pad, Pad, Cell, Cell), new Vector2(0.5f, 0.5f), 100f);
+            sp.name = name;
+            sprites[name] = sp;
+            return sp;
+        }
+
         /// <summary>Inline sprite tag for one of the glyphs.</summary>
         public static string Tag(string name) => $"<sprite name=\"{name}\">";
 
@@ -78,7 +99,9 @@ namespace HWC.UI
                 {
                     id = i, name = Names[i], hashCode = TMP_TextUtilities.GetSimpleHashCode(Names[i]), unicode = 0,
                     x = i * Stride + Pad, y = Pad, width = Cell, height = Cell,
-                    xOffset = 4, yOffset = Cell * 0.86f, xAdvance = Cell + 10, scale = 1f,
+                    // the knock icons sit in running text: a little bigger than the letters, so their arrows read
+                    xOffset = 4, yOffset = Names[i].StartsWith("knock_") ? Cell * 0.9f : Cell * 0.86f, xAdvance = Cell + 10,
+                    scale = Names[i].StartsWith("knock_") ? 1.3f : 1f,
                 });
             }
             var mat = new Material(shader) { name = "HWC Glyphs" };
@@ -99,6 +122,7 @@ namespace HWC.UI
         static readonly Color Blue = new Color(0.49f, 0.70f, 0.93f), Red = new Color(0.98f, 0.42f, 0.44f);
         static readonly Color Pink = new Color(0.92f, 0.60f, 0.85f), Green = new Color(0.27f, 0.85f, 0.67f);
         static readonly Color CheckGreen = new Color(0.18f, 0.55f, 0.34f), CrossRed = new Color(0.66f, 0.20f, 0.16f);
+        static readonly Color BoxInk = new Color(0.30f, 0.24f, 0.18f), KnockRed = new Color(0.80f, 0.22f, 0.16f);
 
         static void Draw(Color32[] px, int w, int x0, int y0, string name)
         {
@@ -122,6 +146,7 @@ namespace HWC.UI
                         c = Color.Lerp(Disc, sc, sym);
                         c.a = disc;
                     }
+                    else if (name.StartsWith("knock_")) c = KnockPixel(p, name);
                     else
                     {
                         float d = name == MarkCheck
@@ -133,6 +158,41 @@ namespace HWC.UI
                     px[(y0 + y) * w + x0 + x] = c;
                 }
         }
+
+        /// <summary>
+        /// A knock icon: the box, open at the top like the one on the bench, with its hit wall in red and a red
+        /// arrow into it. Drawn for the right wall and turned for the others.
+        /// </summary>
+        static Color KnockPixel(Vector2 p, string name)
+        {
+            const float half = 0.8f;
+            // the box: two walls and a floor
+            float box = Mathf.Min(Seg(p, new Vector2(-half, half), new Vector2(-half, -half)),
+                        Mathf.Min(Seg(p, new Vector2(-half, -half), new Vector2(half, -half)), Seg(p, new Vector2(half, -half), new Vector2(half, half)))) - 0.1f;
+            float hit, arrow;
+            switch (name)
+            {
+                case KnockLeft: hit = RightWall(new Vector2(-p.x, p.y), half); arrow = ArrowRight(new Vector2(-p.x, p.y)); break;
+                case KnockFloor: hit = RightWall(new Vector2(-p.y, p.x), half); arrow = ArrowRight(new Vector2(-p.y, p.x)); break;
+                case KnockSides:
+                {
+                    var m = new Vector2(Mathf.Abs(p.x), p.y);
+                    hit = RightWall(m, half);
+                    // a double arrow: one shaft, a head at each end
+                    arrow = Mathf.Min(Seg(p, new Vector2(-0.2f, 0), new Vector2(0.2f, 0)) - 0.12f, Head(m));
+                    break;
+                }
+                default: hit = RightWall(p, half); arrow = ArrowRight(p); break;
+            }
+            float red = Mathf.Max(Cover(hit), Cover(arrow));
+            var c = Color.Lerp(BoxInk, KnockRed, red);
+            c.a = Mathf.Max(Cover(box), red);
+            return c;
+        }
+
+        static float RightWall(Vector2 p, float half) => Seg(p, new Vector2(half, -half), new Vector2(half, half)) - 0.15f;
+        static float ArrowRight(Vector2 p) => Mathf.Min(Seg(p, new Vector2(-0.5f, 0), new Vector2(0.1f, 0)) - 0.12f, Head(p));
+        static float Head(Vector2 p) => Tri(p, new Vector2(0.6f, 0), new Vector2(0.08f, 0.38f), new Vector2(0.08f, -0.38f));
 
         /// <summary>Coverage from a signed distance in cell units (negative inside).</summary>
         static float Cover(float d) => Mathf.Clamp01(0.5f - d * Cell * 0.5f);
@@ -151,9 +211,11 @@ namespace HWC.UI
         }
 
         /// <summary>Signed distance to an upward triangle (negative inside).</summary>
-        static float Tri(Vector2 p)
+        static float Tri(Vector2 p) => Tri(p, new Vector2(0f, 0.46f), new Vector2(-0.48f, -0.36f), new Vector2(0.48f, -0.36f));
+
+        /// <summary>Signed distance to a triangle (negative inside).</summary>
+        static float Tri(Vector2 p, Vector2 a, Vector2 b, Vector2 c)
         {
-            Vector2 a = new Vector2(0f, 0.46f), b = new Vector2(-0.48f, -0.36f), c = new Vector2(0.48f, -0.36f);
             float d = Mathf.Min(Seg(p, a, b), Mathf.Min(Seg(p, b, c), Seg(p, c, a)));
             bool inside = Side(p, a, b) <= 0 && Side(p, b, c) <= 0 && Side(p, c, a) <= 0
                        || Side(p, a, b) >= 0 && Side(p, b, c) >= 0 && Side(p, c, a) >= 0;

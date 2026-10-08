@@ -24,6 +24,8 @@ namespace HWC.Gameplay
             string line = rec != null && body >= 0 ? TripLine(rec, body, out _) : null;
             bool show = line != null;
             cardTrip.gameObject.SetActive(show);
+            cardTrip.rectTransform.anchoredPosition = new Vector2(18, -238);   // where the route card may have moved it
+            cardTrip.rectTransform.sizeDelta = new Vector2(344, CardTripH);
             PlaceItemCard(show ? CardH + CardTripH : CardH);
             if (show)
             {

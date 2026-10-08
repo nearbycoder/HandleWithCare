@@ -44,6 +44,7 @@ Pick an item off the shelf, drop it in the box, paint padding around it, seal, a
 | Input | Action |
 | --- | --- |
 | Left click an item on the shelf | Pick it up (hover first to read its card: quirk, jolt limit, and what happened to it last trip) |
+| Point at the ROUTE line on the order card | A card listing which wall each knock throws things into |
 | Left click in the box | Drop the held item; it slides down to the first spot it can rest on |
 | `1` – `6`, or click the toolbar | Paper, bubble wrap, foam, divider, shelf, strap (the gold coin on each is what one piece costs, ×N how many are left) |
 | Left drag (padding) | Paint padding into every cell you sweep over |
@@ -97,6 +98,11 @@ float, and cacti pop them. Clank the robot marches until something stops him. Th
 near the lava lamp, the bouncy ball never loses its energy, and the frog hops every few seconds.
 Ember sneezes fire three cells ahead. While you pack, quirk previews show where a sneeze will reach,
 which magnets will pull on each other, how far heat spreads and who is asleep.
+
+**Know the route.** The order card lists every knock on the way, and after each one a little box with a
+red arrow shows the wall it throws your items into: a hard brake into the right wall, pulling away, the
+robot arm and the catapult's launch into the left, potholes, belt drops, stairs and tosses into the
+floor, the ferry's rocking into both sides. Point at the route for a card that lists them by wall.
 
 **Padding, dividers, shelves and straps.** Paper is cheap and a little soft, bubble wrap is softer
 (and pops on spikes), foam is softest and fireproof. Dividers wall things off and block heat, shelves
@@ -278,7 +284,9 @@ Tools/simcheck.sh check         # every delivery: reference packing valid, deliv
                                 # on the 25th, everything on offer costs par); the trip's care meters end
                                 # where the review does; her ghosts all match her own packing; every trip's
                                 # near misses (amber marks) follow their rules, and a careless packing that
-                                # misses only the care star is found where one exists (13 of 25)
+                                # misses only the care star is found where one exists (13 of 25); the route's
+                                # knock icons show the wall the items really hit during each kind of knock
+Tools/simcheck.sh knocks        # every route's knocks with their icons, and the wall hits behind them
 Tools/simcheck.sh hashes        # the trip hash of every delivery's stored packings (a change that must not
                                 # alter any trip leaves these exactly as they were)
 Tools/simcheck.sh hints         # print Mabel's hint notes for every delivery
@@ -302,7 +310,8 @@ Tools/padpilot.sh               # gamepad only (a virtual pad at 1280x800): titl
                                 # on the bench with the d-pad, RB to the trouble, B back to the box, the
                                 # vase's card says it shattered; USE IT
                                 # on a NEW TAPE sticker with the d-pad; RB to each near miss of a careless
-                                # trip, A on the care meters; the toolbar's price tags
+                                # trip, A on the care meters; the toolbar's price tags; the stick on the ROUTE
+                                # line shows its card
 Tools/savepilot.sh              # seven launches on one save, saving switched on: settings, progress and an
                                 # unsealed box survive a restart; a half-written save comes back from the
                                 # backup; garbage with no backup starts fresh; MY BEST after a restart;
@@ -319,7 +328,8 @@ Tools/tour.sh                   # screenshots of the menus and a delivery played
                                 # the tape on); a careless trip (only the care star missed): its amber marks
                                 # on the bench and the timeline, N, clicking the care meters, RATTLED on the
                                 # unboxing and the review, then Mabel's packing compared with it; the
-                                # toolbar's prices against each material's card
+                                # toolbar's prices against each material's card; the knock icons each ROUTE
+                                # line draws, and its card
 Tools/layoutpilot.sh            # every bench at 1920x1080, 1280x800, 2560x1080 and 1600x1200, on a first visit
                                 # and on a retry (LAST TRIP report, Mabel's tallest note), LARGER TEXT off and
                                 # on: no box cell or shelf cubby under a HUD panel, and the cells' size;
@@ -478,6 +488,12 @@ Overtime), every one validated solvable with three stars.
   packing that misses only the budget star on 24 of the 25 deliveries (an ordered search, then seeded
   random changes), and the budget hints are tested in the game on those 24. A Cup for Edna can't miss
   only that star: everything it offers (five paper) costs exactly par, which SimCheck checks.
+- **Knock icons.** Each kind of knock gets the wall its items hit hardest, summed over every delivery's
+  items-only, reference, three-star and expert trips (SimCheck checks this). One trip can differ: in 4 of
+  81 trips of a side knock that hit a side wall, the other side was hit harder, and on A Prickly Situation
+  the chute's hits, summed over its trips, lean to the left wall (17 against 14). The robot arm also sets
+  the box down, so the floor takes as many hits as the left wall, and speed bumps and air pockets lift
+  things towards the lid before they land harder on the floor; the icons show only the main wall.
 - **Reading a trip.** The care meters show the recorded frames (60 a second), so a knock shows
   on the frame it lands in; at the end they read exactly what the review does (SimCheck and the autopilot
   check this on every delivery). A near miss is each knock that took an item past the care line or higher;
