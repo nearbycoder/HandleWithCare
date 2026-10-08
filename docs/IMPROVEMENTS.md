@@ -1387,3 +1387,92 @@ Still not verified here: a physical controller (Xbox-style or PlayStation) or St
 keyboard, real alt-tab focus loss, a power cut mid-write, the Mac build on a Mac, and SAVE GIF on macOS or
 Windows. Still for the owner: Windows Build Support, Mac signing and notarization, publishing a release, a
 license, and re-cutting the trailer (the item card's new controls line would show in its packing shots).
+
+## Round 12 scope
+
+Started 2026-10-08 on `improvements-12`, from main after round 11 (db087e8). This round's focus is polish:
+the look, the menus, and a Graphics Fidelity setting that goes from weak hardware to well past today's
+look. The earlier "the art is off-limits" notes are relaxed for polish that keeps the style; balance,
+difficulty and story stay as they are (`simcheck hashes` identical to main). Found while planning, from the
+code, the player logs and the round 11 screenshots:
+
+- **Some of the post-processing never reaches the build.** `Post.cs` builds its volume at runtime, and
+  URP strips the post-processing variants that no volume profile *asset* uses. Every player log says
+  `Shader 'Hidden/Universal Render Pipeline/GaussianDepthOfField' is not supported or has been stripped
+  from the build`, so the journey's background blur and the reveal's focus never show. The chromatic
+  aberration kick on hard knocks is stripped the same way. The low-quality bloom variant the game uses is
+  in no profile asset either, so it is most likely stripped too (to be confirmed with an A/B screenshot).
+- **The graphics setting is one switch.** HIGH QUALITY GRAPHICS on is today's look, and off drops MSAA,
+  render scale, shadow range and SSAO. Nothing goes beyond today's look, and nothing goes lower for a
+  really weak GPU.
+- **Menus pop.** Settings, pause, the delivery log, credits and START OVER appear and vanish in one
+  frame. The button under the pointer or the pad's cursor only grows by 5%, which is hard to see on the
+  pause menu's dark buttons. The pause menu's dim is light enough that the review's headline reads
+  through it.
+
+Every item keeps `simcheck check`, `autopilot.sh`, `hintpilot.sh`, `padpilot.sh`, `tour.sh`,
+`savepilot.sh` and `layoutpilot.sh` green (inside `Tools/nested.sh`), every self-test still leaves the
+real config folder unchanged, and each commit is built and tested before the next item starts.
+Screenshots go to `docs/media/improvements/round12/`.
+
+### R12-A. Graphics Fidelity: LOW, MEDIUM, HIGH, ULTRA (L)
+
+- The HIGH QUALITY GRAPHICS switch becomes a four-step GRAPHICS FIDELITY slider in Settings (the same
+  control, grown, not a second one). It is saved with the other settings. HIGH is the default and is
+  today's look. A save from before this round with the switch off starts on MEDIUM, which is what "off"
+  did.
+- **LOW** is for weak GPUs: a lower render scale, no MSAA, hard and shorter shadows, no SSAO, no bloom or
+  depth of field, half-resolution textures, a smaller reflection probe and fewer particles.
+- **ULTRA** adds what URP can do on top of today's look: 4096 shadow maps in four cascades over a longer
+  range, soft shadows from the bench lamp, full-resolution SSAO with more samples, high-quality bloom,
+  bokeh depth of field on the journey and the unboxing, 16× anisotropic filtering, a sharper reflection
+  probe, a larger grading LUT, supersampling and denser particles.
+- It works with the mouse (click or drag the slider), the pad (the cursor and A, like the volume
+  sliders) and the keyboard (← and → in Settings step it, as the row's hint says). Each step shows a
+  line saying what it changes.
+- `Tools/fidelity.sh` (new) holds one bench and one journey frame still, and at each step takes a
+  screenshot and times 300 frames with VSync off and no frame cap.
+
+**Acceptance:** the four steps look different in the ways listed, in same-frame screenshots of the bench and
+the journey; HIGH matches today's look; LOW is the fastest and ULTRA the slowest in the frame times (with
+the load noted); the setting survives a restart; mouse, keyboard and pad each change it; LARGER TEXT doesn't
+make the row overflow. **Verify:** `fidelity.sh` (screenshots and a table of frame times), `tour.sh` (mouse
+clicks and arrow keys), `padpilot.sh` (the d-pad and A), `savepilot.sh` (a restart keeps ULTRA, and an old
+save with the switch off loads as MEDIUM).
+
+### R12-B. The post-processing reaches the build (S)
+
+- A small committed volume profile (`Assets/Settings/BuildVariants.asset`, never used for rendering)
+  declares the effects `Post.cs` builds at runtime (low-quality bloom, depth of field and chromatic
+  aberration), so URP keeps their shaders. The values `Post.cs` sets are unchanged. Tuned only if a
+  screenshot shows the effect, now visible, looking wrong.
+
+**Acceptance:** no "stripped from the build" line in any player log of the suite; same-frame screenshots
+before and after show the journey's background blur, the bloom and a knock's colour fringe. **Verify:** the
+player logs (`grep stripped`), `fidelity.sh` and `shots.sh` before and after.
+
+### R12-C. Menus ease in, and the button you're on is marked (S–M)
+
+- Settings, pause, the delivery log, credits and START OVER fade in (and rise slightly) in about 0.18 s,
+  and fade out. With REDUCED MOTION on they only fade. Clicks work from the first frame.
+- The button under the pointer or the pad's cursor gets a ring and lifts its colour as well as growing,
+  so the pad's focus reads at a glance on every screen. Toggles and sliders get the same hover sound
+  as buttons.
+- The pause and settings dim is darker, so the screen underneath doesn't read through.
+
+**Acceptance:** every menu opens and closes with its fade, the tests that click into menus right after
+opening them still pass, and the ring shows on the hovered button with the mouse and with the pad.
+**Verify:** `tour.sh` and `padpilot.sh` (screenshots mid-fade and of the ring), the whole suite.
+
+### R12-D. Refresh the local macOS build (S)
+
+- Rebuild `Builds/Mac/HandleWithCare.app` from this branch.
+
+**Acceptance:** 0 errors, universal binary, bundle id and version, this round's code in the assembly.
+**Verify:** build log, `file`, Info.plist. **Not verifiable here:** running it on a Mac.
+
+### Not in this round
+
+Moving the shelf art (76% in one configuration of 400), careless samples on Strike! and Ember (none exists
+in practice), new art from Blender (a 40-minute rebuild), rumble, a physical controller or Steam Deck, a real
+non-US keyboard, real alt-tab focus loss, frame rates on a quiet GPU, the Mac build on a Mac.
