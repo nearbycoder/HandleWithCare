@@ -437,6 +437,9 @@ namespace HWC.Gameplay
             var near = Troubles.NearMisses(trip);
             Check2(trip.Outcome.Delivered && !trip.Outcome.Careful && trip.Outcome.UnderBudget && near.Count >= 2,
                    "near", $"the careless packing of delivery {CarelessLevel} arrives under par but misses the care star ({trip.Outcome.WorstCare * 100:0}%), with {near.Count} near misses");
+            yield return ReviewItems(trip, null);
+            Shot("C1_review_rattled");
+            yield return AfterShot();
             yield return new WaitForSecondsRealtime(0.4f);
             yield return Key(UnityEngine.InputSystem.Key.R);
             yield return new WaitForSecondsRealtime(0.8f);
@@ -492,6 +495,64 @@ namespace HWC.Gameplay
             yield return WaitPhase(Phase.Packing, 3f);
             yield return new WaitForSecondsRealtime(0.3f);
             Check2(g.Phase == Phase.Packing, "near", "Enter goes back to the bench");
+
+            // the next trip, Mabel's packing: the review compares every item with the careless one
+            yield return RunLevel(CarelessLevel, "ref", false);
+            var better = g.LastRun;
+            yield return ReviewItems(better, trip);
+            Shot("C2_review_compared");
+            yield return AfterShot();
+            var lines = g.Hud.ResultItemLines();
+            string budget = g.Hud.ResultBudgetLabel;
+            yield return Key(UnityEngine.InputSystem.Key.P);
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return Key(UnityEngine.InputSystem.Key.Enter);
+            yield return WaitPhase(Phase.Results, 3f);
+            yield return new WaitForSecondsRealtime(0.3f);
+            Check2(g.Phase == Phase.Results && g.Hud.ResultItemLines().SequenceEqual(lines) && g.Hud.ResultBudgetLabel == budget,
+                   "review", $"REPLAY and back: the same comparison ({string.Join(" | ", g.Hud.ResultItemLines().Select(Plain))}; {budget})");
+            // back to the bench, where the next steps start
+            yield return Key(UnityEngine.InputSystem.Key.R);
+            yield return WaitPhase(Phase.Packing, 3f);
+            yield return new WaitForSecondsRealtime(0.4f);
+        }
+
+        /// <summary>
+        /// The review's items: a rattled one (arrived past the care line) is stamped RATTLED, the others PERFECT or
+        /// their failure; under each, its care for an item with a limit; and, after an earlier trip of the delivery,
+        /// what it was then (the budget label too, when the cost changed). Without one, no comparison.
+        /// </summary>
+        IEnumerator ReviewItems(Recording rec, Recording before)
+        {
+            var g = Game.I;
+            yield return WaitPhase(Phase.Results, 3f);
+            yield return null;
+            var stamps = g.Hud.ResultItemStamps();
+            var lines = g.Hud.ResultItemLines().Select(Plain).ToList();
+            var o = rec.Outcome;
+            var problems = new List<string>();
+            if (stamps.Count != o.Items.Count || lines.Count != o.Items.Count) problems.Add($"{stamps.Count} stamps and {lines.Count} lines for {o.Items.Count} items");
+            for (int i = 0; i < o.Items.Count && i < stamps.Count && i < lines.Count; i++)
+            {
+                var it = o.Items[i];
+                bool limit = Hud.HasCareLimit(Catalog.Get(it.Kind));
+                string wantStamp = it.Failed ? null : (it.Care >= SimConst.CareFraction ? "RATTLED" : "PERFECT");
+                if (wantStamp != null && stamps[i] != wantStamp) problems.Add($"{it.Kind} stamped {stamps[i]}, not {wantStamp}");
+                string now = !it.Failed && limit ? $"{it.Care * 100:0}%" : "";
+                if (!lines[i].StartsWith(now)) problems.Add($"{it.Kind}'s line \"{lines[i]}\" doesn't start with \"{now}\"");
+                var was = before != null ? Hud.MatchingItem(before.Outcome, o, i) : null;
+                string then = was == null ? "" : (was.Failed ? Hud.StatusWord(was.Status) : (limit ? $"{was.Care * 100:0}%" : ""));
+                if (then.Length > 0 ? !lines[i].EndsWith("was " + then) : lines[i].Contains("was")) problems.Add($"{it.Kind}'s line \"{lines[i]}\" (expected {(then.Length > 0 ? "was " + then : "no comparison")})");
+            }
+            // the unboxing stamped the same words (it can be skipped part-way: those it got to)
+            var shown = g.Hud.RevealStampWords;
+            for (int i = 0; i < shown.Count && i < stamps.Count; i++)
+                if (!stamps.Contains(shown[i])) problems.Add($"the unboxing stamped {shown[i]}");
+            if (before == null && !shown.Contains("RATTLED") && stamps.Contains("RATTLED")) problems.Add($"the unboxing never stamped RATTLED ({string.Join(", ", shown)})");
+            string budget = g.Hud.ResultBudgetLabel;
+            bool costWas = before != null && before.Outcome.Cost != o.Cost;
+            if (costWas != budget.Contains($"(was {(before != null ? before.Outcome.Cost : 0)})")) problems.Add($"budget label \"{budget}\"");
+            Check2(problems.Count == 0, "review", $"{(before == null ? "first trip" : "after an earlier trip")}: stamps {string.Join(", ", stamps)}; lines {string.Join(" | ", lines)}; {budget}{(problems.Count > 0 ? " -- " + string.Join("; ", problems) : "")}");
         }
 
         /// <summary>

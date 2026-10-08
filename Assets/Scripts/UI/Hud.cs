@@ -163,6 +163,8 @@ namespace HWC.Gameplay
 
         UiButton revealSkip;
         TextMeshProUGUI revealSkipHint;
+        /// <summary>For the self-tests: the unboxing's stamps so far, in order.</summary>
+        public readonly List<string> RevealStampWords = new List<string>();
 
         public void HookReveal(RevealController r)
         {
@@ -170,12 +172,13 @@ namespace HWC.Gameplay
             {
                 var box = Ui.Panel(revealRoot, "stamp", new Color(0, 0, 0, 0), Ui.Rounded(10, 0));
                 string word = it.Body < 0 && it.Kind == PieceKind.DragonEgg ? "IT HATCHED!" : (it.Kind == PieceKind.Dragon && it.Status == ItemStatus.Scorched ? "BOX ON FIRE" : StatusWord(it.Status));
-                var txt = Ui.Text(box.transform, "t", word, 58, it.Failed ? Palette.Bad : (it.Status == ItemStatus.Perfect ? Palette.Good : Palette.Teal), Ui.Display);
+                var txt = Ui.Text(box.transform, "t", word, 58, it.Failed ? Palette.Bad : (it.Status == ItemStatus.Perfect ? Palette.Good : RattledStamp), Ui.Display);
                 txt.rectTransform.Stretch();
                 txt.outlineWidth = 0.18f;
                 txt.outlineColor = Palette.Cream;
                 box.rectTransform.sizeDelta = new Vector2(420, 90);
                 stamps.Add((box.rectTransform, world, 0f));
+                RevealStampWords.Add(word);
             };
         }
 
@@ -184,6 +187,7 @@ namespace HWC.Gameplay
             HideAll();
             foreach (var st in stamps) if (st.rt != null) Destroy(st.rt.gameObject);
             stamps.Clear();
+            RevealStampWords.Clear();
             revealRoot.gameObject.SetActive(true);
             revealSkip.gameObject.SetActive(!Cinematic);
             revealSkipHint.gameObject.SetActive(!Cinematic);
@@ -1328,6 +1332,9 @@ namespace HWC.Gameplay
             foreach (Transform c in resItems) Destroy(c.gameObject);
             foreach (Transform c in resStars) Destroy(c.gameObject);
             int n = o.Items.Count;
+            var gain0 = G.LastGain != null && G.LastGain.Run == rec ? G.LastGain : null;
+            var prev = gain0?.Previous;
+            resItemLines.Clear();
             for (int i = 0; i < n; i++)
             {
                 var it = o.Items[i];
@@ -1335,14 +1342,23 @@ namespace HWC.Gameplay
                 float w = Mathf.Min(170, 900f / n);
                 cell.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2((i - (n - 1) * 0.5f) * w, 0), new Vector2(w - 10, 150));
                 var icon = Ui.Icon(cell, "icon", IconStudio.Piece(it.Kind), Color.white);
-                icon.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, 4), new Vector2(122, 122));
-                var st = Ui.Text(cell, "status", it.Kind == PieceKind.Dragon && it.Status == ItemStatus.Scorched ? "BOX ON FIRE" : StatusWord(it.Status), 24, it.Failed ? Palette.Bad : Palette.Good, Ui.Display);
-                st.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, -2), new Vector2(w, 34));
+                icon.rectTransform.Place(new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, 4), new Vector2(100, 100));
+                var st = Ui.Text(cell, "status", it.Kind == PieceKind.Dragon && it.Status == ItemStatus.Scorched ? "BOX ON FIRE" : StatusWord(it.Status), 24,
+                                 it.Failed ? Palette.Bad : (it.Status == ItemStatus.Fine ? RattledInk : Palette.Good), Ui.Display);
+                st.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 22), new Vector2(w, 34));
                 st.rectTransform.localRotation = Quaternion.Euler(0, 0, -6);
+                // its care, and what it was on the trip before
+                string line = ItemCareLine(it, prev != null ? MatchingItem(prev.Outcome, o, i) : null, prev != null);
+                var cl = Ui.Text(cell, "care", line, 18, Palette.InkSoft, Ui.Bold);
+                cl.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, -6), new Vector2(w, 26));
+                cl.enableAutoSizing = true; cl.fontSizeMin = 12; cl.fontSizeMax = 18;
+                cl.textWrappingMode = TextWrappingModes.NoWrap;
+                resItemLines.Add(cl);
             }
             starAnims.Clear();
             resultsT = 0;
-            string[] labels = { "DELIVERED", $"UNDER BUDGET  {o.Cost} / PAR {o.Par}", o.WorstCare >= 1f ? "HANDLED WITH CARE  (OVER THE LIMIT)" : $"HANDLED WITH CARE  {o.WorstCare * 100:0}% / {SimConst.CareFraction * 100:0}%" };
+            string was = prev != null && prev.Outcome.Cost != o.Cost ? $"  (was {prev.Outcome.Cost})" : "";
+            string[] labels = { "DELIVERED", $"UNDER BUDGET  {o.Cost} / PAR {o.Par}{was}", o.WorstCare >= 1f ? "HANDLED WITH CARE  (OVER THE LIMIT)" : $"HANDLED WITH CARE  {o.WorstCare * 100:0}% / {SimConst.CareFraction * 100:0}%" };
             bool[] got = { o.Delivered, o.Delivered && o.UnderBudget, o.Delivered && o.Careful };
             for (int i = 0; i < 3; i++)
             {
@@ -1381,12 +1397,49 @@ namespace HWC.Gameplay
             G.Post.SetDof(0.85f, 1.2f);
         }
 
+        /// <summary>A rattled item's stamp: amber, dark enough on the review's cream and the unboxing's outline.</summary>
+        static readonly Color RattledInk = new Color(0.69f, 0.48f, 0.1f), RattledStamp = new Color(0.86f, 0.55f, 0.08f);
+        readonly List<TextMeshProUGUI> resItemLines = new List<TextMeshProUGUI>();
+        /// <summary>For the self-tests: the line under each item on the review (its care, and what it was).</summary>
+        public List<string> ResultItemLines() { var l = new List<string>(); foreach (var t in resItemLines) l.Add(t != null ? t.text : ""); return l; }
+        public List<string> ResultItemStamps()
+        {
+            var l = new List<string>();
+            foreach (Transform c in resItems) { var s = c.Find("status"); if (s != null) l.Add(s.GetComponent<TextMeshProUGUI>().text); }
+            return l;
+        }
+        public string ResultBudgetLabel => resStars.childCount > 1 ? resStars.GetChild(1).Find("l").GetComponent<TextMeshProUGUI>().text : "";
+
+        /// <summary>The same item on another trip of the delivery: the same kind, the same one of its kind in order
+        /// (two magnets: the first with the first).</summary>
+        public static ItemResult MatchingItem(Outcome other, Outcome o, int i)
+        {
+            var kind = o.Items[i].Kind;
+            int nth = 0;
+            for (int k = 0; k < i; k++) if (o.Items[k].Kind == kind) nth++;
+            foreach (var it in other.Items) if (it.Kind == kind && nth-- == 0) return it;
+            return null;
+        }
+
+        /// <summary>The review's line under an item: its care ("48%", amber past the line) for an item with a
+        /// limit, and what it was on the trip before ("was 72%", "was SHATTERED") when there was one.</summary>
+        public static string ItemCareLine(ItemResult it, ItemResult before, bool hadTrip)
+        {
+            var def = Catalog.Get(it.Kind);
+            bool limit = HasCareLimit(def);
+            string now = it.Failed || !limit ? "" : $"<color={(it.Care >= SimConst.CareFraction ? "#B07A1A" : "#2E8B57")}>{it.Care * 100:0}%</color>";
+            if (!hadTrip || before == null) return now;
+            string then = before.Failed ? StatusWord(before.Status) : (limit ? $"{before.Care * 100:0}%" : "");
+            if (then.Length == 0) return now;
+            return now.Length > 0 ? $"{now}  <color=#7A6A5C>was {then}</color>" : $"<color=#7A6A5C>was {then}</color>";
+        }
+
         public static string StatusWord(ItemStatus s)
         {
             switch (s)
             {
                 case ItemStatus.Perfect: return "PERFECT";
-                case ItemStatus.Fine: return "OK";
+                case ItemStatus.Fine: return "RATTLED";   // arrived, but past the care line
                 case ItemStatus.Broken: return "SHATTERED";
                 case ItemStatus.Spilled: return "SPILLED";
                 case ItemStatus.Awake: return "WIDE AWAKE";

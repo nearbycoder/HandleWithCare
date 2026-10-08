@@ -311,6 +311,8 @@ namespace HWC.Gameplay
 
         IEnumerator SealRoutine()
         {
+            // the trip before this one, for the review's comparison (brought back on the bench after a restart)
+            previousRun = LastRun != null && LastRun.Level == Level ? LastRun : null;
             Phase = Phase.Sealing;
             Packing.End();
             Hud.ShowSealing();
@@ -361,15 +363,17 @@ namespace HWC.Gameplay
             public int StarsBefore, StarsAfter, TotalBefore, TotalAfter;
             public bool[] GoalsBefore, GoalsAfter;   // delivered, under budget, handled with care
             public string NewTape;                   // the tape id the trip unlocked, or null
+            public Recording Previous;               // the delivery's trip before this one, when known
         }
         public TripGain LastGain;
+        Recording previousRun;
 
         static bool[] Goals(SaveData.LevelRecord r) => new[] { r != null && r.Delivered, r != null && r.Delivered && r.UnderBudget, r != null && r.Delivered && r.Careful };
 
         void OnJourneyDone()
         {
             var before = Save.Get(Level.Number);
-            var gain = new TripGain { Run = LastRun, StarsBefore = before?.Stars ?? 0, TotalBefore = Save.TotalStars, GoalsBefore = Goals(before) };
+            var gain = new TripGain { Run = LastRun, StarsBefore = before?.Stars ?? 0, TotalBefore = Save.TotalStars, GoalsBefore = Goals(before), Previous = previousRun };
             Save.Record(Level, LastRun.Outcome, LastRun.Packing, LastRun.Hash);
             var after = Save.Get(Level.Number);
             gain.StarsAfter = after?.Stars ?? 0; gain.TotalAfter = Save.TotalStars; gain.GoalsAfter = Goals(after);
