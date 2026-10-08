@@ -504,12 +504,16 @@ namespace HWC.Gameplay
             }
             // a red cross from the last trip under the pointer: its item's card, for that very item
             int trouble = !overUi && inBox && Tool == Tool.None && hoverTray == null ? TroubleAt(cell) : -1;
+            // with something in hand, the card is about it (and says how to use it), wherever it points
+            bool holding = Tool == Tool.Item || Tool == Tool.Padding;
             PieceKind? hk = trouble >= 0 ? lastRun.Bodies[trouble].Kind
-                          : hoverTray != null ? hoverTray.Kind : (hoverPiece >= 0 ? Pk.Pieces[hoverPiece].Kind : (Tool == Tool.Item || Tool == Tool.Padding ? HeldKind : (PieceKind?)null));
+                          : holding ? HeldKind
+                          : hoverTray != null ? hoverTray.Kind : (hoverPiece >= 0 ? Pk.Pieces[hoverPiece].Kind : (PieceKind?)null);
             var use = trouble >= 0 ? CardUse.None
+                    : Tool == Tool.Item ? CardUse.HoldItem : Tool == Tool.Padding ? CardUse.HoldPadding
                     : hoverTray != null ? CardUse.Shelf
                     : hoverPiece >= 0 ? (Tool == Tool.None ? CardUse.Placed : Tool == Tool.Strap && !Pk.Pieces[hoverPiece].Def.IsPadding ? CardUse.Strap : CardUse.None)
-                    : Tool == Tool.Item ? CardUse.HoldItem : Tool == Tool.Padding ? CardUse.HoldPadding : CardUse.None;
+                    : CardUse.None;
             if (hk != lastHovered || trouble != HoverTroubleBody || use != lastCardFor)
             {
                 lastHovered = hk; HoverTroubleBody = trouble; lastCardFor = CardFor = use;
