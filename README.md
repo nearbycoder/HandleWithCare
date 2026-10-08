@@ -45,7 +45,7 @@ Pick an item off the shelf, drop it in the box, paint padding around it, seal, a
 | --- | --- |
 | Left click an item on the shelf | Pick it up (hover first to read its card: quirk, jolt limit, and what happened to it last trip) |
 | Left click in the box | Drop the held item; it slides down to the first spot it can rest on |
-| `1` – `6`, or click the toolbar | Paper, bubble wrap, foam, divider, shelf, strap |
+| `1` – `6`, or click the toolbar | Paper, bubble wrap, foam, divider, shelf, strap (the gold coin on each is what one piece costs, ×N how many are left) |
 | Left drag (padding) | Paint padding into every cell you sweep over |
 | Right drag (padding) | Erase padding |
 | `R`, right click or mouse wheel | Rotate the held piece, or turn a creature or dragon to face the other way |
@@ -59,7 +59,7 @@ Pick an item off the shelf, drop it in the box, paint padding around it, seal, a
 | ASK MABEL (under her note) | After a trip that missed a star: one more hint per click |
 | `Esc` | Drop what you are holding, or pause; in Settings, the delivery log and the credits, go back |
 | During the journey | `Space` pause, `Enter` skip, `1`–`4` playback speed |
-| Replay | Click the timeline to jump, `N` or NEXT TROUBLE jumps to just before the next red mark, speed buttons, `C` or the CAM button cycles director / close-up / wide |
+| Replay | Click the timeline to jump, `N` or NEXT TROUBLE jumps to just before the next red (failure) or amber (near miss) mark, click an item's care meter to jump to its moment, speed buttons, `C` or the CAM button cycles director / close-up / wide |
 | Unboxing | `Enter`, `Space` or `Esc` skips to the review |
 | Review | `R` repack, `P` replay, `Enter` next delivery, `T` put a newly unlocked tape on your boxes |
 
@@ -121,15 +121,18 @@ Every bump the box takes (brake, pothole, cobbles, belt drop, robot arm, chute, 
 toss, waves, an air pocket, a catapult launch) is exactly what the contents feel. In the corner, a
 care meter for each item fills with its worst knock so far against its limit, with the 65% line of
 the "handled with care" star marked; it turns amber past the line and names the failure (SHATTERED,
-WIDE AWAKE) the moment it happens, and ends exactly where the review does. The replay rewinds it.
+WIDE AWAKE) the moment it happens, and ends exactly where the review does. The replay rewinds it, and
+clicking an item's meter jumps to just before its moment.
 
 <img src="docs/media/screenshots/05-box-on-fire.jpg" alt="Ember sneezes at the hard brake and sets the cardboard box on fire" width="100%">
 
 **Funny failures you can fix.** Fragile things shatter into shard piles, cakes go SPLAT, potions
 spill, balloons go BANG in a burst of confetti, and if Ember's sneeze reaches cardboard, the box
 catches fire. Then the replay lets you scrub the trip in close-up, and NEXT TROUBLE (`N`) jumps to
-just before each thing that went wrong. Back at the bench, the last trip's trails show where every
-item went and mark where things went wrong ("Vase shattered at the hard brake, jolt 11/8"), the
+just before each thing that went wrong: a red mark on the timeline for a failure, an amber one for a
+near miss (an item that arrived, but was knocked past the care line there). Back at the bench, the last
+trip's trails show where every item went and mark where things went wrong ("Vase shattered at the hard
+brake, jolt 11/8") with a red cross, or nearly did with an amber warning sign, the
 report says when the trip went over budget, and WATCH (`P`) plays the trip again without shipping.
 Point at an item (on the shelf or in the box) or at a red cross and its card says what happened to it
 last trip, in the report's words ("Shattered at the hard brake (jolt 18/8)", or "Rattled: 72% at the
@@ -139,8 +142,9 @@ pothole"), while its trails and crosses stand out.
 
 **The unboxing.** At the other end, the box lands on the customer's kitchen table, the tape is
 sliced, the flaps burst open and each item rises into the light to get its stamp. The second time
-you open the same delivery, the unboxing plays at double speed (except for the dragon egg). Then the review
-and up to three stars:
+you open the same delivery, the unboxing plays at double speed (except for the dragon egg). An item that
+arrived but went past the care line is stamped RATTLED. Then the review, with each item's care (and what
+it was on the trip before: "64% was 98%"), and up to three stars:
 
 - **Delivered**: every item arrives OK.
 - **Under budget**: materials cost at or below par.
@@ -272,11 +276,14 @@ Tools/simcheck.sh check         # every delivery: reference packing valid, deliv
                                 # Mabel's best is a stored 3-star packing at or under par; the budget hints
                                 # match her packing; a packing that misses only the budget star (24 of 25;
                                 # on the 25th, everything on offer costs par); the trip's care meters end
-                                # where the review does; her ghosts all match her own packing
+                                # where the review does; her ghosts all match her own packing; every trip's
+                                # near misses (amber marks) follow their rules, and a careless packing that
+                                # misses only the care star is found where one exists (13 of 25)
 Tools/simcheck.sh hashes        # the trip hash of every delivery's stored packings (a change that must not
                                 # alter any trip leaves these exactly as they were)
 Tools/simcheck.sh hints         # print Mabel's hint notes for every delivery
 Tools/simcheck.sh map 3 "t..." "vb.." "vppp"   # simulate any packing and print the timeline
+Tools/simcheck.sh run 16 careless   # one delivery's careless sample (also ref, ref3, naive)
 Tools/simcheck.sh solve 7       # parallel local search for cheap / three-star packings (used to set pars)
 Tools/simcheck.sh explore 21    # random item-only packings: how many get delivered (should be none)
 Tools/autopilot.sh              # the built player plays all 25 references through the real packing code
@@ -294,7 +301,8 @@ Tools/padpilot.sh               # gamepad only (a virtual pad at 1280x800): titl
                                 # every hint note of every delivery at a readable size, off and on; WATCH
                                 # on the bench with the d-pad, RB to the trouble, B back to the box, the
                                 # vase's card says it shattered; USE IT
-                                # on a NEW TAPE sticker with the d-pad
+                                # on a NEW TAPE sticker with the d-pad; RB to each near miss of a careless
+                                # trip, A on the care meters; the toolbar's price tags
 Tools/savepilot.sh              # seven launches on one save, saving switched on: settings, progress and an
                                 # unsealed box survive a restart; a half-written save comes back from the
                                 # backup; garbage with no backup starts fresh; MY BEST after a restart;
@@ -308,12 +316,19 @@ Tools/tour.sh                   # screenshots of the menus and a delivery played
                                 # Esc backing out of every menu, WATCH / NEXT TROUBLE from the bench (and
                                 # the care meters as the replay is scrubbed), the item cards and red crosses
                                 # after a failed trip, and the review's new star and NEW TAPE sticker (T puts
-                                # the tape on)
+                                # the tape on); a careless trip (only the care star missed): its amber marks
+                                # on the bench and the timeline, N, clicking the care meters, RATTLED on the
+                                # unboxing and the review, then Mabel's packing compared with it; the
+                                # toolbar's prices against each material's card
 Tools/layoutpilot.sh            # every bench at 1920x1080, 1280x800, 2560x1080 and 1600x1200, on a first visit
                                 # and on a retry (LAST TRIP report, Mabel's tallest note), LARGER TEXT off and
                                 # on: no box cell or shelf cubby under a HUD panel, and the cells' size;
                                 # the trip's care meters clear of the journey's controls
 ```
+
+Run any of them through `Tools/nested.sh` (for example `Tools/nested.sh Tools/tour.sh`) to keep the test
+window off the desktop: it opens a private, headless KWin (`kwin_wayland --virtual`, its own D-Bus session,
+no global shortcuts) that closes when the test ends.
 
 The self-tests write their screenshots and player logs to `Logs/selftest/<name>/` (gitignored) and fail
 if a screenshot never reaches the disk. They also point `XDG_CONFIG_HOME` into that folder, so the
@@ -463,9 +478,12 @@ Overtime), every one validated solvable with three stars.
   packing that misses only the budget star on 24 of the 25 deliveries (an ordered search, then seeded
   random changes), and the budget hints are tested in the game on those 24. A Cup for Edna can't miss
   only that star: everything it offers (five paper) costs exactly par, which SimCheck checks.
-- **Reading a trip.** The care meters show the recorded frames (about 30 a second), so a knock shows
+- **Reading a trip.** The care meters show the recorded frames (60 a second), so a knock shows
   on the frame it lands in; at the end they read exactly what the review does (SimCheck and the autopilot
-  check this on every delivery). Mabel's ghosts are compared with the box cell for cell: a red ghost
+  check this on every delivery). A near miss is each knock that took an item past the care line or higher;
+  knocks less than a second apart are one mark, so a long rough stretch can show as a few marks. The
+  review's "was" values compare with the delivery's previous trip only when it is known (this session, or
+  brought back on the bench), and twin items are matched in order. Mabel's ghosts are compared with the box cell for cell: a red ghost
   under one of your own pieces is hidden by it, so her note also counts the ghosts "in the way". When an
   order has two of the same item (two magnets), pointing at one in the box shows the card of whichever
   had the worse trip; pointing at a red cross shows that very item. The item card is not kept clear of
