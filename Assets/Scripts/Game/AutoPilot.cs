@@ -519,6 +519,80 @@ namespace HWC.Gameplay
             yield return RouteKnocks();
         }
 
+        static readonly Dictionary<int, Packing> carelessMemo = new Dictionary<int, Packing>();
+        static readonly Dictionary<int, float> carelessSearchMs = new Dictionary<int, float>();
+        static System.Threading.Tasks.Task<(Packing pk, float ms)[]> carelessSearch;
+
+        /// <summary>Starts searching every delivery's careless sample on four worker threads (each search
+        /// simulates up to a few hundred trips), while the references play.</summary>
+        static void SearchCarelessInBackground()
+        {
+            foreach (var lv in Levels.All) _ = lv.Kinematics;   // built here, not on two threads at once
+            carelessSearch = System.Threading.Tasks.Task.Run(() =>
+            {
+                var found = new (Packing, float)[Levels.All.Count + 1];
+                System.Threading.Tasks.Parallel.For(1, Levels.All.Count + 1, new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = 4 }, n =>
+                {
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    var pk = Hints.CarelessSample(Levels.Get(n));
+                    found[n] = (pk, (float)sw.Elapsed.TotalMilliseconds);
+                });
+                return found;
+            });
+        }
+
+        /// <summary>SimCheck's careless sample for a delivery, searched once per run (the search simulates trips).</summary>
+        static Packing CarelessOf(LevelDef lv)
+        {
+            if (carelessMemo.TryGetValue(lv.Number, out var pk)) return pk;
+            if (carelessSearch != null)
+            {
+                var all = carelessSearch.Result;
+                for (int n = 1; n < all.Length; n++) { carelessMemo[n] = all[n].pk; carelessSearchMs[n] = all[n].ms; }
+                return carelessMemo[lv.Number];
+            }
+            float t0 = Time.realtimeSinceStartup;
+            carelessMemo[lv.Number] = pk = Hints.CarelessSample(lv);
+            carelessSearchMs[lv.Number] = (Time.realtimeSinceStartup - t0) * 1000f;
+            return pk;
+        }
+
+        /// <summary>
+        /// Every delivery's careless sample (Mabel's packing made careless until it misses only the care star),
+        /// shipped through the real packing code after the references: RunLevel checks the hash against the
+        /// simulation and the meters against the review; here, that it misses only the care star, that the
+        /// review stamps exactly the rattled items RATTLED and compares them with the reference trip shipped
+        /// before (brought back on the bench), and that the bench then shows one amber mark per near miss.
+        /// </summary>
+        IEnumerator CarelessRuns(Dictionary<int, Recording> refTrips)
+        {
+            var g = Game.I;
+            int shipped = 0;
+            var none = new List<string>();
+            float wait0 = Time.realtimeSinceStartup;
+            while (carelessSearch != null && !carelessSearch.IsCompleted) { CheckShots(); yield return null; }   // the frames go on meanwhile
+            CarelessOf(Levels.Get(1));
+            Debug.Log($"[AutoPilot] careless: the searches (four worker threads, started with the references) were done {(Time.realtimeSinceStartup - wait0) * 1000f:0} ms after the references");
+            for (int n = 1; n <= Levels.All.Count; n++)
+            {
+                var lv = Levels.Get(n);
+                if (CarelessOf(lv) == null) { none.Add($"#{n} ({carelessSearchMs[n]:0} ms of searching)"); continue; }
+                yield return RunLevel(n, "careless", false);
+                var got = g.LastRun;
+                var o = got.Outcome;
+                var near = Troubles.NearMisses(got);
+                Check2(got.Level == lv && o.Delivered && !o.Careful && o.UnderBudget && near.Count > 0, "careless",
+                       $"#{n:00} {lv.Title}: arrives under par but misses the care star ({o.WorstCare * 100:0}%, {near.Count} near miss{(near.Count == 1 ? "" : "es")}; search {carelessSearchMs[n]:0} ms)");
+                yield return ReviewItems(got, refTrips.TryGetValue(n, out var before) ? before : null);
+                g.Repack();
+                yield return WaitPhase(Phase.Packing, 3f);
+                yield return new WaitForSecondsRealtime(0.3f);
+                Check2(g.Packing.NearMissMarksShown == near.Count, "careless", $"#{n:00}: back on the bench, {g.Packing.NearMissMarksShown} amber marks for {near.Count} near misses");
+                shipped++;
+            }
+            Debug.Log($"[AutoPilot] {(shipped >= 23 ? "PASS" : "FAIL")} careless: {shipped} deliveries shipped careless (only the care star missed); none found on {(none.Count == 0 ? "none" : string.Join(", ", none))}");
+        }
+
         /// <summary>The knock icons each route line should draw, in order (from the simulation side).</summary>
         static string ExpectedKnocks(LevelDef lv) => string.Join(",", Knocks.Of(lv).Select(k => Glyphs.Knock(k.Wall)));
 
@@ -968,7 +1042,10 @@ namespace HWC.Gameplay
             }
             if (all)
             {
-                for (int n = 1; n <= Levels.All.Count; n++) yield return RunLevel(n, "ref", false);
+                SearchCarelessInBackground();
+                var refTrips = new Dictionary<int, Recording>();
+                for (int n = 1; n <= Levels.All.Count; n++) { yield return RunLevel(n, "ref", false); refTrips[n] = Game.I.LastRun; }
+                yield return CarelessRuns(refTrips);
                 File.WriteAllText(Path.Combine(dir, "report.txt"), report.ToString());
                 yield return ShotsWritten();
                 Debug.Log("[AutoPilot] done");
@@ -993,7 +1070,7 @@ namespace HWC.Gameplay
             if (tour) Shot($"L{n:00}_1_empty");
 
             var pk = whichPacking == "ref3" ? (lv.Reference3Packing() ?? lv.ReferencePacking()) : whichPacking == "expert" ? lv.ExpertPacking()
-                   : whichPacking == "careless" ? Hints.CarelessSample(lv) : (whichPacking == "naive" ? NaivePacking(lv) : lv.ReferencePacking());
+                   : whichPacking == "careless" ? CarelessOf(lv) : (whichPacking == "naive" ? NaivePacking(lv) : lv.ReferencePacking());
             if (pk == null) { Fail(n, $"no {whichPacking} packing"); yield break; }
             // place pieces through the controller, bottom-up, like a player would
             var order = pk.Clone();
@@ -1081,7 +1158,7 @@ namespace HWC.Gameplay
             bool pass = same && meters == null && (whichPacking != "ref" || got.Outcome.Delivered);
             Debug.Log($"[AutoPilot] {(pass ? "PASS" : "FAIL")} {line}");
             report.AppendLine((pass ? "PASS " : "FAIL ") + line);
-            if (!tour && n % 4 == 1) Shot($"auto_L{n:00}_results");
+            if (!tour && n % 4 == 1) Shot($"auto_L{n:00}{(whichPacking == "ref" ? "" : "_" + whichPacking)}_results");
         }
 
         // ---- gamepad only: a virtual pad device, no mouse or keyboard events -------------------------

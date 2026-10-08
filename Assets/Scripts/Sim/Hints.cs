@@ -211,20 +211,105 @@ namespace HWC.Sim
         }
 
         /// <summary>
-        /// For the self-tests: Mabel's packing made careless (padding taken away, or swapped for a cheaper kind,
-        /// one piece, then two, then seeded random changes) until it still arrives, under par, but rattles
-        /// something past the care line: a trip that misses only the care star. Null when none turns up.
+        /// For the self-tests: Mabel's packing made careless until it still arrives, under par, but rattles
+        /// something past the care line: a trip that misses only the care star. First padding taken away, or
+        /// swapped for a cheaper kind (one piece, then two, then seeded random changes); then her items
+        /// rearranged (an item swapped with a piece of padding, or moved elsewhere in the box, then seeded
+        /// random mixes of all of these). Null when none turns up.
         /// </summary>
-        public static Packing CarelessSample(LevelDef lv, int maxTries = 120)
+        public static Packing CarelessSample(LevelDef lv, int maxTries = 120, int moreTries = 300)
         {
             int tries = 0;
             foreach (var pk in Careless(lv, Source(lv)))
             {
                 if (tries++ >= maxTries) break;
-                var o = Simulator.Run(lv, pk, false).Outcome;
-                if (o.Delivered && !o.Careful && o.UnderBudget) return pk;
+                if (IsCareless(lv, pk)) return pk;
+            }
+            tries = 0;
+            foreach (var pk in Rearranged(lv, Source(lv)))
+            {
+                if (tries++ >= moreTries) break;
+                if (IsCareless(lv, pk)) return pk;
             }
             return null;
+        }
+
+        static bool IsCareless(LevelDef lv, Packing pk)
+        {
+            var o = Simulator.Run(lv, pk, false).Outcome;
+            return o.Delivered && !o.Careful && o.UnderBudget;
+        }
+
+        /// <summary>Her items in other places: each swapped with a piece of padding, each moved to every spot it
+        /// fits, then seeded random mixes of moves, swaps, padding taken away or made cheaper, and a divider or a
+        /// shelf gone.</summary>
+        static IEnumerable<Packing> Rearranged(LevelDef lv, Packing src)
+        {
+            for (int i = 0; i < src.Pieces.Count; i++)
+            {
+                if (src.Pieces[i].Def.IsPadding) continue;
+                for (int j = 0; j < src.Pieces.Count; j++)
+                {
+                    if (!src.Pieces[j].Def.IsPadding) continue;
+                    var pk = src.Clone();
+                    Swap(pk, i, j);
+                    if (pk.Validate(lv) == null) yield return pk;
+                }
+            }
+            for (int i = 0; i < src.Pieces.Count; i++)
+            {
+                if (src.Pieces[i].Def.IsPadding) continue;
+                for (int y = 0; y < src.H; y++)
+                    for (int x = 0; x < src.W; x++)
+                    {
+                        var pk = src.Clone();
+                        var p = pk.Pieces[i];
+                        if (p.X == x && p.Y == y) continue;
+                        p.X = x; p.Y = y;
+                        if (!pk.CanPlace(p, i)) continue;
+                        pk.Pieces[i] = p;
+                        if (pk.Validate(lv) == null) yield return pk;
+                    }
+            }
+            uint state = lv.Seed * 2246822519u + 991u;
+            int Next(int n) { state = state * 1664525u + 1013904223u; return (int)((state >> 8) % (uint)n); }
+            var items = new List<int>();
+            var pads = new List<int>();
+            for (int attempt = 0; attempt < 4000; attempt++)
+            {
+                var pk = src.Clone();
+                int steps = 1 + Next(4);
+                for (int s = 0; s < steps; s++)
+                {
+                    items.Clear(); pads.Clear();
+                    for (int i = 0; i < pk.Pieces.Count; i++) (pk.Pieces[i].Def.IsPadding ? pads : items).Add(i);
+                    int op = Next(5);
+                    if (op == 0 && pads.Count > 0) pk.Pieces.RemoveAt(pads[Next(pads.Count)]);
+                    else if (op == 1 && pads.Count > 0) { int k = pads[Next(pads.Count)]; var p = pk.Pieces[k]; p.Kind = PieceKind.Paper; pk.Pieces[k] = p; }
+                    else if (op == 2 && pk.Dividers.Count + pk.Shelves.Count > 0)
+                    {
+                        int j = Next(pk.Dividers.Count + pk.Shelves.Count);
+                        if (j < pk.Dividers.Count) pk.Dividers.RemoveAt(j); else pk.Shelves.RemoveAt(j - pk.Dividers.Count);
+                    }
+                    else if (op == 3 && items.Count > 0)
+                    {
+                        int i = items[Next(items.Count)];
+                        var p = pk.Pieces[i];
+                        p.X = Next(pk.W); p.Y = Next(pk.H);
+                        if (Next(3) == 0) p.Strapped = false;
+                        if (pk.CanPlace(p, i)) pk.Pieces[i] = p;
+                    }
+                    else if (op == 4 && items.Count > 0 && pads.Count > 0) Swap(pk, items[Next(items.Count)], pads[Next(pads.Count)]);
+                }
+                if (pk.Validate(lv) == null) yield return pk;
+            }
+        }
+
+        static void Swap(Packing pk, int i, int j)
+        {
+            var a = pk.Pieces[i]; var b = pk.Pieces[j];
+            (a.X, a.Y, b.X, b.Y) = (b.X, b.Y, a.X, a.Y);
+            pk.Pieces[i] = a; pk.Pieces[j] = b;
         }
 
         static IEnumerable<Packing> Careless(LevelDef lv, Packing src)

@@ -205,7 +205,7 @@ static class Program
 
             // a packing that misses only the care star (the self-tests ship it): its near misses
             var careless = Hints.CarelessSample(lv);
-            if (careless == null) Console.Write("  careless: none found");
+            if (careless == null) Console.Write($"  careless: none found ({CarelessScan.Explain(lv)})");
             else
             {
                 var rc = Simulator.Run(lv, careless);

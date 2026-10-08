@@ -284,7 +284,8 @@ Tools/simcheck.sh check         # every delivery: reference packing valid, deliv
                                 # on the 25th, everything on offer costs par); the trip's care meters end
                                 # where the review does; her ghosts all match her own packing; every trip's
                                 # near misses (amber marks) follow their rules, and a careless packing that
-                                # misses only the care star is found where one exists (13 of 25); the route's
+                                # misses only the care star is found where one exists (23 of 25: on Strike!
+                                # and Ember, random rearrangements that arrive never pass 65%); the route's
                                 # knock icons show the wall the items really hit during each kind of knock
 Tools/simcheck.sh knocks        # every route's knocks with their icons, and the wall hits behind them
 Tools/simcheck.sh hashes        # the trip hash of every delivery's stored packings (a change that must not
@@ -296,7 +297,9 @@ Tools/simcheck.sh solve 7       # parallel local search for cheap / three-star p
 Tools/simcheck.sh explore 21    # random item-only packings: how many get delivered (should be none)
 Tools/autopilot.sh              # the built player plays all 25 references through the real packing code
                                 # and checks each outcome and hash against the validator, and the trip's
-                                # care meters against the review
+                                # care meters against the review; then the 23 careless samples: each misses
+                                # only the care star, the review stamps exactly the rattled items RATTLED and
+                                # compares them with the reference trip, the bench marks each near miss
 Tools/hintpilot.sh              # Ask Mabel on all 25: click through every hint, build what the ghosts show
                                 # (counted into place one at a time; an item one cell off isn't), expect three
                                 # stars and the validator's hash; ship an over-budget packing on 24 and check
