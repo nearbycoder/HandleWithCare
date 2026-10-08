@@ -1200,3 +1200,42 @@ rattled items RATTLED. **Verify:** `simcheck check`, `autopilot.sh`.
 
 Moving the shelf art (still 76% in one configuration of 400; it moves every bench), rumble, a physical
 controller or Steam Deck, a real non-US keyboard, real alt-tab focus loss, the Mac build on a Mac.
+
+## Round 10 results (2026-10-07)
+
+| Item | Commit | Verified by |
+| --- | --- | --- |
+| R10-A. The route says which way each knock throws things | 6dc6954 | `simcheck check` and the new `simcheck knocks`: 99 icons on 25 route lines; for each of the 16 kinds of knock, summed over every delivery's items-only, reference, three-star and expert trips, the wall its icon shows is hit harder than the others (hard brake: right 1184, left 58; robot arm: left 236, right 44; pothole: floor 200, nothing else); side arrows agree with the harder-hit side in 77 of 81 trips. `tour.sh`, real mouse moves: the ROUTE lines of High Seas and The Vase and the Dragon draw exactly the expected icons in order, pointing at them shows the route card ("left wall: robot arm / right wall: hard brake, chute / floor: the rest"), pointing away hides it. `padpilot.sh`: the stick on the ROUTE line shows the card; LARGER TEXT on the bench, 30 of 30 small texts larger, no new overflow. `layoutpilot.sh` 24/24, cell sizes as in round 9 (tightest 76%) |
+| R10-B. Careless samples on 23 deliveries, played in the game | c60abe4 | `simcheck check`: a careless sample on 23 of 25 (13 before; those 13 are unchanged), 32 near misses over 96 trips, all following the rules. On Strike! and Ember none exists in practice: of the random rearrangements under par that arrive, the closest comes to 21% (Strike!) and 61% (Ember). `autopilot.sh`: after the 25 references, all 23 careless samples shipped through the real packing code: each misses only the care star with the simulation's hash and the meters ending at the review's values; the review stamps exactly the rattled items RATTLED and compares them with the reference trip brought back on the bench; the bench shows one amber mark per near miss (118/118) |
+| R10-C. The review's "was" after a restart | 5cd11d2 | `savepilot.sh` launch 6: the failed trip on delivery 5 from before the restart comes back with its hash; shipping Mabel's packing next, the review reads "58% was SHATTERED", "40% was WIDE AWAKE", "UNDER BUDGET 3 / PAR 5 (was 0)", checked by the same code that checks the comparison within one session (79/79) |
+| Fix: the review's item lines ran into each other | abebeda | Found in R10-C's screenshot: with two items, "58% was SHATTERED" shrank to exactly its column and touched "40% was WIDE AWAKE" (a round 9 layout). The review check now measures the drawn text: on the old layout savepilot fails it ("0 px" apart), on the new one every review checked in autopilot (the 23 careless trips), tour and savepilot passes |
+| R10-D. Local macOS build refreshed | (build only) | 0 errors; universal x86_64 + arm64 Mach-O; `com.nearbycoder.handlewithcare`, 0.2.0, PlayerIcon.icns; this round's code (`Knocks`, `RouteHover`, `Rearranged`, `CarelessRuns`, `ResultItemLineExtents`) is in `Assembly-CSharp.dll`. **Not run on a Mac.** |
+
+Each commit was built and tested on its own with the whole suite inside `Tools/nested.sh`, one test at a
+time after the load fell under 24, before the next was started (`Logs/r10/results-{A,B,C,E}.txt`). After
+the last commit (abebeda): `simcheck check` ALL OK (25), `simcheck hashes` identical to main (no trip
+changed), `autopilot.sh` 118/118, `hintpilot.sh` 52/52, `padpilot.sh` 75/75, `tour.sh` 98 PASS,
+`savepilot.sh` 79/79, `layoutpilot.sh` 24/24. No exceptions, no zero-byte screenshots, and every run
+reported the real `~/.config/unity3d/Mossbury Parcel Post/` unchanged. Load at the start of the runs:
+10–24 (one savepilot started at 24.0 with the 5-minute average at 32). Screenshots:
+`docs/media/improvements/round10/`.
+
+Limits and notes:
+
+- **Knock icons** show the one wall each kind of knock hits hardest. Single trips can differ (4 of 81
+  side-knock trips hit the other side harder; on A Prickly Situation the chute's hits lean left, 17
+  against 14); the robot arm also sets the box down, so the floor takes as many hits as the left wall;
+  speed bumps and air pockets lift things towards the lid before they land. Pulling away isn't on the
+  ROUTE line (it never was), though it throws things into the left wall too.
+- **The careless search** is a few hundred trips per delivery. In SimCheck that adds about 10 s to
+  `check`; in the player it runs on four worker threads while the references play (done 64–87 s after
+  them at load 15–24), and `autopilot.sh` now allows 25 minutes instead of 15 (it takes about 4).
+- **History:** no commit differs from its tested tree in game code; between the tested build
+  and the commit, A lost a SimCheck-only probe and an unused field, and B's README was committed without
+  C's lines (they went in with C).
+
+Still not verified here: a physical controller (Xbox-style or PlayStation) or Steam Deck, a real non-US
+keyboard, real alt-tab focus loss, a power cut mid-write, and the Mac build on a Mac. Still for the owner:
+Windows Build Support, Mac signing and notarization, publishing a release, a license, and re-cutting the
+trailer (its cinematic mode hides the HUD's new marks and meters; the order card's knock icons would show
+in its packing shots if it were captured again).
