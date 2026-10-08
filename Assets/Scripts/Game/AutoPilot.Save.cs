@@ -82,6 +82,15 @@ namespace HWC.Gameplay
 
         IEnumerator ClickButton(UiButton b) => ClickAt(RectScreen(b.Image.rectTransform));
 
+        /// <summary>For a failure message: the UI under the test's pointer, top first.</summary>
+        string UnderPointer()
+        {
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            var hits = new List<UnityEngine.EventSystems.RaycastResult>();
+            es.RaycastAll(new UnityEngine.EventSystems.PointerEventData(es) { position = mousePos }, hits);
+            return string.Join(" > ", hits.ConvertAll(h => h.gameObject.name + (h.gameObject.transform.parent != null ? "@" + h.gameObject.transform.parent.name : "")));
+        }
+
         /// <summary>The reference packing's pieces, bottom-up (the order a player would place them).</summary>
         static List<Placement> BottomUp(LevelDef lv)
         {
@@ -358,11 +367,15 @@ namespace HWC.Gameplay
                       $"delivery 1: its last shipped box becomes the best packing with the simulation's result ({r1.BestPackingStars} stars, cost {r1.BestPackingCost}; bench opened in {ms1:0} ms)");
             var bestBtn = g.Hud.BestButton;
             SaveCheck(SaveData.Serialize(g.CurrentPacking) == ref1 && !bestBtn.gameObject.activeInHierarchy, "the bench shows the last box; MY BEST waits until the box changes");
+            // the first bench of the shift opens under its title card, which takes the first click (to hurry it
+            // away): let it go first, as a player would see it go
+            float s0 = Time.realtimeSinceStartup;
+            while (g.Hud.ShiftCardShowing && Time.realtimeSinceStartup - s0 < 6f) yield return null;
             yield return ClickButton(g.Hud.ClearButton);
             yield return new WaitForSecondsRealtime(0.4f);
             int gold = 0;
             foreach (var img in bestBtn.GetComponentsInChildren<UnityEngine.UI.Image>()) if (img.name.StartsWith("star") && img.color == HWC.Visuals.Palette.Gold) gold++;
-            SaveCheck(g.CurrentPacking.Pieces.Count == 0 && bestBtn.gameObject.activeInHierarchy && gold == 3, $"after EMPTY BOX, MY BEST shows with {gold} gold stars");
+            SaveCheck(g.CurrentPacking.Pieces.Count == 0 && bestBtn.gameObject.activeInHierarchy && gold == 3, $"after EMPTY BOX, MY BEST shows with {gold} gold stars ({g.CurrentPacking.Pieces.Count} pieces left in the box, MY BEST {(bestBtn.gameObject.activeInHierarchy ? "shown" : "hidden")}, phase {g.Phase}, under the pointer: {UnderPointer()})");
             Shot("S7_v010_my_best");
             yield return AfterShot();
             yield return ClickButton(bestBtn);
