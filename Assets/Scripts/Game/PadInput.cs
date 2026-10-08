@@ -100,6 +100,9 @@ namespace HWC.Gameplay
             return used;
         }
 
+        /// <summary>How long after a screen changes the cursor moves to its main button.</summary>
+        public const float SnapDelay = 0.35f;
+
         float ignoredLogAt;
 
         void SetActive(bool on)
@@ -143,7 +146,7 @@ namespace HWC.Gameplay
             // the screen changed (results, pause, a menu): start on its main button
             // (after the screen's own pop-in animation, so the button is where it will stay)
             string screen = ScreenKey();
-            if (screen != lastScreen) { lastScreen = screen; snapAt = Time.unscaledTime + 0.35f; }
+            if (screen != lastScreen) { lastScreen = screen; snapAt = Time.unscaledTime + SnapDelay; }
             if (snapAt > 0 && Time.unscaledTime >= snapAt) { snapAt = -1; SnapToDefault(); }
 
             // left stick: free cursor, faster at full tilt

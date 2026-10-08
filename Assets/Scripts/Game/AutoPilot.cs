@@ -1067,7 +1067,7 @@ namespace HWC.Gameplay
             var g = Game.I;
             // switch it on in Settings (opened from pause) with the d-pad and A
             yield return PadButton(GamepadButton.Start);
-            yield return new WaitForSecondsRealtime(0.3f);
+            yield return new WaitForSecondsRealtime(PadInput.SnapDelay + 0.2f);   // the cursor snaps to RESUME first
             yield return PadButton(GamepadButton.DpadDown);
             yield return PadButton(GamepadButton.DpadDown);
             yield return PadButton(GamepadButton.South);          // SETTINGS
@@ -1097,7 +1097,7 @@ namespace HWC.Gameplay
 
             // the delivery log with a card's detail line
             yield return PadButton(GamepadButton.Start);
-            yield return new WaitForSecondsRealtime(0.3f);
+            yield return new WaitForSecondsRealtime(PadInput.SnapDelay + 0.2f);   // the cursor snaps to RESUME first
             for (int i = 0; i < 3; i++) yield return PadButton(GamepadButton.DpadDown);
             yield return PadButton(GamepadButton.South);          // DELIVERY LOG
             yield return new WaitForSecondsRealtime(0.6f);
@@ -1253,7 +1253,7 @@ namespace HWC.Gameplay
             // BUTTON ICONS in Settings, from the pause menu, with the d-pad and A: AUTO -> XBOX -> PLAYSTATION
             g.Tutorial.Stop();
             yield return PadButton(GamepadButton.Start);
-            yield return new WaitForSecondsRealtime(0.3f);
+            yield return new WaitForSecondsRealtime(PadInput.SnapDelay + 0.2f);   // the cursor snaps to RESUME first
             yield return PadButton(GamepadButton.DpadDown);
             yield return PadButton(GamepadButton.DpadDown);
             yield return PadButton(GamepadButton.South);          // SETTINGS
@@ -1453,7 +1453,7 @@ namespace HWC.Gameplay
             // pause, settings and back with B
             yield return PadButton(GamepadButton.Start);
             PadCheck(g.Hud.Paused, "Start pauses");
-            yield return new WaitForSecondsRealtime(0.3f);
+            yield return new WaitForSecondsRealtime(PadInput.SnapDelay + 0.2f);   // (it snaps there after the pop-in)
             PadCheck(Near(PadInput.I.CursorPosition, ButtonScreen(g.Hud.ResumeButton)), "the cursor starts on RESUME");
             yield return PadButton(GamepadButton.DpadDown);
             yield return PadButton(GamepadButton.DpadDown);
