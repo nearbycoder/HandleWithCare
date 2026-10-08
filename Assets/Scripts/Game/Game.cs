@@ -73,7 +73,7 @@ namespace HWC.Gameplay
             Sun.type = LightType.Directional;
             Sun.color = Palette.Hex("FFE6C7");
             Sun.intensity = 1.9f;
-            Sun.shadows = LightShadows.Soft;
+            GraphicsQuality.Track(Sun, LightShadows.Hard, LightShadows.Soft, LightShadows.Soft, LightShadows.Soft);
             Sun.shadowStrength = 0.82f;
             Sun.shadowBias = 0.02f;
             Sun.shadowNormalBias = 0.25f;
@@ -122,7 +122,7 @@ namespace HWC.Gameplay
             Rig.ShakeEnabled = Save.ScreenShake;
             Fx.Reduced = Save.ReducedMotion;
             TextScale.Set(Save.LargerText);
-            GraphicsQuality.Apply(Save.HighQuality);
+            GraphicsQuality.Apply(Save.FidelityLevel);
             Menus.ApplyAudio();
             ApplyDisplay();
         }

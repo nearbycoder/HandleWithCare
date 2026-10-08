@@ -64,8 +64,21 @@ namespace HWC.Visuals
 
             p.chroma = prof.Add<ChromaticAberration>(true);
             p.chroma.intensity.Override(0f);
+            GraphicsQuality.Changed += p.ApplyFidelity;
+            p.ApplyFidelity();
             return p;
         }
+
+        /// <summary>GRAPHICS FIDELITY: no bloom on LOW, finer bloom (more passes, high-quality filtering) on ULTRA.</summary>
+        void ApplyFidelity()
+        {
+            bloom.active = GraphicsQuality.Bloom;
+            bloom.highQualityFiltering.Override(GraphicsQuality.FineBloom);
+            bloom.maxIterations.Override(GraphicsQuality.FineBloom ? 8 : 6);
+            dof.highQualitySampling.Override(GraphicsQuality.FineBlur);
+        }
+
+        void OnDestroy() => GraphicsQuality.Changed -= ApplyFidelity;
 
         public void Kick(float amount)
         {
@@ -92,7 +105,7 @@ namespace HWC.Visuals
             vignette.intensity.Override(0.26f + vignetteKick * 0.25f);
             color.saturation.Override(Mathf.Lerp(color.saturation.value, saturationTarget, 1f - Mathf.Exp(-dt * 4f)));
             color.postExposure.Override(Mathf.Lerp(color.postExposure.value, 0.15f + exposureTarget, 1f - Mathf.Exp(-dt * 4f)));
-            if (dofTarget > 0.01f)
+            if (dofTarget > 0.01f && GraphicsQuality.Blur)
             {
                 dof.mode.Override(DepthOfFieldMode.Gaussian);
                 dof.gaussianStart.Override(dofFocus);

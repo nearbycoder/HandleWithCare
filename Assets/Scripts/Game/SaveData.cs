@@ -48,7 +48,8 @@ namespace HWC.Gameplay
         public bool ReducedMotion;
         public bool Fullscreen = true;
         public bool ShowGrid = true;
-        public bool HighQuality = true;
+        public bool HighQuality = true;       // before round 12; still written (HIGH or ULTRA) for older builds
+        public int Fidelity = -1;             // GRAPHICS FIDELITY, LOW 0 to ULTRA 3; -1: from HighQuality (on HIGH, off MEDIUM)
         public bool VSync = true;
         public int FrameCap = 120;            // frames per second when VSync is off; 0 = unlimited
         public int WindowW, WindowH;          // windowed size; 0 = leave the window as launched
@@ -58,6 +59,14 @@ namespace HWC.Gameplay
         public string Tape = "kraft";
         public List<string> SeenTips = new List<string>();
         public List<LevelRecord> Records = new List<LevelRecord>();
+
+        public int FidelityLevel => Fidelity >= 0 ? Mathf.Clamp(Fidelity, 0, 3) : (HighQuality ? 2 : 1);
+
+        public void SetFidelity(int level)
+        {
+            Fidelity = Mathf.Clamp(level, 0, 3);
+            HighQuality = Fidelity >= 2;
+        }
 
         static string PathOnDisk => System.IO.Path.Combine(Application.persistentDataPath, "save.json");
         static string BackupPath => PathOnDisk + ".bak";

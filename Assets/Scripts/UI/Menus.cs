@@ -359,9 +359,9 @@ namespace HWC.Gameplay
             windowBtn = CycleRow(right, "WINDOW SIZE", -235, CycleWindow);
             frameBtn = CycleRow(right, "FRAME RATE LIMIT (VSync off)", -300, CycleFrameCap);
             ToggleRow(right, "VSYNC", -365, "vsync");
-            ToggleRow(right, "HIGH QUALITY GRAPHICS (off for slower computers)", -430, "gfx");
-            ToggleRow(right, "PAUSE WHEN IN THE BACKGROUND", -495, "bgpause");
-            ToggleRow(right, "LARGER TEXT (cards, notes, hints)", -560, "text");
+            ToggleRow(right, "PAUSE WHEN IN THE BACKGROUND", -430, "bgpause");
+            ToggleRow(right, "LARGER TEXT (cards, notes, hints)", -495, "text");
+            FidelityRow(right, -575);
             var tl = Ui.Text(p.transform, "tapeLabel", "TAPE DESIGN", 30, Palette.Ink, Ui.Display, TextAlignmentOptions.Left);
             tl.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -652), new Vector2(400, 40));
             tapeRow = Ui.Rect("tapes", p.transform);
@@ -513,6 +513,58 @@ namespace HWC.Gameplay
             return s;
         }
 
+        // ---- graphics fidelity: four steps on one track, filled up to the one chosen ----------------------
+        readonly List<UiButton> fidelitySteps = new List<UiButton>();
+        TextMeshProUGUI fidelityBlurb, fidelityKeys;
+        public IReadOnlyList<UiButton> FidelityButtons => fidelitySteps;
+        public string FidelityBlurb => fidelityBlurb.text;
+
+        void FidelityRow(Transform parent, float y)
+        {
+            var l = Ui.Text(parent, "GRAPHICS FIDELITY", "GRAPHICS FIDELITY", 26, Palette.Ink, Ui.Display, TextAlignmentOptions.Left);
+            l.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, y), new Vector2(400, 40));
+            fidelityKeys = Ui.Text(parent, "keys", "\u2190 \u2192 keys", 20, Palette.InkSoft, Ui.Bold, TextAlignmentOptions.Right);
+            fidelityKeys.rectTransform.Place(new Vector2(1, 1), new Vector2(1, 1), new Vector2(-60, y - 4), new Vector2(220, 34));
+            var track = Ui.Rect("fidelity", parent);
+            track.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, y - 48), new Vector2(650, 54));
+            var bg = Ui.Panel(track, "bg", new Color(0, 0, 0, 0.1f), Ui.Rounded(18));
+            bg.rectTransform.Stretch(-4, -4, -4, -4);
+            const float gap = 6f, w = (650f - 3 * gap) / 4f;
+            for (int i = 0; i < GraphicsQuality.Names.Length; i++)
+            {
+                int step = i;
+                var b = Ui.Button(track, "fidelity_" + i, GraphicsQuality.Names[i], () => SetFidelity(step), Palette.Cream, Palette.Ink, 24);
+                b.Image.rectTransform.Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(i * (w + gap), 0), new Vector2(w, 54));
+                b.HoverScale = 1.04f;
+                fidelitySteps.Add(b);
+            }
+            fidelityBlurb = Ui.Text(parent, "blurb", "", 20, Palette.InkSoft, Ui.Body, TextAlignmentOptions.TopLeft);
+            fidelityBlurb.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(64, y - 112), new Vector2(646, 58));
+            fidelityBlurb.enableAutoSizing = true; fidelityBlurb.fontSizeMin = 15; fidelityBlurb.fontSizeMax = 20;
+        }
+
+        void SetFidelity(int level)
+        {
+            level = Mathf.Clamp(level, 0, GraphicsQuality.Names.Length - 1);
+            if (level == G.Save.FidelityLevel && level == GraphicsQuality.Level) return;
+            G.Save.SetFidelity(level);
+            GraphicsQuality.Apply(level);
+            RefreshFidelity();
+        }
+
+        void RefreshFidelity()
+        {
+            int cur = G.Save.FidelityLevel;
+            for (int i = 0; i < fidelitySteps.Count; i++)
+            {
+                var b = fidelitySteps[i];
+                // the chosen step solid teal, the ones below it a lighter teal: the track reads as filled up to it
+                b.SetColor(i == cur ? Palette.Teal : i < cur ? Color.Lerp(Palette.Cream, Palette.Teal, 0.32f) : Palette.Cream);
+                b.Label.color = i == cur ? Palette.Cream : Palette.Ink;
+            }
+            fidelityBlurb.text = GraphicsQuality.Blurbs[cur];
+        }
+
         void ToggleRow(Transform parent, string label, float y, string key)
         {
             var l = Ui.Text(parent, label, label, 26, Palette.Ink, Ui.Display, TextAlignmentOptions.Left);
@@ -539,7 +591,6 @@ namespace HWC.Gameplay
                     case "full": G.Save.Fullscreen = on; G.ApplyDisplay(); if (windowBtn != null) RefreshDisplayButtons(); break;
                     case "vsync": G.Save.VSync = on; G.ApplyDisplay(); if (frameBtn != null) RefreshDisplayButtons(); break;
                     case "bgpause": G.Save.PauseInBackground = on; break;
-                    case "gfx": G.Save.HighQuality = on; GraphicsQuality.Apply(on); break;
                     case "text": G.Save.LargerText = on; TextScale.Set(on); break;
                 }
                 G.Hud.Sfx("click", 0.6f);
@@ -558,7 +609,7 @@ namespace HWC.Gameplay
             foreach (var (t, key) in toggles)
             {
                 bool v = key == "shake" ? G.Save.ScreenShake : key == "motion" ? G.Save.ReducedMotion : key == "grid" ? G.Save.ShowGrid
-                    : key == "gfx" ? G.Save.HighQuality : key == "vsync" ? G.Save.VSync : key == "bgpause" ? G.Save.PauseInBackground
+                    : key == "vsync" ? G.Save.VSync : key == "bgpause" ? G.Save.PauseInBackground
                     : key == "text" ? G.Save.LargerText : G.Save.Fullscreen;
                 syncing = true;
                 t.isOn = !v;
@@ -566,6 +617,7 @@ namespace HWC.Gameplay
                 syncing = false;
             }
             RefreshDisplayButtons();
+            RefreshFidelity();
             BuildTapes();
         }
 
@@ -654,6 +706,12 @@ namespace HWC.Gameplay
             // Esc backs out of the screen on top, like the pad's B; the pause menu underneath doesn't see it
             var kb = Keyboard.current;
             if (kb != null && kb.escapeKey.wasPressedThisFrame && Open && Back()) G.Hud.ConsumeEscape();
+            if (settings.gameObject.activeSelf && !confirm.gameObject.activeSelf)
+            {
+                if (kb != null && kb.leftArrowKey.wasPressedThisFrame) { SetFidelity(G.Save.FidelityLevel - 1); G.Hud.Sfx("click", 0.6f); }
+                if (kb != null && kb.rightArrowKey.wasPressedThisFrame) { SetFidelity(G.Save.FidelityLevel + 1); G.Hud.Sfx("click", 0.6f); }
+                fidelityKeys.enabled = PadInput.I == null || !PadInput.I.Active;
+            }
             if (title == null || !title.gameObject.activeSelf) return;
             titleT += Clock.UnscaledDelta;
             // stamp-slam entrance for the logo, then a gentle breathe

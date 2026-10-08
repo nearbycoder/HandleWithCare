@@ -30,6 +30,7 @@ namespace HWC.Visuals
 
         static void Burst(ParticleSystem ps, int count)
         {
+            if (!Reduced) count = Mathf.Max(1, Mathf.RoundToInt(count * GraphicsQuality.Particles));
             var em = ps.emission;
             em.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)count) });
             ps.Play();
@@ -153,7 +154,7 @@ namespace HWC.Visuals
             sz.enabled = true;
             sz.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0, 0.5f, 1, 2.2f));
             var em = ps.emission;
-            em.rateOverTime = Reduced ? 60 : 160;
+            em.rateOverTime = Reduced ? 60 : 160 * GraphicsQuality.Particles;
             ps.Play();
         }
 

@@ -198,8 +198,8 @@ That's 19 item types, 3 kinds of padding plus dividers, shelves and straps, and 
 environments. There's also an onboarding tutorial and shift title cards, plus a delivery log
 (point at a card to see which of its three stars is missing, your best cost against par and your
 best care against the 65% line), settings (volumes, screen shake, reduced motion, packing grid, gamepad button icons, larger
-text, fullscreen or a window size, VSync and a frame-rate limit, a graphics quality switch, pausing when
-the window loses focus, and starting over), pause, and a replay with three camera modes.
+text, fullscreen or a window size, VSync and a frame-rate limit, GRAPHICS FIDELITY from LOW to ULTRA, pausing
+when the window loses focus, and starting over), pause, and a replay with three camera modes.
 
 Progress is saved as you go, including a box you haven't sealed yet: leave for the menu or quit, and
 it's on the bench when you come back, with the last trip's report and trails (the last box shipped is
@@ -351,6 +351,8 @@ Tools/tour.sh                   # screenshots of the menus and a delivery played
                                 # toolbar's prices against each material's card; the knock icons each ROUTE
                                 # line draws, and its card; the item card's controls line in each state, and
                                 # each action it names (R turns Ember, Esc, right click, drag and right drag)
+Tools/fidelity.sh               # GRAPHICS FIDELITY: the bench, the trip and the unboxing held on one frame, a
+                                # screenshot and 300 timed frames at LOW, MEDIUM, HIGH and ULTRA (VSync off)
 Tools/layoutpilot.sh            # every bench at 1920x1080, 1280x800, 2560x1080 and 1600x1200, on a first visit
                                 # and on a retry (LAST TRIP report, Mabel's tallest note), LARGER TEXT off and
                                 # on: no box cell or shelf cubby under a HUD panel, and the cells' size;
@@ -464,9 +466,19 @@ Overtime), every one validated solvable with three stars.
   runs on a worker thread and the textures are BC7.
 - **Performance.** The frame rate on a dedicated GPU has not been measured. On the shared machine it
   was built on, other programs kept the GPU about 97% busy. The game's own main thread takes about 9 ms
-  per frame during a journey (`Tools/play.sh -hwcFps` logs this). Settings has a High Quality Graphics
-  switch that drops MSAA, render scale, shadow range and SSAO for slower GPUs, and VSync with a
-  frame-rate limit (30, 60, 120 or unlimited) for laptops and handhelds.
+  per frame during a journey (`Tools/play.sh -hwcFps` logs this). Settings has VSync with a frame-rate
+  limit (30, 60, 120 or unlimited) for laptops and handhelds, and GRAPHICS FIDELITY in four steps (click a
+  step, the pad's cursor and A, or ← and → in Settings):
+
+  | Step | What it changes |
+  | --- | --- |
+  | LOW | 67% render scale, no MSAA, hard shadows to 18 m in one 1024 cascade, no SSAO, bloom or blur, half-size textures without anisotropic filtering, a 64-pixel reflection probe, a 16-step grading LUT, half the particles, no shadows from the unboxing's spotlight |
+  | MEDIUM | What the old HIGH QUALITY GRAPHICS switch did when off: 80% render scale, no MSAA, shadows to 22 m, no SSAO |
+  | HIGH (default) | The look as shipped: full resolution, 4× MSAA, soft shadows to 40 m in two 2048 cascades, SSAO, bloom, the background blur on the unboxing and the review |
+  | ULTRA | 125% supersampling with 4× MSAA, 4096 shadow maps in four cascades to 55 m, soft shadows from the bench lamp, high-quality bloom (more passes) and blur sampling, 16× anisotropic filtering, a 512-pixel reflection probe, a 64-step LUT, 1.6× particles |
+
+  `Tools/fidelity.sh` takes the same three frames at every step and times them (see docs/IMPROVEMENTS.md,
+  round 12, for the numbers). On this shared GPU they are only comparable within one run.
 - **Foliage.** Trees and bushes use alpha-tested leaf cards over sculpted canopies. Up close they look
   more like good models than real foliage. Dash the courier is a simple jointed figure animated in
   code.

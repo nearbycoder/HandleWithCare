@@ -70,7 +70,7 @@ namespace HWC.Gameplay
 
         static SaveData NewSave()
         {
-            var s = new SaveData { Fullscreen = false, MusicVolume = 0f, HighQuality = true, ScreenShake = true, PauseInBackground = false };
+            var s = new SaveData { Fullscreen = false, MusicVolume = 0f, HighQuality = true, Fidelity = 2, ScreenShake = true, PauseInBackground = false };
             s.SeenTips.Add("basics");
             for (int c = 1; c <= 4; c++) s.SeenTips.Add("shift_" + c);
             return s;

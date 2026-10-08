@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using HWC.Sim;
 using HWC.UI;
+using HWC.Visuals;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -138,6 +139,13 @@ namespace HWC.Gameplay
             yield return AfterShot();
             for (int i = 0; i < 4 && g.Save.FrameCap != 60; i++) yield return ClickButton(m.FrameRateButton);
             for (int i = 0; i < 3 && g.Save.ButtonIcons != PadGlyphs.PlayStation; i++) yield return ClickButton(m.ButtonIconsButton);
+            yield return ClickButton(m.FidelityButtons[GraphicsQuality.Ultra]);
+            SaveCheck(g.Save.FidelityLevel == GraphicsQuality.Ultra && GraphicsQuality.Level == GraphicsQuality.Ultra, "clicked: GRAPHICS FIDELITY on ULTRA");
+            // saves from before round 12 have only the HIGH QUALITY GRAPHICS switch: on is HIGH, off is MEDIUM (what off did)
+            var onSave = JsonUtility.FromJson<SaveData>("{\"Version\":2,\"HighQuality\":true}");
+            var offSave = JsonUtility.FromJson<SaveData>("{\"Version\":2,\"HighQuality\":false}");
+            SaveCheck(onSave.FidelityLevel == GraphicsQuality.High && offSave.FidelityLevel == GraphicsQuality.Medium,
+                      $"an older save's switch on starts on HIGH ({onSave.FidelityLevel}), off on MEDIUM ({offSave.FidelityLevel})");
             SaveCheck(!g.Save.ScreenShake && !g.Save.VSync && !g.Save.PauseInBackground && g.Save.FrameCap == 60 && g.Save.LargerText && TextScale.Larger
                       && g.Save.ButtonIcons == PadGlyphs.PlayStation && m.ButtonIconsButton.Label.text == "PLAYSTATION",
                       "clicked: screen shake, VSync and background pause off, 60 fps limit, larger text on, PlayStation button icons");
@@ -188,6 +196,10 @@ namespace HWC.Gameplay
             SaveCheck(SaveData.LastLoad == SaveData.LoadResult.Loaded && !g.Menus.SaveNoteShowing, "the save loads after a restart (no damaged-save note)");
             SaveCheck(g.Save.IsDelivered(1) && g.Save.StarsFor(1) == 3 && g.Save.IsUnlocked(2), "delivery 1 is still delivered with three stars");
             SaveCheck(!g.Save.ScreenShake && !g.Save.VSync && !g.Save.PauseInBackground && g.Save.FrameCap == 60 && g.Save.LargerText && g.Save.ButtonIcons == PadGlyphs.PlayStation, "the settings survive a restart");
+            SaveCheck(g.Save.FidelityLevel == GraphicsQuality.Ultra && GraphicsQuality.Level == GraphicsQuality.Ultra && GraphicsQuality.Describe().Contains("scale 1.25"),
+                      $"GRAPHICS FIDELITY is still ULTRA after a restart, and applied ({GraphicsQuality.Describe()})");
+            g.Save.SetFidelity(GraphicsQuality.High);   // the later launches at the usual cost
+            GraphicsQuality.Apply(GraphicsQuality.High);
             SaveCheck(QualitySettings.vSyncCount == 0 && Application.targetFrameRate == 60 && !g.Rig.ShakeEnabled && TextScale.Larger && PadGlyphs.Ps,
                       $"and are applied at launch (vSyncCount {QualitySettings.vSyncCount}, targetFrameRate {Application.targetFrameRate})");
             yield return ContinueFromTitle(g);

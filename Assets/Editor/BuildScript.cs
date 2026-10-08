@@ -67,7 +67,7 @@ namespace HWC.EditorTools
         {
             var p = AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);
             if (p != null && p.TryGet<Bloom>(out var b) && b.IsActive() && b.highQualityFiltering.value == hq
-                && p.TryGet<DepthOfField>(out var d) && d.IsActive() && p.TryGet<ChromaticAberration>(out var c) && c.IsActive()) return;
+                && p.TryGet<DepthOfField>(out var d) && d.mode.value == DepthOfFieldMode.Gaussian && p.TryGet<ChromaticAberration>(out var c) && c.IsActive()) return;
             if (p != null) AssetDatabase.DeleteAsset(path);
             p = ScriptableObject.CreateInstance<VolumeProfile>();
             AssetDatabase.CreateAsset(p, path);
@@ -75,7 +75,7 @@ namespace HWC.EditorTools
             bloom.intensity.Override(0.5f);
             bloom.highQualityFiltering.Override(hq);
             var dof = p.Add<DepthOfField>(true);
-            dof.mode.Override(hq ? DepthOfFieldMode.Bokeh : DepthOfFieldMode.Gaussian);
+            dof.mode.Override(DepthOfFieldMode.Gaussian);
             var chroma = p.Add<ChromaticAberration>(true);
             chroma.intensity.Override(0.5f);
             foreach (var comp in p.components) { comp.hideFlags = HideFlags.HideInInspector | HideFlags.HideInHierarchy; AssetDatabase.AddObjectToAsset(comp, p); }

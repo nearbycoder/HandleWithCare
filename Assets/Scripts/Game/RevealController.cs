@@ -49,7 +49,7 @@ namespace HWC.Gameplay
             spot.range = 6f;
             spot.intensity = 0f;
             spot.color = Palette.Hex("FFE8C8");
-            spot.shadows = LightShadows.Soft;
+            GraphicsQuality.Track(spot, LightShadows.None, LightShadows.Soft, LightShadows.Soft, LightShadows.Soft);
             var fgo = new GameObject("flash");
             fgo.transform.SetParent(room.transform, false);
             fgo.transform.localPosition = new Vector3(0, 0.9f, -0.2f);

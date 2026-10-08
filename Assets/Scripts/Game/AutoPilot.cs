@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using HWC.Sim;
 using HWC.UI;
+using HWC.Visuals;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
@@ -35,12 +36,14 @@ namespace HWC.Gameplay
             var args = Environment.GetCommandLineArgs();
             if (Array.IndexOf(args, "-hwcFps") >= 0) g.gameObject.AddComponent<FrameProbe>();
             string shots = Arg(args, "-hwcShots"), auto = Arg(args, "-hwcAutopilot"), menus = Arg(args, "-hwcMenus"), hints = Arg(args, "-hwcHints"), pad = Arg(args, "-hwcPad"), layout = Arg(args, "-hwcLayout");
+            string probe = Arg(args, "-hwcFidelityProbe");
             string save = Arg(args, "-hwcSave");
             if (save != null) { StartSaveTest(g, save, Arg(args, "-hwcSaveStep")); return true; }
-            if (shots == null && auto == null && menus == null && hints == null && pad == null && layout == null) return false;
+            if (shots == null && auto == null && menus == null && hints == null && pad == null && layout == null && probe == null) return false;
             SaveData.Disabled = true;
             var ap = g.gameObject.AddComponent<AutoPilot>();
-            ap.dir = shots ?? auto ?? menus ?? hints ?? pad ?? layout;
+            ap.dir = shots ?? auto ?? menus ?? hints ?? pad ?? layout ?? probe;
+            ap.fidelityProbe = probe != null;
             ap.layout = layout != null;
             ap.pad = pad != null;
             ap.all = auto != null;
@@ -53,7 +56,7 @@ namespace HWC.Gameplay
             return true;
         }
 
-        static readonly string[] TestArgs = { "-hwcShots", "-hwcAutopilot", "-hwcMenus", "-hwcHints", "-hwcPad", "-hwcSave", "-hwcTrailer", "-hwcLayout" };
+        static readonly string[] TestArgs = { "-hwcShots", "-hwcAutopilot", "-hwcMenus", "-hwcHints", "-hwcPad", "-hwcSave", "-hwcTrailer", "-hwcLayout", "-hwcFidelityProbe" };
         public static bool Requested => Array.Exists(Environment.GetCommandLineArgs(), a => Array.IndexOf(TestArgs, a) >= 0);
 
         /// <summary>
@@ -282,9 +285,28 @@ namespace HWC.Gameplay
             Check2(g.Save.PauseInBackground, "display", "clicking PAUSE WHEN IN THE BACKGROUND turns it on");
             Shot("M3b_settings_display");
             yield return AfterShot();
+            // GRAPHICS FIDELITY: a click on ULTRA, then the arrow keys down to LOW (and no further) and up to HIGH
+            var steps = m.FidelityButtons;
+            yield return ClickAt(RectScreen(steps[GraphicsQuality.Ultra].Image.rectTransform));
+            yield return new WaitForSecondsRealtime(0.3f);
+            Check2(g.Save.FidelityLevel == GraphicsQuality.Ultra && GraphicsQuality.Level == GraphicsQuality.Ultra && GraphicsQuality.Describe().Contains("scale 1.25")
+                   && m.FidelityBlurb == GraphicsQuality.Blurbs[GraphicsQuality.Ultra] && g.Save.HighQuality, "fidelity", $"clicking ULTRA chooses it ({GraphicsQuality.Describe()})");
+            Shot("M3c_settings_fidelity_ultra");
+            yield return AfterShot();
+            var seen = new System.Collections.Generic.List<int>();
+            for (int i = 0; i < 4; i++) { yield return Key(UnityEngine.InputSystem.Key.LeftArrow); seen.Add(g.Save.FidelityLevel); }
+            Check2(string.Join(",", seen) == "2,1,0,0" && GraphicsQuality.Level == GraphicsQuality.Low && GraphicsQuality.Describe().Contains("scale 0.67") && !g.Save.HighQuality,
+                   "fidelity", $"the left arrow steps it to HIGH, MEDIUM, LOW, and stays on LOW ({string.Join(",", seen)}; {GraphicsQuality.Describe()})");
+            Shot("M3d_settings_fidelity_low");
+            yield return AfterShot();
+            yield return Key(UnityEngine.InputSystem.Key.RightArrow);
+            yield return Key(UnityEngine.InputSystem.Key.RightArrow);
+            Check2(g.Save.FidelityLevel == GraphicsQuality.High && GraphicsQuality.Level == GraphicsQuality.High && GraphicsQuality.Describe().Contains("scale 1.00, MSAA 4x"),
+                   "fidelity", $"the right arrow steps it back up to HIGH ({GraphicsQuality.Describe()})");
             // the choices survive a save round trip
             var back = JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(g.Save));
-            Check2(back.VSync == g.Save.VSync && back.FrameCap == 30 && back.WindowW == g.Save.WindowW && back.PauseInBackground && !back.Fullscreen, "display", "the display settings survive the save file");
+            Check2(back.VSync == g.Save.VSync && back.FrameCap == 30 && back.WindowW == g.Save.WindowW && back.PauseInBackground && !back.Fullscreen && back.FidelityLevel == g.Save.FidelityLevel,
+                   "display", "the display settings (and the fidelity) survive the save file");
             // back to the defaults for the rest of the tour (the size the tour was launched at)
             g.Save.VSync = true; g.Save.FrameCap = 120; g.Save.PauseInBackground = false;
             g.Save.WindowW = launchW; g.Save.WindowH = launchH;
@@ -1087,6 +1109,15 @@ namespace HWC.Gameplay
             yield return new WaitForSecondsRealtime(0.5f);
             if (SaveTest) { yield return SaveTestRun(); yield break; }
             if (menus) { yield return MenuTour(); yield break; }
+            if (fidelityProbe)
+            {
+                yield return FidelityProbe();
+                yield return ShotsWritten();
+                Debug.Log("[AutoPilot] done");
+                yield return new WaitForSecondsRealtime(0.3f);
+                Application.Quit();
+                yield break;
+            }
             if (layout)
             {
                 yield return LayoutCheck();
@@ -1799,6 +1830,13 @@ namespace HWC.Gameplay
             var atDone = PadInput.I.CursorPosition;
             yield return PadButton(GamepadButton.DpadUp);
             PadCheck(PadInput.I.CursorPosition.y > atDone.y + 20f, "the d-pad moves between the settings opened from pause");
+            // GRAPHICS FIDELITY with the d-pad and A: MEDIUM, then back to HIGH
+            yield return PadOnto(g.Menus.FidelityButtons[GraphicsQuality.Medium].Image.rectTransform);
+            yield return PadButton(GamepadButton.South);
+            bool medium = g.Save.FidelityLevel == GraphicsQuality.Medium && GraphicsQuality.Level == GraphicsQuality.Medium;
+            yield return PadOnto(g.Menus.FidelityButtons[GraphicsQuality.High].Image.rectTransform);
+            yield return PadButton(GamepadButton.South);
+            PadCheck(medium && g.Save.FidelityLevel == GraphicsQuality.High && GraphicsQuality.Level == GraphicsQuality.High, "the d-pad reaches GRAPHICS FIDELITY; A picks MEDIUM, then HIGH");
             Shot("P7_settings");
             yield return AfterShot();
             yield return PadButton(GamepadButton.East);

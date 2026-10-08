@@ -44,7 +44,9 @@ namespace HWC.Gameplay
             lamp.color = Palette.Hex("FFD3A0");
             lamp.intensity = 1.6f;
             lamp.range = 3.5f;
-            lamp.shadows = LightShadows.None;
+            lamp.shadowBias = 0.03f;
+            lamp.shadowNormalBias = 0.3f;
+            GraphicsQuality.Track(lamp, LightShadows.None, LightShadows.None, LightShadows.None, LightShadows.Soft);   // ULTRA only
 
             ItemShelf = new GameObject("itemShelf").transform;
             ItemShelf.SetParent(transform, false);

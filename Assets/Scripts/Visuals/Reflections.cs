@@ -26,7 +26,8 @@ namespace HWC.Visuals
                 p.mode = ReflectionProbeMode.Realtime;
                 p.refreshMode = ReflectionProbeRefreshMode.ViaScripting;
                 p.timeSlicingMode = ReflectionProbeTimeSlicingMode.NoTimeSlicing;
-                p.resolution = 256;
+                p.resolution = GraphicsQuality.ProbeSize;
+                GraphicsQuality.Changed += inst.Resize;
                 p.hdr = true;
                 p.boxProjection = true;
                 p.blendDistance = 1f;
@@ -40,6 +41,16 @@ namespace HWC.Visuals
             if (inst.pending != null) inst.StopCoroutine(inst.pending);
             inst.pending = inst.StartCoroutine(inst.RenderSoon());
         }
+
+        void Resize()
+        {
+            if (probe == null || probe.resolution == GraphicsQuality.ProbeSize) return;
+            probe.resolution = GraphicsQuality.ProbeSize;
+            if (pending != null) StopCoroutine(pending);
+            pending = StartCoroutine(RenderSoon());
+        }
+
+        void OnDestroy() => GraphicsQuality.Changed -= Resize;
 
         IEnumerator RenderSoon()
         {
