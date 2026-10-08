@@ -11,7 +11,8 @@ namespace HWC.Gameplay
     /// <summary>
     /// The care meters on the trip: one row per item, with a bar for the worst knock so far as a share of
     /// its limit and the 65% line of the "handled with care" star. They read the recorded frames, so they
-    /// end exactly where the review does, and rewind with the replay.
+    /// end exactly where the review does, and rewind with the replay. In a replay each row is a button that
+    /// jumps to just before its item's moment.
     /// </summary>
     public sealed partial class Hud
     {
@@ -29,6 +30,7 @@ namespace HWC.Gameplay
             public TextMeshProUGUI Value;
             public float Shown = -1f;
             public ItemStatus Status = (ItemStatus)(-1);
+            public UiButton Jump;
         }
 
         RectTransform careRoot;
@@ -40,7 +42,7 @@ namespace HWC.Gameplay
         public static bool HasCareLimit(PieceDef d) =>
             (d.JoltLimit > 0 && d.Kind != PieceKind.Bubble) || d.CrushLimit > 0 || d.WakeLimit > 0 || d.Has(Quirk.Topples);
 
-        void BuildCareMeters(LevelDef lv, Recording rec)
+        void BuildCareMeters(LevelDef lv, Recording rec, bool replay)
         {
             if (careRoot != null) Destroy(careRoot.gameObject);
             meterRows.Clear();
@@ -62,6 +64,17 @@ namespace HWC.Gameplay
                 var row = new MeterRow { Body = b, Kind = info.Kind, HasLimit = HasCareLimit(def) };
                 var r = Ui.Rect("row_" + info.Kind, careRoot);
                 r.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(10, -MeterTop - n * MeterRowH), new Vector2(MeterW - 20, MeterRowH));
+                if (replay && row.HasLimit)
+                {
+                    // the whole row is the button (an item with no limit has no moment to show): a faint plate that shows under the pointer
+                    var plate = r.gameObject.AddComponent<Image>();
+                    plate.sprite = Ui.Rounded(10);
+                    plate.type = Image.Type.Sliced;
+                    plate.color = new Color(1f, 1f, 1f, 0.07f);
+                    row.Jump = r.gameObject.AddComponent<UiButton>();
+                    row.Jump.Init(plate, () => JumpToItem(row.Body));
+                    row.Jump.HoverScale = 1.04f;
+                }
                 var icon = Ui.Icon(r, "icon", IconStudio.Piece(info.Kind), Color.white);
                 icon.rectTransform.Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 0), new Vector2(42, 42));
                 icon.raycastTarget = false;
@@ -93,12 +106,39 @@ namespace HWC.Gameplay
                 meterRows.Add(row);
                 n++;
             }
-            careRoot.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -24), new Vector2(MeterW, MeterTop + n * MeterRowH + 8));
+            float foot = 0f;
+            if (replay && n > 0)
+            {
+                var tip = Ui.Text(careRoot, "tip", "click an item to see its moment", 16, new Color(1f, 0.95f, 0.85f, 0.75f), Ui.Bold, TextAlignmentOptions.Center);
+                tip.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 6), new Vector2(MeterW - 20, 24));
+                tip.enableAutoSizing = true; tip.fontSizeMin = 12; tip.fontSizeMax = 16;
+                foot = 26f;
+            }
+            careRoot.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -24), new Vector2(MeterW, MeterTop + n * MeterRowH + 8 + foot));
             careRoot.gameObject.SetActive(n > 0 && !Cinematic);
             UpdateCareMeters();
         }
 
         static string Cap(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
+
+        /// <summary>Where a meter row's button jumps: its item's first trouble (failure or near miss), else its
+        /// worst knock, else the start.</summary>
+        public static float ItemMomentTime(Recording rec, int body)
+        {
+            var first = Troubles.FirstOf(rec, body);
+            if (first.HasValue) return first.Value.Time;
+            var it = rec.Outcome.Items.Find(i => i.Body == body);
+            return it != null && it.PeakTick >= 0 && it.Care > 0f ? it.PeakTick * SimConst.Dt : 0f;
+        }
+
+        void JumpToItem(int body)
+        {
+            var j = G.Journey;
+            if (!j.IsReplay || j.Rec != meterRec) return;
+            float at = ItemMomentTime(meterRec, body);
+            j.Seek(Mathf.Max(0f, at - JourneyPlayer.TroubleLead));
+            j.UserPaused = false;
+        }
 
         /// <summary>The recorded frame the journey is showing now.</summary>
         int MeterFrame()
@@ -200,6 +240,15 @@ namespace HWC.Gameplay
             if (lb.xMin < m.xMax && lb.xMax > m.xMin) list.Add("the leg banner");
             float sw = Screen.width, sh = Screen.height;
             if (m.xMin < 0 || m.yMin < 0 || m.xMax > sw || m.yMax > sh) list.Add("the screen's edge");
+            return list;
+        }
+
+        /// <summary>For the self-tests: the button of each meter row, in order (null outside replays and for an
+        /// item with no limit).</summary>
+        public List<UiButton> CareMeterButtons()
+        {
+            var list = new List<UiButton>();
+            foreach (var r in meterRows) list.Add(r.Jump);
             return list;
         }
 

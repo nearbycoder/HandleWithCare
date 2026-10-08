@@ -1080,7 +1080,7 @@ namespace HWC.Gameplay
             G.Journey.Caption += OnCaption;
             G.Journey.IncidentHappened -= OnIncident;
             G.Journey.IncidentHappened += OnIncident;
-            BuildCareMeters(lv, rec);
+            BuildCareMeters(lv, rec, replay);
             AudioDirector.I?.PlayMusic("journey");
         }
 

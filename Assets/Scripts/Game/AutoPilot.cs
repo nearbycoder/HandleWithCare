@@ -487,10 +487,52 @@ namespace HWC.Gameplay
                 }
                 else yield return new WaitForSecondsRealtime(0.3f);
             }
+            yield return MeterJumps(trip, false);
             yield return Key(UnityEngine.InputSystem.Key.Enter);
             yield return WaitPhase(Phase.Packing, 3f);
             yield return new WaitForSecondsRealtime(0.3f);
             Check2(g.Phase == Phase.Packing, "near", "Enter goes back to the bench");
+        }
+
+        /// <summary>
+        /// In a replay, each care meter row jumps to just before its item's moment: its first trouble (a failure
+        /// or a near miss), else its worst knock, else the start. With real mouse clicks, or the d-pad and A.
+        /// </summary>
+        IEnumerator MeterJumps(Recording trip, bool usePad)
+        {
+            var g = Game.I;
+            var buttons = g.Hud.CareMeterButtons();
+            var bodies = g.Hud.CareMeterBodies();
+            int ok = 0;
+            // from the end backwards, so every jump moves the replay
+            g.Journey.Seek(g.Journey.Duration - 0.3f);
+            for (int i = 0; i < buttons.Count; i++)
+            {
+                bool limit = Hud.HasCareLimit(Catalog.Get(trip.Bodies[bodies[i]].Kind));
+                if (buttons[i] == null || !limit)
+                {
+                    Check2((buttons[i] == null) == !limit, "meters", $"the {trip.Bodies[bodies[i]].Kind}'s meter row {(buttons[i] != null ? "is" : "isn't")} a button ({(limit ? "it has a limit" : "no limit")})");
+                    continue;
+                }
+                float want = Mathf.Max(0f, Hud.ItemMomentTime(trip, bodies[i]) - JourneyPlayer.TroubleLead);
+                g.Journey.UserPaused = true;
+                g.Journey.Seek(g.Journey.Duration - 0.3f);
+                yield return null;
+                if (usePad)
+                {
+                    yield return PadOnto(buttons[i].Image.rectTransform);
+                    yield return PadButton(GamepadButton.South);
+                }
+                else yield return ClickAt(ButtonScreen(buttons[i]));
+                float got = g.Journey.T;
+                // (the replay plays on after the jump: allow for a few frames of it)
+                bool hit = got >= want - 0.05f && got < want + 0.5f && g.Phase == Phase.Journey;
+                if (hit) ok++;
+                var kind = trip.Bodies[bodies[i]].Kind;
+                Check2(hit, "meters", $"{(usePad ? "A on" : "clicking")} the {kind}'s meter jumps to {got:0.00}s (expected {want:0.00}s, {JourneyPlayer.TroubleLead}s before its moment)");
+                if (ok == 1 && hit && !usePad) { Shot("B1_meter_jump"); yield return AfterShot(); }
+            }
+            g.Journey.UserPaused = false;
         }
 
         /// <summary>The words after an item's name on its LAST TRIP report line ("shattered at the hard brake
@@ -1512,6 +1554,7 @@ namespace HWC.Gameplay
                 PadCheck(Mathf.Abs(g.Journey.T - want) < 0.4f, $"RB jumps to just before a near miss ({g.Journey.T:0.00}s, expected {want:0.00}s)");
                 yield return new WaitForSecondsRealtime(0.3f);
             }
+            yield return MeterJumps(trip, true);
             yield return PadButton(GamepadButton.East);
             yield return WaitPhase(Phase.Packing, 3f);
             yield return new WaitForSecondsRealtime(0.3f);
