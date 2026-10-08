@@ -111,6 +111,7 @@ namespace HWC.Gameplay
             Tutorial.Build(OverlayCanvas.transform);
             Hud.HookReveal(Reveal);
             PadInput.Create(transform);
+            ClipRecorder.Create(transform);
             Shortcuts.LogLayout();   // one line in the player log: what this keyboard layout reports
             Packing.Changed += () => { if (Phase == Phase.Packing) keepAt = Time.unscaledTime + KeepDelay; };
             ApplySettings();
@@ -227,7 +228,7 @@ namespace HWC.Gameplay
             if (Save == null || !Save.PauseInBackground || Hud == null) return;
             if (!focus)
             {
-                if ((Phase == Phase.Packing || Phase == Phase.Journey) && !Hud.Paused && !Menus.Open) Hud.SetPaused(true);
+                if ((Phase == Phase.Packing || Phase == Phase.Journey) && !Hud.Paused && !Menus.Open && !ClipRecorder.I.Busy) Hud.SetPaused(true);
                 else HWC.Audio.AudioDirector.I?.Muffle(true);
             }
             else if (!Hud.Paused) HWC.Audio.AudioDirector.I?.Muffle(false);

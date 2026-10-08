@@ -193,6 +193,7 @@ namespace HWC.Gameplay
             bool x = pad.buttonWest.wasPressedThisFrame, y = pad.buttonNorth.wasPressedThisFrame;
             bool start = pad.startButton.wasPressedThisFrame;
             bool menu = G.Menus.Open;
+            if (ClipRecorder.I != null && ClipRecorder.I.Busy) return;   // a GIF is being recorded
 
             if (menu)                       // a menu can sit on top of the pause menu (Settings, Delivery Log)
             {

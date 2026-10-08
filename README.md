@@ -64,7 +64,9 @@ you point at or hold, its card ends with what you can do with it ("Click drop ·
 | During the journey | `Space` pause, `Enter` skip, `1`–`4` playback speed |
 | Replay | Click the timeline to jump, `N` or NEXT TROUBLE jumps to just before the next red (failure) or amber (near miss) mark, click an item's care meter to jump to its moment, speed buttons, `C` or the CAM button cycles director / close-up / wide |
 | Unboxing | `Enter`, `Space` or `Esc` skips to the review |
-| Review | `R` repack, `P` replay, `Enter` next delivery, `T` put a newly unlocked tape on your boxes |
+| Review | `R` repack, `P` replay, `Enter` next delivery, `T` put a newly unlocked tape on your boxes, `G` or SAVE GIF saves the trip's big moment as an animated GIF |
+| Replay | `G` or SAVE GIF (above DONE) saves a GIF of the moment on screen |
+| Anywhere | `F12` saves a screenshot (PNG) |
 
 **Gamepad (and Steam Deck).** Pick up a controller and a cursor appears: the left stick moves it,
 the d-pad jumps it to the next box cell, item or button. Everything the mouse does works the same. The
@@ -132,6 +134,13 @@ care meter for each item fills with its worst knock so far against its limit, wi
 the "handled with care" star marked; it turns amber past the line and names the failure (SHATTERED,
 WIDE AWAKE) the moment it happens, and ends exactly where the review does. The replay rewinds it, and
 clicking an item's meter jumps to just before its moment.
+
+**Share the disaster.** SAVE GIF (`G`) on the review turns the trip's big moment (its first failure,
+else its worst near miss, else its hardest knock) into a looping animated GIF, 480 pixels wide and a few
+seconds long; in a replay it saves the moment on screen. The game replays that stretch without the HUD,
+frame by frame, and encodes it itself, so nothing else is needed. `F12` saves a screenshot. Both go to
+`~/Pictures/Handle With Care/` (the Pictures folder on macOS and Windows too), and a note at the top of
+the screen says where.
 
 <img src="docs/media/screenshots/05-box-on-fire.jpg" alt="Ember sneezes at the hard brake and sets the cardboard box on fire" width="100%">
 
@@ -331,6 +340,8 @@ Tools/savepilot.sh              # seven launches on one save, saving switched on
 Tools/tour.sh                   # screenshots of the menus and a delivery played with real input events,
                                 # then the whole retry loop (R, Space, Enter, P) with the keyboard only,
                                 # undo/redo with German, French and Russian key labels swapped in,
+                                # SAVE GIF on a failed trip's review and in its replay, and F12 (ImageMagick
+                                # reads each file back; the real ~/Pictures folder is checked unchanged),
                                 # Esc backing out of every menu, WATCH / NEXT TROUBLE from the bench (and
                                 # the care meters as the replay is scrubbed), the item cards and red crosses
                                 # after a failed trip, and the review's new star and NEW TAPE sticker (T puts
@@ -352,8 +363,9 @@ no global shortcuts) that closes when the test ends.
 
 The self-tests write their screenshots and player logs to `Logs/selftest/<name>/` (gitignored) and fail
 if a screenshot never reaches the disk. They also point `XDG_CONFIG_HOME` into that folder, so the
-player's Unity prefs and any save stay there, and they fail if the real
-`~/.config/unity3d/Mossbury Parcel Post/` changed during the run.
+player's Unity prefs and any save stay there (and GIFs and photos, which a test run saves only there),
+and they fail if the real `~/.config/unity3d/Mossbury Parcel Post/` or `~/Pictures/Handle With Care/`
+changed during the run.
 
 **Recreate the trailer and README media.**
 
@@ -515,6 +527,11 @@ Overtime), every one validated solvable with three stars.
   order has two of the same item (two magnets), pointing at one in the box shows the card of whichever
   had the worse trip; pointing at a red cross shows that very item. The item card is not kept clear of
   the box by the bench camera (it comes and goes, and clicks pass through it).
+- **GIFs and photos.** A GIF is silent, 480 pixels wide at about 14 frames a second, one palette for the
+  whole clip; a busy clip is a few MB (5–6 MB for four seconds of a shaking truck), and one over 9 MB is
+  saved again without the dither. Recording replays the stretch without the HUD and without sound, as
+  fast as the machine draws it, then the review or the replay comes back as it was. The Pictures folder
+  is the platform's (on Linux `~/Pictures`, or `XDG_PICTURES_DIR`); only Linux has been tried.
 
 ## License
 

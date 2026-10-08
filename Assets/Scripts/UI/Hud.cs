@@ -1017,6 +1017,10 @@ namespace HWC.Gameplay
             troubleBtn = Ui.Button(replayBar, "trouble", "NEXT TROUBLE", () => G.Journey.NextTrouble(), Palette.PostalRed, Palette.Cream, 22);
             troubleBtn.Image.rectTransform.Place(new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(5 * 96 + 8, 0), new Vector2(200, 52));
             KeyHint(troubleBtn, "N", "RB", 13f);
+            // a GIF of the moment on screen (above DONE, clear of the hint line)
+            replayGifBtn = Ui.Button(replayBar, "gif", "SAVE GIF", () => ClipRecorder.I.SaveFromReplay(), Palette.Cream, Palette.Ink, 20);
+            replayGifBtn.Image.rectTransform.Place(new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(0, 60), new Vector2(150, 44));
+            KeyHint(replayGifBtn, "G", null, 12f);
             var hint = troubleHint = Ui.Text(replayBar, "hint", "Click the timeline to jump  ·  red marks = trouble", 20, Palette.Cream, Ui.Bold, TextAlignmentOptions.Center);
             hint.rectTransform.Place(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 50), new Vector2(780, 32));
             hint.enableAutoSizing = true; hint.fontSizeMax = 20; hint.fontSizeMin = 14;
@@ -1029,7 +1033,10 @@ namespace HWC.Gameplay
         /// <summary>For the self-tests: the amber marks on the timeline.</summary>
         public int NearMissMarks => nearMarks;
         public string TroubleHintText => troubleHint.text;
-        UiButton skipBtn, camBtn, troubleBtn, replayDone;
+        UiButton skipBtn, camBtn, troubleBtn, replayDone, replayGifBtn, gifBtn;
+        public UiButton GifButton => gifBtn;
+        public string ResultTitle => resTitle.text;
+        public UiButton ReplayGifButton => replayGifBtn;
         public UiButton ReplayDoneButton => replayDone;
         public UiButton TroubleButton => troubleBtn;
 
@@ -1186,6 +1193,10 @@ namespace HWC.Gameplay
             log.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(28, 28), new Vector2(240, 60));
             var menu = Ui.Button(resultsRoot, "menu", "MAIN MENU", () => G.ShowTitle(), Palette.Cream, Palette.Ink, 26);
             menu.Image.rectTransform.Place(new Vector2(0, 0), new Vector2(0, 0), new Vector2(280, 28), new Vector2(220, 60));
+            // the trip's big moment as an animated GIF, in the Pictures folder
+            gifBtn = Ui.Button(resultsRoot, "gif", "SAVE GIF", () => ClipRecorder.I.SaveFromReview(), Palette.Cream, Palette.Ink, 26);
+            gifBtn.Image.rectTransform.Place(new Vector2(1, 0), new Vector2(1, 0), new Vector2(-28, 28), new Vector2(220, 60));
+            KeyHint(gifBtn, "G", null, 13f);
             resultsPanel = p.rectTransform;
         }
 
@@ -1326,6 +1337,11 @@ namespace HWC.Gameplay
                 else if (Shortcuts.Pressed(kb, 'p')) replayBtn.Press();
                 else if (enter) nextBtn.Press();
                 else if (Shortcuts.Pressed(kb, 't') && tapeSticker.gameObject.activeSelf) tapeUse.Press();
+                else if (Shortcuts.Pressed(kb, 'g')) gifBtn.Press();
+            }
+            else if (G.Phase == Phase.Journey && G.Journey.IsReplay && replayBar.gameObject.activeSelf && !ClipRecorder.I.Busy)
+            {
+                if (Shortcuts.Pressed(kb, 'g')) replayGifBtn.Press();
             }
         }
 
@@ -1545,7 +1561,7 @@ namespace HWC.Gameplay
             var kb = Keyboard.current;
             if (kb != null && kb.escapeKey.wasPressedThisFrame)
             {
-                if (!escConsumed && !G.Menus.Open && (G.Phase == Phase.Packing || G.Phase == Phase.Journey)) SetPaused(!Paused);
+                if (!escConsumed && !G.Menus.Open && !ClipRecorder.I.Busy && (G.Phase == Phase.Packing || G.Phase == Phase.Journey)) SetPaused(!Paused);
             }
             escConsumed = false;
             UpdateShortcuts(kb);

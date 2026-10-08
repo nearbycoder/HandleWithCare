@@ -219,6 +219,7 @@ namespace HWC.Gameplay
             yield return KeyboardLayouts();
             yield return EscapeMenus();
             yield return EarnedOnReview();
+            yield return GifAndPhoto();
             yield return ShotsWritten();
                 Debug.Log("[AutoPilot] done");
             Application.Quit();
@@ -1832,6 +1833,7 @@ namespace HWC.Gameplay
             yield return RunLevel(5, "naive", false);
             var trip = g.LastRun;
             yield return new WaitForSecondsRealtime(0.4f);
+            yield return PadGif();
             yield return PadButton(GamepadButton.West);           // X: repack
             yield return new WaitForSecondsRealtime(0.6f);
             string box = SaveData.Serialize(g.CurrentPacking);

@@ -143,7 +143,7 @@ namespace HWC.Gameplay
             if (!Playing || Rec == null) return;
             if (G.Hud.Paused) return;
             var kb = Keyboard.current;
-            if (kb != null && !G.FreshPhase)
+            if (kb != null && !G.FreshPhase && !ClipRecorder.I.Busy)
             {
                 if (kb.spaceKey.wasPressedThisFrame) UserPaused = !UserPaused;
                 if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) Skip();
