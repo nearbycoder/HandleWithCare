@@ -3,8 +3,6 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
-using UnityEngine.Rendering;
-using UnityEngine.Rendering.Universal;
 
 namespace HWC.EditorTools
 {
@@ -51,43 +49,9 @@ namespace HWC.EditorTools
             Debug.Log("[HWC] macOS architecture: " + p.GetValue(null));
         }
 
-        /// <summary>
-        /// Post.cs builds its volume at runtime, and URP keeps only the post-processing shaders and variants that
-        /// some volume profile *asset* uses, so without these the depth of field, the chromatic aberration kick
-        /// and the low-quality bloom were stripped from the player. These two profiles are never rendered; they
-        /// list what Post.cs and the fidelity steps use (one profile holds one bloom: low and high quality need two).
-        /// </summary>
-        public static void EnsureVariantProfiles()
-        {
-            EnsureProfile("Assets/Settings/BuildVariants.asset", false);
-            EnsureProfile("Assets/Settings/BuildVariantsHQ.asset", true);
-        }
-
-        static void EnsureProfile(string path, bool hq)
-        {
-            var p = AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);
-            if (p != null && p.TryGet<Bloom>(out var b) && b.IsActive() && b.highQualityFiltering.value == hq
-                && p.TryGet<DepthOfField>(out var d) && d.mode.value == DepthOfFieldMode.Gaussian && p.TryGet<ChromaticAberration>(out var c) && c.IsActive()) return;
-            if (p != null) AssetDatabase.DeleteAsset(path);
-            p = ScriptableObject.CreateInstance<VolumeProfile>();
-            AssetDatabase.CreateAsset(p, path);
-            var bloom = p.Add<Bloom>(true);
-            bloom.intensity.Override(0.5f);
-            bloom.highQualityFiltering.Override(hq);
-            var dof = p.Add<DepthOfField>(true);
-            dof.mode.Override(DepthOfFieldMode.Gaussian);
-            var chroma = p.Add<ChromaticAberration>(true);
-            chroma.intensity.Override(0.5f);
-            foreach (var comp in p.components) { comp.hideFlags = HideFlags.HideInInspector | HideFlags.HideInHierarchy; AssetDatabase.AddObjectToAsset(comp, p); }
-            EditorUtility.SetDirty(p);
-            AssetDatabase.SaveAssets();
-            Debug.Log("[HWC] wrote " + path);
-        }
-
         static void Build(BuildTarget target, string path)
         {
             ApplyIdentity();
-            EnsureVariantProfiles();
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes = new[] { ProjectSetup.ScenePath },
