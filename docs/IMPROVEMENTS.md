@@ -1333,3 +1333,57 @@ the round's media folder.
 Moving the shelf art (still 76% in one configuration of 400; it moves every bench), careless samples on
 Strike! and Ember (round 10: none exists in practice), rumble, a physical controller or Steam Deck, a real
 non-US keyboard, real alt-tab focus loss, frame rates on a quiet GPU, the Mac build on a Mac.
+
+## Round 11 results (2026-10-08)
+
+| Item | Commit | Verified by |
+| --- | --- | --- |
+| R11-0. `nested.sh` stops its own helpers | 251a178 | A nested run whose command leaves a process on the session's bus (`sleep 300`, started by the test): nested.sh reports and stops exactly that one, and none is left. In this round's ~20 nested test runs no helper outlived its session (no "stopping" line in any log), and `ksecretd` stayed at 84, the count when the round started (those 84 aren't this round's and were left alone) |
+| R11-A. The item card says what you can do | 9c92180, 5eead10 | `tour.sh`, real mouse moves, clicks and keys on The Vase and the Dragon: Ember on the shelf "Click to pick it up"; in hand "Click drop · R face the other way · Esc back to the shelf", and R turns him, Esc puts him back (without pausing); in the box "Click pick up · Right click back to the shelf", and the right click does; paper in hand "Drag to paint · right drag to erase · Esc put it down": the drag painted 2, a right click erased 1, Esc put it down; paper in the box "… Right click bin it", which it does; DIVIDER on the toolbar. `padpilot.sh`: "A pick it up", "A drop · B back to the shelf" (the teacup can't turn), "A drop · X face the other way · B back to the shelf" (Ember), "Hold A to paint · hold B to erase · START put it down"; with BUTTON ICONS on PLAYSTATION the line draws the cross; LARGER TEXT on the bench, 30 of 30 small texts larger, no new overflow (30 of 31 from C on; the extra one is most likely the faded toast of the GIF saved earlier in that run, which keeps its text: not checked). `layoutpilot.sh` 24/24 (the card isn't avoided by the bench camera, as before) |
+| R11-B. Hint ghosts carry a check or a cross | 8964dae | `hintpilot.sh`: at 251 steps (227 while building her packings on all 25 deliveries and the one-cell-off tries, 24 on the over-budget runs) the badges drawn equal the note's counts (checks = in place, crosses = in the way, crosses = not in mine), 1092 badges in all, 0 mismatches. Screenshot of the one-cell-off teacup through deuteranopia and protanopia filters (Machado 2009): the red tint and the yellow ghosts are the same olive, the crosses still read |
+| R11-C. SAVE GIF and F12 photos | fe248c6 | `tour.sh`, real key events, after delivery 5 shipped items-only: G on the review records 107 frames from 2.07 s to 6.07 s around the first failure (5.17 s), 5.8 MB, inside the sandbox, toast "GIF saved: …", then the same review comes back with the HUD, the clock and the sound restored; in the replay, paused at 1.85 s, G saves 83 frames around it and leaves the replay paused at 1.85 s; F12 saves a 1920×1080 PNG. The script reads every file back with ImageMagick (107 and 83 frames, 480×270). `padpilot.sh`: the d-pad onto SAVE GIF and A save one, back on the review. Every run checked the real `~/Pictures/Handle With Care/` unchanged (it doesn't exist on this machine). Frames looked at by eye: the truck, the vase flying and shattering beside Snoozles |
+| R11-D. Local macOS build refreshed | (build only) | 0 errors; universal x86_64 + arm64 Mach-O; `com.nearbycoder.handlewithcare`, 0.2.0, PlayerIcon.icns; this round's code (`ClipRecorder`, `GifWriter`, `MarkBadge`, `CardDoLine`) is in `Assembly-CSharp.dll`. **Not run on a Mac.** |
+
+Each commit was built and tested on its own with the whole suite inside `Tools/nested.sh`, one test at a
+time after the load fell under 24, before the next was built (`Logs/r11/results-{A,A2,B,C}.txt`):
+
+| Tree | simcheck | hashes | tour | padpilot | autopilot | hintpilot | savepilot | layoutpilot |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 9c92180 (A) | ALL OK | = main | 110 PASS | 79 PASS, **1 FAIL** | 118 | 52 | 79 | 24 |
+| 5eead10 (A fix) | ALL OK | = main | 110 PASS | 80 | 118 | 52 | 79 | 24 |
+| 8964dae (B) | ALL OK | = main | 110 PASS | 80 | 118 | 53 | 79 | 24, **1 FAIL**; rerun 24 |
+| fe248c6 (C) | ALL OK | = main | 119 PASS | 81 | 118 | 53 | 79 | 24 |
+
+Load at the start of the runs: 12–24 (the 5-minute average went up to 43 during A2's tour).
+
+Found and fixed along the way:
+
+- **The card left what was in hand.** padpilot's new check found that holding paper over a placed teacup
+  showed the teacup's card, without the paper's controls (a round 8 rule: the box's piece came first). With
+  an item or padding in hand the card is now about it, wherever the pointer is (5eead10).
+- **A replay clip near the start was short.** A GIF around 1.85 s ran from 0 to 3.65 s; a window clamped
+  at the start now runs on for the full 4 s (in fe248c6, before its suite).
+
+Limits and notes:
+
+- **One layoutpilot screenshot never reached the disk** on 8964dae ("screenshot never written:
+  layout_1920x1080_larger_meters.png"); every layout check in that run passed, and a rerun on the same build
+  passed 24/24 with all screenshots. Not reproduced since; the cause isn't known.
+- **GIFs** are silent, 480 pixels wide at about 14 frames a second; a busy four-second clip is 5–6 MB, and
+  one over 9 MB is written again without the dither (not triggered in the tests). Recording plays the stretch
+  as fast as the machine draws it, without the HUD; the trip's own captions (SMASH!, ACHOO!) are HUD, so they
+  aren't in the GIF. The Pictures folder is .NET's (`~/Pictures`, or `XDG_PICTURES_DIR`); macOS and Windows
+  weren't tried. `docs/media/improvements/round11/c-save-gif-sample.gif` is a cut-down copy (320 px, the
+  last 62 frames) of the tour's GIF.
+- **The controls line** names the main keys only (R turns, but so do the wheel and a right click). Nothing in
+  the game turns except the four creatures that face a way; the card says nothing about turning the rest.
+- **The badges** of a blocked ghost and of your piece that blocks it sit side by side on that piece (top
+  right and top left).
+- **History:** 5eead10 and 8964dae were split out of one working tree (the B and C code waited, untouched,
+  while each earlier commit was built and tested alone). The C commit was amended once, before its build was
+  tested and before it was reported, to add its README lines.
+
+Still not verified here: a physical controller (Xbox-style or PlayStation) or Steam Deck, a real non-US
+keyboard, real alt-tab focus loss, a power cut mid-write, the Mac build on a Mac, and SAVE GIF on macOS or
+Windows. Still for the owner: Windows Build Support, Mac signing and notarization, publishing a release, a
+license, and re-cutting the trailer (the item card's new controls line would show in its packing shots).
