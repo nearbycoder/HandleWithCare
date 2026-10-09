@@ -4,6 +4,7 @@
     docs/media/teaser.webp          ~7 s seamless loop for the top of the README
     docs/media/trailer-poster.jpg   clickable poster for the trailer (play button over a key frame)
 """
+import argparse
 import os
 import subprocess
 import sys
@@ -12,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cards  # noqa: E402
 
 ROOT = cards.ROOT
-CLIPS = os.path.join(ROOT, "Recordings", "clips")
+CLIPS = os.path.join(ROOT, "Recordings", "clips")   # --clips DIR to use another capture
 WORK = os.path.join(ROOT, "Recordings", "media_build")
 MEDIA = os.path.join(ROOT, "docs", "media")
 FPS = 30
@@ -70,6 +71,10 @@ def poster(out, minutes_seconds):
 
 
 def main():
+    global CLIPS
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--clips", default=CLIPS)
+    CLIPS = ap.parse_args().clips
     os.makedirs(MEDIA, exist_ok=True)
     teaser(os.path.join(MEDIA, "teaser.webp"))
     dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",

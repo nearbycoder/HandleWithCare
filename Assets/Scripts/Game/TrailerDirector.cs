@@ -26,12 +26,16 @@ namespace HWC.Gameplay
     /// frame is rendered no matter how slow the machine is, and writes DIR/clip/00000.jpg..., the
     /// game's own audio mix (AudioRenderer) as DIR/clip/audio.wav, and DIR/clip/events.txt
     /// (phases, incidents, legs, stamps, sounds with their clip times) for the edit.
-    /// Shot list lines: "name kind key=value ...", '#' comments. Kinds: title, log, shift, level.
-    /// Saves are disabled; music is muted so the clips carry sound effects only.
+    /// Shot list lines: "name kind key=value ...", '#' comments. Kinds: title, log, shift, level, settings.
+    /// Saves are disabled; music is muted so the clips carry sound effects only. Clips render at
+    /// GRAPHICS FIDELITY ULTRA unless -hwcFidelity 0..3 says otherwise (the fixed clock makes every step
+    /// hold 30 fps in the capture). The HUD's trip meters, skip button and hint button are hidden
+    /// (cinematic) unless a clip says hud=1.
     /// </summary>
     public sealed class TrailerDirector : MonoBehaviour
     {
         public const int Fps = 30;
+        static int fidelity = 3;
 
         string dir;
         readonly List<Dictionary<string, string>> clips = new List<Dictionary<string, string>>();
@@ -43,6 +47,7 @@ namespace HWC.Gameplay
             string outDir = Arg(args, "-hwcTrailer");
             if (outDir == null) return false;
             SaveData.Disabled = true;
+            if (int.TryParse(Arg(args, "-hwcFidelity"), out int fid)) fidelity = Mathf.Clamp(fid, 0, 3);
             var td = g.gameObject.AddComponent<TrailerDirector>();
             td.dir = outDir;
             Directory.CreateDirectory(outDir);
@@ -70,7 +75,8 @@ namespace HWC.Gameplay
 
         static SaveData NewSave()
         {
-            var s = new SaveData { Fullscreen = false, MusicVolume = 0f, HighQuality = true, Fidelity = 2, ScreenShake = true, PauseInBackground = false };
+            var s = new SaveData { Fullscreen = false, MusicVolume = 0f, ScreenShake = true, PauseInBackground = false };
+            s.SetFidelity(fidelity);
             s.SeenTips.Add("basics");
             for (int c = 1; c <= 4; c++) s.SeenTips.Add("shift_" + c);
             return s;
@@ -343,7 +349,7 @@ namespace HWC.Gameplay
             channels = AudioSettings.speakerMode == AudioSpeakerMode.Mono ? 1 : 2;
             rate = AudioSettings.outputSampleRate;
             audioOk = AudioRenderer.Start();
-            Debug.Log($"[Trailer] AudioRenderer {(audioOk ? "on" : "UNAVAILABLE")}, {channels} ch @ {rate} Hz, {clips.Count} clips");
+            Debug.Log($"[Trailer] AudioRenderer {(audioOk ? "on" : "UNAVAILABLE")}, {channels} ch @ {rate} Hz, {clips.Count} clips, fidelity {GraphicsQuality.Names[fidelity]}");
             BuildCursor();
             StartWorkers();
             StartCoroutine(CaptureLoop());
@@ -363,6 +369,7 @@ namespace HWC.Gameplay
                 G.Save = NewSave();
                 G.Autopilot = true;
                 G.ApplySettings();
+                G.Hud.Cinematic = !GetB(c, "hud", false);
                 var phaseLogger = StartCoroutine(LogPhases());
                 switch (c["kind"])
                 {
@@ -370,12 +377,14 @@ namespace HWC.Gameplay
                     case "log": yield return LogClip(c); break;
                     case "shift": yield return ShiftClip(c); break;
                     case "level": yield return LevelClip(c); break;
+                    case "settings": yield return SettingsClip(c); break;
                     default: Debug.LogError("[Trailer] unknown clip kind " + c["kind"]); break;
                 }
                 StopCoroutine(phaseLogger);
                 if (recording) EndClip();
                 cursor.gameObject.SetActive(false);
                 Time.timeScale = 1f;
+                G.Hud.Cinematic = true;
                 yield return null;
             }
             queue.CompleteAdding();
@@ -409,14 +418,79 @@ namespace HWC.Gameplay
         {
             G.Journey.Stop();
             G.ShowTitle();
-            // a player partway through: three shifts done with mixed stars, the fourth just started
-            int[] stars = { 3, 3, 2, 3, 3, 3, 2, 3, 3, 1, 3, 3, 2, 3, 3, 3, 2 };
+            // a player partway through: the first done= deliveries delivered, with mixed stars (and nothing
+            // else: leaving the previous clip's bench kept an empty record for its delivery)
+            G.Save.Records.Clear();
+            int[] stars = { 3, 3, 2, 3, 3, 3, 2, 3, 3, 1, 3, 3, 2, 3, 3, 3, 2, 3, 3, 2, 3, 2, 3, 3, 3 };
             for (int i = 0; i < stars.Length && i < GetI(c, "done", 17); i++)
-                G.Save.Records.Add(new SaveData.LevelRecord { Number = i + 1, Stars = stars[i], Delivered = true, UnderBudget = stars[i] >= 2, Careful = stars[i] == 3 });
+            {
+                // a best cost and care that match the stars, so the hovered card's line reads true
+                var lv = Levels.Get(i + 1);
+                bool under = stars[i] >= 2, careful = stars[i] == 3;
+                G.Save.Records.Add(new SaveData.LevelRecord
+                {
+                    Number = i + 1, Stars = stars[i], Delivered = true, UnderBudget = under, Careful = careful,
+                    Attempts = 1 + i % 3, BestCost = under ? lv.Par - 1 : lv.Par + 2, BestCare = careful ? 0.52f : 0.83f,
+                });
+            }
             G.Menus.ShowSelect();
             yield return Wait(0.8f);
             BeginClip(c["name"]);
+            int hover = GetI(c, "hover", 0);
+            if (hover > 0)
+            {
+                // point at one delivery's card: its detail line says which star is missing
+                var card = G.Menus.CardRect(hover);
+                if (card != null)
+                {
+                    mousePos = new Vector2(Screen.width * 0.55f, Screen.height * 0.07f);   // on the detail line, not a card
+                    cursor.gameObject.SetActive(true);
+                    yield return Wait(GetF(c, "hoverat", 0.8f));
+                    yield return MoveMouse(RectScreen(card), 18);
+                }
+            }
             yield return Wait(GetF(c, "dur", 4f));
+        }
+
+        static Vector2 RectScreen(RectTransform rt) => RectTransformUtility.WorldToScreenPoint(null, rt.TransformPoint(rt.rect.center));
+
+        IEnumerator Click(RectTransform rt, int frames = 16)
+        {
+            cursor.gameObject.SetActive(true);
+            yield return MoveMouse(RectScreen(rt), frames);
+            yield return Wait(0.12f);
+            yield return Press(true);
+            yield return Press(false);
+        }
+
+        /// <summary>The title screen's SETTINGS button, then GRAPHICS FIDELITY clicked step by step (steps=0,1,2,3).</summary>
+        IEnumerator SettingsClip(Dictionary<string, string> c)
+        {
+            G.Journey.Stop();
+            G.ShowTitle();
+            // the MUSIC slider shows the default volume; the mixer keeps the capture's muted music (the
+            // trailer's music bed is added in the edit). Opening Settings doesn't apply the volumes.
+            G.Save.MusicVolume = new SaveData().MusicVolume;
+            yield return Wait(GetF(c, "settle", 1.5f));
+            BeginClip(c["name"]);
+            mousePos = new Vector2(Screen.width * 0.55f, Screen.height * 0.6f);
+            cursor.gameObject.SetActive(true);
+            yield return Wait(0.3f);
+            UiButton settingsBtn = null;
+            foreach (var b in FindObjectsByType<UiButton>(FindObjectsSortMode.None))
+                if (b.name == "SETTINGS" && b.gameObject.activeInHierarchy) settingsBtn = b;
+            if (settingsBtn == null) { Debug.LogError("[Trailer] no SETTINGS button on the title"); yield break; }
+            yield return Click(settingsBtn.Image.rectTransform, 18);
+            yield return Wait(GetF(c, "open", 0.8f));
+            float each = GetF(c, "each", 1.1f);
+            foreach (var st in Get(c, "steps", "0,1,2,3").Split(','))
+            {
+                int i = int.Parse(st);
+                yield return Click(G.Menus.FidelityButtons[i].Image.rectTransform, 14);
+                Log("fidelity " + GraphicsQuality.Names[i]);
+                yield return Wait(each);
+            }
+            yield return Wait(GetF(c, "dur", 1f));
         }
 
         IEnumerator ShiftClip(Dictionary<string, string> c)
@@ -503,6 +577,7 @@ namespace HWC.Gameplay
             while (G.Phase == Phase.Reveal) yield return null;
             if (!GetB(c, "results", true)) yield break;
             yield return Wait(GetF(c, "resultshold", 2.5f));
+            if (!recording && Get(c, "from") == "after") BeginClip(c["name"]);
             foreach (var step in Get(c, "after", "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
             {
                 if (step == "replay")
@@ -511,8 +586,38 @@ namespace HWC.Gameplay
                     G.Replay();
                     G.Journey.CameraMode = GetI(c, "replaycam", 1);
                     G.Journey.Speed = GetF(c, "replayspeed", 1f);
+                    if (c.ContainsKey("troubleat"))
+                    {
+                        // NEXT TROUBLE (N): the replay jumps to just before the red mark
+                        yield return Wait(GetF(c, "troubleat", 1f));
+                        Log("next trouble");
+                        yield return Key(UnityEngine.InputSystem.Key.N);
+                    }
                     while (G.Phase == Phase.Journey) yield return null;
                     yield return Wait(0.8f);
+                }
+                else if (step == "hover")
+                {
+                    // point at an item in the box: its card says what happened to it last trip
+                    var kind = (PieceKind)Enum.Parse(typeof(PieceKind), Get(c, "hoveritem", "Vase"));
+                    foreach (var p in G.Packing.Pk.Pieces)
+                        if (p.Kind == kind)
+                        {
+                            if (!cursor.gameObject.activeSelf) { mousePos = new Vector2(Screen.width * 0.7f, Screen.height * 0.75f); cursor.gameObject.SetActive(true); }
+                            Log("hover " + kind);
+                            yield return MoveMouse(ToScreen(G.Station.Box.CellToWorld(p.X + p.W * 0.5f, p.Y + p.H * 0.5f)), 18);
+                            break;
+                        }
+                    yield return Wait(GetF(c, "hoverhold", 2f));
+                }
+                else if (step == "hint")
+                {
+                    // ASK MABEL / ANOTHER HINT, clicked
+                    var hb = G.Hud.HintButton;
+                    if (hb == null || !hb.gameObject.activeInHierarchy) { Debug.Log("[Trailer] no hint button"); continue; }
+                    Log("hint");
+                    yield return Click(hb.Image.rectTransform, 16);
+                    yield return Wait(GetF(c, "hinthold", 1.6f));
                 }
                 else if (step == "repack")
                 {

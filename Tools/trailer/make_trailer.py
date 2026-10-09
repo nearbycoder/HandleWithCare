@@ -57,7 +57,7 @@ MAIN = [
     seg("titleplain", 1.0, 8 * b, dict(kind="title"), trans="fadewhite", td=0.12, zoom=0.06),
     seg("loop3", 0.30, 5 * b, C("01  ·  PACK", "PACK THE ORDER", "19 kinds of item, each with a quirk on its card.", span=2), trans="fadewhite", td=0.2),
     seg("pack18", 14.30, 4 * b),
-    seg("loop3", 2.45, 4 * b, C("02  ·  PAD", "PAINT IN PADDING", "Crumpled paper, bubble wrap and foam soak up the jolts.", span=2)),
+    seg("loop3", 2.45, 4 * b, C("02  ·  PAD", "PAINT IN PADDING", "Crumpled paper, bubble wrap and foam soak up the jolts. Every piece has a price.", span=2)),
     seg("pack18", 2.75, 4 * b),
     seg("depot10", 0.0, 4 * b, C("03  ·  BUILD", "DIVIDERS, SHELVES & STRAPS", "Wall things off, take the weight off the cake, strap the magnets down.", span=2)),
     seg("shelf8", 0.05, 4 * b),
@@ -65,30 +65,37 @@ MAIN = [
     seg("loop3", 9.62, 8 * b, C("05  ·  THE TRIP", "WATCH THE TRIP", "Deterministic physics: the same packing always makes the same journey.")),
     seg("loop3", 15.05, 5 * b, C("06  ·  UNBOX", "THE UNBOXING", "Every item gets a stamp. Earn up to three stars a delivery.", span=2)),
     seg("loop3", 20.35, 3 * b),
-    seg("fail3", 7.70, 6 * b, C("07  ·  BREAK", "EVERY ITEM HAS A JOLT LIMIT", "Tall things topple. Fragile things shatter.", span=2)),
-    seg("fail3", 13.95, 3 * b),
-    seg("fail3", 25.45, 5 * b, C("08  ·  LEARN", "REPLAY, THEN REPACK", "Close-up replays and last-trip trails show what went wrong.", span=2)),
-    seg("fail3", 30.30, 4 * b, zoom=0.07),
+    # the HUD's care meters fill on each knock; the vase shatters
+    seg("fail3", 6.30, 6 * b, C("07  ·  BREAK", "EVERY ITEM HAS A JOLT LIMIT", "Care meters fill on every knock. Past the limit, it breaks.", span=2)),
+    seg("fail3", 13.60, 3 * b),
+    # the close-up replay (after N, NEXT TROUBLE, jumped to the red mark), then the bench: the trail, the
+    # cross and the vase's card
+    seg("fail3", 24.85, 5 * b, C("08  ·  LEARN", "REPLAY, THEN REPACK", "Replays jump to the trouble. The bench marks where it went wrong.", span=2)),
+    seg("fail3", 31.00, 4 * b),
+    # Ask Mabel: the vase's ghost, then her whole packing, checked off against the box
+    seg("mabel18", 4.00, 6 * b, C("09  ·  STUCK?", "ASK MABEL", "Hint by hint, up to her whole packing, ticked off as you match it.", span=2), trans="fadewhite", td=0.15),
+    seg("mabel18", 10.15, 6 * b),
     # quirks, 6 beats each
     seg("mag6", 3.55, 6 * b, C("QUIRK", "MAGNETS ATTRACT", "From four cells away. Once they touch, they're stuck."), trans="smoothleft", td=0.25),
     seg("sleep5", 9.95, 6 * b, C("QUIRK", "SLEEPERS WAKE UP", "Snoozles the armadillo does not like a hard brake.")),
-    seg("potion7", 5.10, 6 * b, C("QUIRK", "KEEP POTIONS UPRIGHT", "Tip one over and it spills.")),
     seg("cake8", 5.25, 6 * b, C("QUIRK", "CAKES SQUISH", "Nothing heavier than padding goes on top.")),
     seg("cactus9", 3.10, 6 * b, C("QUIRK", "BALLOONS FLOAT. CACTI POP THEM.", "Spikes pop bubble wrap too, and wake sleepers.")),
     seg("robot11", 4.35, 6 * b, C("QUIRK", "CLANK MARCHES ON", "The wind-up robot walks until something stops him.")),
-    seg("swan12", 4.55, 6 * b, C("QUIRK", "ICE MELTS NEAR HEAT", "Keep the swan away from the lava lamp.")),
-    seg("frog14", 3.05, 6 * b, C("QUIRK", "FROGS HOP", "Every few seconds, wherever they like.")),
     seg("boing13", 4.45, 6 * b, C("QUIRK", "BOUNCY BALLS NEVER SETTLE", "Especially when Dash the courier throws the box.")),
     seg("fire15", 5.55, 6 * b, C("QUIRK", "EMBER SNEEZES FIRE", "Paper burns, bubble wrap melts, and the box can catch.")),
+    seg("move25", 9.95, 6 * b, C("OVERTIME", "MOVING DAY, BY CATAPULT", "After the credits, five more deliveries mix the quirks.")),
     # journeys, one bar each
     seg("depot10", 9.60, 4 * b, C("ON THE ROAD", "SIX KINDS OF JOURNEY", "Truck, sorting depot, doorstep, ferry, cargo plane... and catapult.", span=5), trans="smoothleft", td=0.25),
     seg("door13", 4.55, 4 * b),
     seg("seas16", 9.70, 4 * b),
     seg("air17", 4.45, 4 * b),
     seg("egg20", 3.65, 4 * b),
-    # progression
-    seg("shift4", 0.15, 4 * b, zoom=0.05, cap=C("CAREER", "20 DELIVERIES, 4 SHIFTS", "60 stars to earn, and new tape designs to unlock.", span=2), trans="fadewhite", td=0.2),
-    seg("log", 0.40, 4 * b, zoom=0.07),
+    # progression: the shift card, then the delivery log with all five shifts and a card's missing stars
+    seg("shift4", 0.15, 4 * b, zoom=0.05, cap=C("CAREER", "25 DELIVERIES, 5 SHIFTS", "75 stars to earn, tape designs to unlock, and Mabel's best to beat.", span=2), trans="fadewhite", td=0.2),
+    seg("log", 1.20, 5 * b, zoom=0.05),
+    # settings: GRAPHICS FIDELITY clicked from LOW to ULTRA
+    seg("settings", 0.75, 6 * b, C("SETTINGS", "GRAPHICS FIDELITY, LOW TO ULTRA", "From weak GPUs to supersampled. This trailer was captured at ULTRA.", span=2), trans="fadewhite", td=0.15),
+    seg("settings", 8.25, 6 * b),
     # escalation: two beats, then single beats
     seg("seas16", 10.55, 2 * b, trans="fadewhite", td=0.12),
     seg("egg20", 4.15, 2 * b),
@@ -172,7 +179,7 @@ def build_cards(args, segs, starts):
             url = os.path.join(args.work, "end_url.png")
             cards.pill(url, "github.com/nearbycoder/HandleWithCare", tmp, fg=cards.INK, bg=cards.PAPER, pt=60, pad=(44, 20))
             small = os.path.join(args.work, "end_small.png")
-            cards.pill(small, "Source code and Linux build on GitHub   ·   Made with Unity 6 and Blender", tmp,
+            cards.pill(small, "Source code on GitHub   ·   Linux   ·   Mouse, keyboard or gamepad   ·   Made with Unity 6 and Blender", tmp,
                        fg=cards.CREAM, bg=cards.RED, font=cards.XBOLD, pt=32, pad=(28, 12))
             a = starts[i] + s["td"]
             e = starts[i] + s["dur"]
@@ -395,6 +402,14 @@ def main():
     for s in MAIN:
         s["dur"] += s["td"]
     segs = COLD + MAIN
+    # every cut and transition on a whole frame: each segment is trimmed to whole frames, so lengths that
+    # aren't would leave the picture shorter than the timeline and an xfade past the end of its first input.
+    # Snapping cuts on the absolute timeline keeps them within half a frame of the beat grid.
+    for s in segs:
+        s["td"] = round(s["td"] * FPS) / FPS
+    starts, _ = layout(segs)
+    for s, t in zip(segs, starts):
+        s["dur"] = (round((t + s["dur"]) * FPS) - round(t * FPS)) / FPS
     starts, total = layout(segs)
     print(f"{len(segs)} segments, {total:.2f} s; title hit at {starts[len(COLD)] + MAIN[0]['td']:.2f} s")
     with open(os.path.join(args.work, "timeline.txt"), "w") as fh:
