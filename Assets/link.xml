@@ -1,0 +1,7 @@
+<!-- Kept through engine code stripping in the browser build: GameObject.CreatePrimitive (Stages.Plane) adds a
+     MeshCollider from native code, which the stripper can't see, so without this it logs an error on the web. -->
+<linker>
+  <assembly fullname="UnityEngine.PhysicsModule">
+    <type fullname="UnityEngine.MeshCollider" preserve="all"/>
+  </assembly>
+</linker>

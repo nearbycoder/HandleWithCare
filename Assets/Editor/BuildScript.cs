@@ -28,6 +28,26 @@ namespace HWC.EditorTools
         [MenuItem("Handle With Care/Build Windows Player")]
         public static void BuildWindows() => Build(BuildTarget.StandaloneWindows64, "Builds/Windows/HandleWithCare.exe");
 
+        /// <summary>
+        /// Browser build (WebGL 2) for GitHub Pages: Builds/WebGL, page from Assets/WebGLTemplates/HandleWithCare.
+        /// Brotli with the JavaScript decompression fallback, so any static host works without Content-Encoding
+        /// headers; no threads, so no SharedArrayBuffer or COOP/COEP. Tools/build-pages.sh copies it to the site.
+        /// </summary>
+        [MenuItem("Handle With Care/Build Web Player")]
+        public static void BuildWebGL()
+        {
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
+            PlayerSettings.WebGL.decompressionFallback = true;
+            PlayerSettings.WebGL.template = "PROJECT:HandleWithCare";
+            PlayerSettings.WebGL.threadsSupport = false;
+            PlayerSettings.WebGL.dataCaching = true;
+            PlayerSettings.WebGL.nameFilesAsHashes = false;
+            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
+            PlayerSettings.WebGL.showDiagnostics = false;
+            PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.WebGL, ManagedStrippingLevel.Minimal);
+            Build(BuildTarget.WebGL, "Builds/WebGL", BuildOptions.None);
+        }
+
         /// <summary>Version, bundle id and icon for every platform.</summary>
         public static void ApplyIdentity()
         {
@@ -49,7 +69,8 @@ namespace HWC.EditorTools
             Debug.Log("[HWC] macOS architecture: " + p.GetValue(null));
         }
 
-        static void Build(BuildTarget target, string path)
+        // the baked texture maps are BC7 already; LZ4HC packs the data files to roughly half
+        static void Build(BuildTarget target, string path, BuildOptions options = BuildOptions.CompressWithLz4HC)
         {
             ApplyIdentity();
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
@@ -57,8 +78,7 @@ namespace HWC.EditorTools
                 scenes = new[] { ProjectSetup.ScenePath },
                 locationPathName = path,
                 target = target,
-                // the baked texture maps are BC7 already; LZ4HC packs the data files to roughly half
-                options = BuildOptions.CompressWithLz4HC,
+                options = options,
             });
             var s = report.summary;
             Debug.Log($"[HWC] {target} build {s.result}: {s.totalSize / (1024 * 1024)} MB, {s.totalErrors} errors -> {path}");

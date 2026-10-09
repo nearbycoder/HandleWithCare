@@ -615,6 +615,39 @@ namespace HWC.Gameplay
         public int TripMarksHighlighted => trails != null ? trails.HighlightedMarks() : 0;
         public int NearMissMarksShown => trails != null ? trails.NearMarks : 0;
 
+        /// <summary>
+        /// For the browser check (Tools/check-pages.mjs, through unityInstance.SendMessage("Packing", "WebReportBench")):
+        /// the items of Mabel's packing, lowest first, each as where it lies in the tray and where it goes in the box,
+        /// in 1920x1080 UI units, so the check can pack the box with real clicks.
+        /// </summary>
+        void WebReportBench()
+        {
+            if (!Active || Level == null) { WebPlatform.Log("bench: not packing"); return; }
+            var cam = G.Rig.Cam;
+            Vector2 ToUi(Vector3 world)
+            {
+                var s = cam.WorldToScreenPoint(world);
+                return new Vector2(s.x * 1920f / Screen.width, (Screen.height - s.y) * 1080f / Screen.height);
+            }
+            var pieces = new List<Placement>();
+            foreach (var p in Hints.Source(Level).Pieces) if (!p.Def.IsPadding) pieces.Add(p);
+            pieces.Sort((a, b) => a.Y.CompareTo(b.Y));
+            var used = new List<TrayItem>();
+            var sb = new System.Text.StringBuilder("bench: delivery " + Level.Number + " |");
+            foreach (var p in pieces)
+            {
+                TrayItem t = null;
+                foreach (var c in tray) if (c.Kind == p.Kind && !used.Contains(c)) { t = c; break; }
+                if (t == null) continue;
+                used.Add(t);
+                int w = p.Rotated ? p.Def.H : p.Def.W, h = p.Rotated ? p.Def.W : p.Def.H;
+                var from = ToUi(t.View.WorldBounds().center);
+                var to = ToUi(Box.CellToWorld(p.X + w * 0.5f, p.Y + h * 0.5f));
+                sb.Append($" {p.Kind} {from.x:0},{from.y:0} > {to.x:0},{to.y:0}{(p.Rotated ? " rotated" : "")};");
+            }
+            WebPlatform.Log(sb.ToString());
+        }
+
         TrayItem TrayUnder(Ray ray)
         {
             TrayItem best = null;

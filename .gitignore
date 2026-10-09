@@ -29,6 +29,8 @@ crashlytics-build.properties
 .idea/
 
 # Tools, captures and scratch output
+# Burst's output, left at the project root by the WebGL build
+/Data/
 __pycache__/
 .venv/
 venv/

@@ -20,7 +20,7 @@ namespace HWC.Audio
         AudioSource loopSrc;
         string currentMusic;
         float duck = 1f, duckTarget = 1f, musicFade = 1f;
-        float muffle;
+        float muffle, muffled;
         AudioLowPassFilter lowpass;
         bool aIsCurrent = true;
 
@@ -42,8 +42,12 @@ namespace HWC.Audio
             a.musicA = musicGo.AddComponent<AudioSource>();
             a.musicB = musicGo.AddComponent<AudioSource>();
             foreach (var m in new[] { a.musicA, a.musicB }) { m.loop = true; m.playOnAwake = false; m.volume = 0; }
-            a.lowpass = musicGo.AddComponent<AudioLowPassFilter>();
-            a.lowpass.cutoffFrequency = 22000f;
+            // browsers have no audio filters: there the music is muffled by turning it down instead
+            if (!HWC.Gameplay.WebPlatform.IsWeb)
+            {
+                a.lowpass = musicGo.AddComponent<AudioLowPassFilter>();
+                a.lowpass.cutoffFrequency = 22000f;
+            }
             a.loopSrc = go.AddComponent<AudioSource>();
             a.loopSrc.loop = true;
             a.loopSrc.playOnAwake = false;
@@ -133,10 +137,11 @@ namespace HWC.Audio
             var cur = aIsCurrent ? musicA : musicB;
             var old = aIsCurrent ? musicB : musicA;
             float v = Music * Master * duck;
+            if (lowpass == null) { muffled = Mathf.MoveTowards(muffled, muffle, dt * 3f); v *= 1f - 0.65f * muffled; }
             cur.volume = v * musicFade;
             old.volume = v * (1f - musicFade);
             if (musicFade >= 1f && old.isPlaying) old.Stop();
-            lowpass.cutoffFrequency = Mathf.Lerp(lowpass.cutoffFrequency, muffle > 0 ? 900f : 22000f, 1f - Mathf.Exp(-dt * 6f));
+            if (lowpass != null) lowpass.cutoffFrequency = Mathf.Lerp(lowpass.cutoffFrequency, muffle > 0 ? 900f : 22000f, 1f - Mathf.Exp(-dt * 6f));
         }
     }
 }

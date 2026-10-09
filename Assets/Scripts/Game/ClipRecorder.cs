@@ -123,14 +123,20 @@ namespace HWC.Gameplay
 
         string NewPath(string ext, out string refusal)
         {
+            if (WebPlatform.IsWeb) { refusal = null; return FileName(ext); }   // a download: the browser picks the folder
             string dir = Folder(out refusal);
             if (dir == null) return null;
             Directory.CreateDirectory(dir);
-            string what = G.Level != null ? $"{G.Level.Number:00}-{Slug(G.Level.Title)}" : "handle-with-care";
-            string stamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-            string path = Path.Combine(dir, $"{what}_{stamp}{ext}");
-            for (int i = 2; File.Exists(path); i++) path = Path.Combine(dir, $"{what}_{stamp}-{i}{ext}");
+            string name = FileName(ext);
+            string path = Path.Combine(dir, name);
+            for (int i = 2; File.Exists(path); i++) path = Path.Combine(dir, name.Replace(ext, $"-{i}{ext}"));
             return path;
+        }
+
+        string FileName(string ext)
+        {
+            string what = G.Level != null ? $"{G.Level.Number:00}-{Slug(G.Level.Title)}" : "handle-with-care";
+            return $"{what}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}{ext}";
         }
 
         // ---- photos ----------------------------------------------------------------------------------
@@ -145,9 +151,10 @@ namespace HWC.Gameplay
             try
             {
                 shot = ScreenCapture.CaptureScreenshotAsTexture();
-                File.WriteAllBytes(path, shot.EncodeToPNG());
+                if (WebPlatform.IsWeb) WebPlatform.Download(path, "image/png", shot.EncodeToPNG());
+                else File.WriteAllBytes(path, shot.EncodeToPNG());
                 LastSaved = path; LastError = null;
-                Toast($"Photo saved: {Pretty(path)}");
+                Toast(WebPlatform.IsWeb ? $"Photo downloaded: {path}" : $"Photo saved: {Pretty(path)}");
                 Debug.Log("[Clips] photo " + path);
             }
             catch (Exception e) { Fail(e.Message); }
@@ -280,6 +287,27 @@ namespace HWC.Gameplay
             Debug.Log($"[Clips] recorded {frames.Count} frames of {rec.Level?.Title} from {from:0.00}s to {to:0.00}s ({Width}x{h})");
             Toast("Saving the GIF…", 30f);
             int width = Width;
+            if (WebPlatform.IsWeb)
+            {
+                yield return null;   // the toast shows before the encoding holds up the page for a moment
+                yield return null;
+                string failed = null;
+                try
+                {
+                    int delay = Mathf.RoundToInt(FrameSeconds * 100f);
+                    var ms = new MemoryStream();
+                    GifWriter.Write(ms, frames, width, h, delay);
+                    if (ms.Length > MaxBytes) { ms = new MemoryStream(); GifWriter.Write(ms, frames, width, h, delay, false); }
+                    WebPlatform.Download(path, "image/gif", ms.ToArray());
+                    Debug.Log($"[Clips] gif {path} ({ms.Length / 1024} KB, {frames.Count} frames)");
+                }
+                catch (Exception e) { failed = e.Message; }
+                if (failed != null) Fail(failed);
+                else { LastSaved = path; LastError = null; Toast($"GIF downloaded: {path}"); G.Hud.Sfx("pick"); }
+                Busy = false;
+                Finished++;
+                yield break;
+            }
             var task = Task.Run(() =>
             {
                 string tmp = path + ".part";

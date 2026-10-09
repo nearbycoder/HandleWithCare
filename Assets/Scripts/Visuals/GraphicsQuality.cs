@@ -87,6 +87,8 @@ namespace HWC.Visuals
             int i = Level;
             rp.msaaSampleCount = Msaa[i] > 0 ? Msaa[i] : baseMsaa;
             rp.renderScale = Scale[i] > 0 ? Scale[i] : baseScale;
+            // browsers have no FSR upscaling shader: scale up bilinearly there
+            if (HWC.Gameplay.WebPlatform.IsWeb) rp.upscalingFilter = UpscalingFilterSelection.Linear;
             rp.shadowDistance = ShadowRange[i] > 0 ? ShadowRange[i] : baseShadowRange;
             rp.mainLightShadowmapResolution = ShadowMap[i] > 0 ? ShadowMap[i] : baseShadowMap;
             rp.shadowCascadeCount = Cascades[i] > 0 ? Cascades[i] : baseCascades;

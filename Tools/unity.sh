@@ -9,6 +9,7 @@
 #   Tools/unity.sh build-linux     batch: Builds/Linux/HandleWithCare.x86_64
 #   Tools/unity.sh build-mac       batch: Builds/Mac/HandleWithCare.app (universal, unsigned; Mac Build Support)
 #   Tools/unity.sh build-windows   batch: Builds/Windows/HandleWithCare.exe (needs Windows Build Support)
+#   Tools/unity.sh build-web       batch: Builds/WebGL (browser build; Tools/build-pages.sh makes the site from it)
 #   Tools/unity.sh exec Method     batch: run any static editor method
 #   Tools/unity.sh serve           headless resident editor for `unity command` (stop with: Tools/unity.sh stop)
 set -euo pipefail
@@ -26,9 +27,10 @@ case "${1:-open}" in
   build-linux) batch -executeMethod HWC.EditorTools.BuildScript.BuildLinux ;;
   build-mac) batch -buildTarget OSXUniversal -executeMethod HWC.EditorTools.BuildScript.BuildMac ;;
   build-windows) batch -buildTarget Win64 -executeMethod HWC.EditorTools.BuildScript.BuildWindows ;;
+  build-web) batch -buildTarget WebGL -executeMethod HWC.EditorTools.BuildScript.BuildWebGL ;;
   exec) shift; batch -executeMethod "$@" ;;
   serve) nohup "$UNITY" -batchmode -projectPath "$PROJECT" -logFile "$PROJECT/Logs/serve.log" > /dev/null 2>&1 &
          echo "serving (pid $!), log: Logs/serve.log" ;;
   stop) pkill -f -- "-batchmode -projectPath $PROJECT -logFile $PROJECT/Logs/serve.log" && echo stopped || echo "not running" ;;
-  *) echo "usage: $0 [open|setup|build-linux|build-mac|build-windows|exec Method|serve|stop]" >&2; exit 2 ;;
+  *) echo "usage: $0 [open|setup|build-linux|build-mac|build-windows|build-web|exec Method|serve|stop]" >&2; exit 2 ;;
 esac

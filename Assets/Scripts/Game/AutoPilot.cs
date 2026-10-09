@@ -1586,7 +1586,12 @@ namespace HWC.Gameplay
             g.StartLevel(1);                                   // the tutorial's first note mentions A
             yield return new WaitForSecondsRealtime(0.6f);
             string xboxTut = g.Tutorial.ShownText, xboxSeal = g.Hud.PromptFor("VIEW");
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // the browser build has no HID layouts (and never runs the self-tests)
+            var ds4 = InputSystem.AddDevice<UnityEngine.InputSystem.DualShock.DualShockGamepad>("PadPilotDS4");
+#else
             var ds4 = InputSystem.AddDevice<UnityEngine.InputSystem.DualShock.DualShock4GamepadHID>("PadPilotDS4");
+#endif
             ds4.MakeCurrent();
             yield return null; yield return null;
             Debug.Log($"[AutoPilot] ps: current pad {Gamepad.current?.layout}, PlayStation {PadGlyphs.Ps}; undo '{g.Hud.PromptFor("LT")}', redo '{g.Hud.PromptFor("RT")}', seal '{g.Hud.PromptFor("VIEW")}', hint '{g.Hud.PromptFor("Y")}', shoulder '{g.Hud.PromptFor("LB")}'");

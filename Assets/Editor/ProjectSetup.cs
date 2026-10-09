@@ -175,7 +175,7 @@ namespace HWC.EditorTools
                 EditorUtility.SetDirty(data);
             }
 
-            // Use the PC quality level everywhere on desktop.
+            // Use the PC quality level everywhere on desktop, and in the browser (GRAPHICS FIDELITY scales it down there).
             var qs = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/QualitySettings.asset")[0]);
             var levels = qs.FindProperty("m_QualitySettings");
             int pc = -1;
@@ -189,7 +189,7 @@ namespace HWC.EditorTools
                 {
                     var e = per.GetArrayElementAtIndex(i);
                     var key = e.FindPropertyRelative("first").stringValue;
-                    if (key == "Standalone" || key == "Server") e.FindPropertyRelative("second").intValue = pc;
+                    if (key == "Standalone" || key == "Server" || key == "WebGL") e.FindPropertyRelative("second").intValue = pc;
                 }
                 var lvl = levels.GetArrayElementAtIndex(pc);
                 lvl.FindPropertyRelative("vSyncCount").intValue = 1;

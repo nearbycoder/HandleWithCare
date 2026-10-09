@@ -113,7 +113,8 @@ namespace HWC.Gameplay
 
             string[] labels = { "START SHIFT", "DELIVERY LOG", "SETTINGS", "CREDITS", "QUIT" };
             Action[] acts = { ContinueGame, ShowSelect, () => ShowSettings(ShowTitle), ShowCredits, () => Application.Quit() };
-            for (int i = 0; i < labels.Length; i++)
+            int shown = WebPlatform.IsWeb ? labels.Length - 1 : labels.Length;   // a browser tab is closed, not quit
+            for (int i = 0; i < shown; i++)
             {
                 var b = Ui.Button(title, labels[i], labels[i], acts[i], i == 0 ? Palette.PostalRed : Palette.Cream, i == 0 ? Palette.Cream : Palette.Ink, i == 0 ? 46 : 34);
                 b.Image.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(84, -480 - i * 88 - (i > 0 ? 22 : 0)), new Vector2(i == 0 ? 400 : 340, i == 0 ? 96 : 74));
@@ -358,12 +359,22 @@ namespace HWC.Gameplay
             ToggleRow(left, "SHOW PACKING GRID", -520, "grid");
             iconsBtn = CycleRow(left, "GAMEPAD BUTTON ICONS", -585, CycleIcons);
             ToggleRow(right, "FULLSCREEN", -170, "full");
-            windowBtn = CycleRow(right, "WINDOW SIZE", -235, CycleWindow);
-            frameBtn = CycleRow(right, "FRAME RATE LIMIT (VSync off)", -300, CycleFrameCap);
-            ToggleRow(right, "VSYNC", -365, "vsync");
-            ToggleRow(right, "PAUSE WHEN IN THE BACKGROUND", -430, "bgpause");
-            ToggleRow(right, "LARGER TEXT (cards, notes, hints)", -495, "text");
-            FidelityRow(right, -575);
+            if (WebPlatform.IsWeb)
+            {
+                // the browser sizes the page and paces the frames: no window size, frame rate limit or VSync
+                ToggleRow(right, "PAUSE WHEN IN THE BACKGROUND", -235, "bgpause");
+                ToggleRow(right, "LARGER TEXT (cards, notes, hints)", -300, "text");
+                FidelityRow(right, -380);
+            }
+            else
+            {
+                windowBtn = CycleRow(right, "WINDOW SIZE", -235, CycleWindow);
+                frameBtn = CycleRow(right, "FRAME RATE LIMIT (VSync off)", -300, CycleFrameCap);
+                ToggleRow(right, "VSYNC", -365, "vsync");
+                ToggleRow(right, "PAUSE WHEN IN THE BACKGROUND", -430, "bgpause");
+                ToggleRow(right, "LARGER TEXT (cards, notes, hints)", -495, "text");
+                FidelityRow(right, -575);
+            }
             var tl = Ui.Text(p.transform, "tapeLabel", "TAPE DESIGN", 30, Palette.Ink, Ui.Display, TextAlignmentOptions.Left);
             tl.rectTransform.Place(new Vector2(0, 1), new Vector2(0, 1), new Vector2(60, -652), new Vector2(400, 40));
             tapeRow = Ui.Rect("tapes", p.transform);
@@ -474,12 +485,13 @@ namespace HWC.Gameplay
 
         void RefreshDisplayButtons()
         {
+            iconsBtn.Label.text = PadGlyphs.SettingNames[Mathf.Clamp(G.Save.ButtonIcons, 0, PadGlyphs.SettingNames.Length - 1)];
+            if (windowBtn == null) return;   // the browser build has no window or frame-rate rows
             bool full = G.Save.Fullscreen;
             windowBtn.Label.text = full ? "FULLSCREEN" : $"{(G.Save.WindowW > 0 ? G.Save.WindowW : Screen.width)} \u00D7 {(G.Save.WindowH > 0 ? G.Save.WindowH : Screen.height)}";
             windowBtn.SetInteractable(!full);
             frameBtn.Label.text = G.Save.FrameCap > 0 ? $"{G.Save.FrameCap} FPS" : "UNLIMITED";
             frameBtn.SetInteractable(!G.Save.VSync);
-            iconsBtn.Label.text = PadGlyphs.SettingNames[Mathf.Clamp(G.Save.ButtonIcons, 0, PadGlyphs.SettingNames.Length - 1)];
         }
 
         UiButton CycleRow(Transform parent, string label, float y, Action onClick)
@@ -593,7 +605,10 @@ namespace HWC.Gameplay
                     case "shake": G.Save.ScreenShake = on; G.Rig.ShakeEnabled = on; break;
                     case "motion": G.Save.ReducedMotion = on; Fx.Reduced = on; break;
                     case "grid": G.Save.ShowGrid = on; if (G.Station.Box != null) G.Station.Box.ShowGrid(on); break;
-                    case "full": G.Save.Fullscreen = on; G.ApplyDisplay(); if (windowBtn != null) RefreshDisplayButtons(); break;
+                    case "full":
+                        // in a browser the page goes fullscreen (on this click, or the next if the browser wants one) and Esc leaves it
+                        if (WebPlatform.IsWeb) { Screen.fullScreen = on; break; }
+                        G.Save.Fullscreen = on; G.ApplyDisplay(); if (windowBtn != null) RefreshDisplayButtons(); break;
                     case "vsync": G.Save.VSync = on; G.ApplyDisplay(); if (frameBtn != null) RefreshDisplayButtons(); break;
                     case "bgpause": G.Save.PauseInBackground = on; break;
                     case "text": G.Save.LargerText = on; TextScale.Set(on); break;
@@ -615,7 +630,7 @@ namespace HWC.Gameplay
             {
                 bool v = key == "shake" ? G.Save.ScreenShake : key == "motion" ? G.Save.ReducedMotion : key == "grid" ? G.Save.ShowGrid
                     : key == "vsync" ? G.Save.VSync : key == "bgpause" ? G.Save.PauseInBackground
-                    : key == "text" ? G.Save.LargerText : G.Save.Fullscreen;
+                    : key == "text" ? G.Save.LargerText : WebPlatform.IsWeb ? Screen.fullScreen : G.Save.Fullscreen;
                 syncing = true;
                 t.isOn = !v;
                 t.isOn = v;

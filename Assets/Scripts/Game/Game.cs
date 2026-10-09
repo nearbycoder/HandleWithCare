@@ -133,6 +133,13 @@ namespace HWC.Gameplay
             QualitySettings.vSyncCount = Save.VSync ? 1 : 0;
             Application.targetFrameRate = Save.FrameCap > 0 ? Save.FrameCap : -1;   // only matters with VSync off
             if (Application.isEditor) return;
+            if (WebPlatform.IsWeb)
+            {
+                // the browser paces frames itself; fullscreen and the window are the page's (FULLSCREEN asks the browser)
+                QualitySettings.vSyncCount = 1;
+                Application.targetFrameRate = -1;
+                return;
+            }
             if (Save.Fullscreen) Screen.fullScreenMode = FullScreenMode.FullScreenWindow;
             else if (Save.WindowW > 0 && Save.WindowH > 0) Screen.SetResolution(Save.WindowW, Save.WindowH, FullScreenMode.Windowed);
             else Screen.fullScreenMode = FullScreenMode.Windowed;
@@ -184,7 +191,7 @@ namespace HWC.Gameplay
             var lvl = Level;
             _ = lvl.Kinematics;   // built here, not on two threads at once
             RestoreSetupMs = restoreClock.Elapsed.TotalMilliseconds;
-            restoring = System.Threading.Tasks.Task.Run(() => Simulator.Run(lvl, pk));
+            restoring = WebPlatform.Run(() => Simulator.Run(lvl, pk));
         }
 
         /// <summary>For the save test: the main thread's share of the last restore (reading and checking the box).</summary>
@@ -248,6 +255,8 @@ namespace HWC.Gameplay
                 return;
             }
             ShowTitle();
+            WebPlatform.Ready($"save {SaveData.LastLoad}, fidelity {GraphicsQuality.Names[GraphicsQuality.Level]}, shake {(Save.ScreenShake ? "on" : "off")}, " +
+                              $"music {Save.MusicVolume:0.00}, {Screen.width}x{Screen.height}");
         }
 
         public void ShowTitle()
@@ -322,7 +331,7 @@ namespace HWC.Gameplay
             var lvl = Level;
             var pk = CurrentPacking.Clone();
             _ = lvl.Kinematics;
-            var task = System.Threading.Tasks.Task.Run(() => Simulator.Run(lvl, pk));
+            var task = WebPlatform.Run(() => Simulator.Run(lvl, pk));
             var box = Station.Box;
             box.ShowGrid(false);
             box.SetTapeStyle(Save.Tape);
@@ -352,6 +361,7 @@ namespace HWC.Gameplay
             var rec = task.Result;
             LastRun = rec;
             Phase = Phase.Journey;
+            WebPlatform.Log($"journey: delivery {Level.Number}, {rec.Duration:0.0} s");
             Hud.ShowJourney(Level, rec);
             Journey.Play(rec, Station.Box, OnJourneyDone);
         }
@@ -392,6 +402,7 @@ namespace HWC.Gameplay
         void ShowResultsNow()
         {
             Phase = Phase.Results;
+            WebPlatform.Log($"review: delivery {Level.Number}, {LastRun.Outcome.Stars} stars");
             Hud.ShowResults(Level, LastRun);
         }
 

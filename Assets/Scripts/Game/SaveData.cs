@@ -49,7 +49,7 @@ namespace HWC.Gameplay
         public bool Fullscreen = true;
         public bool ShowGrid = true;
         public bool HighQuality = true;       // before round 12; still written (HIGH or ULTRA) for older builds
-        public int Fidelity = -1;             // GRAPHICS FIDELITY, LOW 0 to ULTRA 3; -1: from HighQuality (on HIGH, off MEDIUM)
+        public int Fidelity = WebPlatform.IsWeb ? 1 : -1;   // GRAPHICS FIDELITY, LOW 0 to ULTRA 3; -1: from HighQuality (on HIGH, off MEDIUM). MEDIUM in a browser
         public bool VSync = true;
         public int FrameCap = 120;            // frames per second when VSync is off; 0 = unlimited
         public int WindowW, WindowH;          // windowed size; 0 = leave the window as launched
@@ -160,7 +160,14 @@ namespace HWC.Gameplay
                     f.Write(bytes, 0, bytes.Length);
                     f.Flush(true);
                 }
-                if (File.Exists(PathOnDisk)) File.Replace(tmp, PathOnDisk, BackupPath);
+                if (File.Exists(PathOnDisk) && WebPlatform.IsWeb)
+                {
+                    // the browser's file system has no File.Replace; the page persists the frame's changes together
+                    File.Copy(PathOnDisk, BackupPath, true);
+                    File.Delete(PathOnDisk);
+                    File.Move(tmp, PathOnDisk);
+                }
+                else if (File.Exists(PathOnDisk)) File.Replace(tmp, PathOnDisk, BackupPath);
                 else File.Move(tmp, PathOnDisk);
                 if (LogWrites)
                 {

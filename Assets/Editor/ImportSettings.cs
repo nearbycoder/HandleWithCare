@@ -54,6 +54,17 @@ namespace HWC.EditorTools
             // keep alpha-tested leaf cards from thinning out with distance
             t.mipMapsPreserveCoverage = foliage;
             if (foliage) t.alphaTestReferenceValue = 0.45f;
+            // the browser build downloads every texture before the title: crunched DXT, at most 1024 (masks 512)
+            t.SetPlatformTextureSettings(new TextureImporterPlatformSettings
+            {
+                name = "WebGL",
+                overridden = true,
+                maxTextureSize = file.EndsWith("_mask") ? 512 : 1024,
+                format = TextureImporterFormat.Automatic,
+                textureCompression = TextureImporterCompression.Compressed,
+                crunchedCompression = true,
+                compressionQuality = 50,
+            });
         }
 
         void OnPreprocessAudio()
