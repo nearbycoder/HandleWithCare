@@ -15,9 +15,14 @@
 </p>
 
 <p align="center">
-  <a href="docs/media/trailer.mp4"><img src="docs/media/trailer-poster.jpg" alt="Watch the trailer (1:39)" width="85%"></a>
-  <br><sub>▶ 1:39 feature trailer (MP4, 35 MB): click the poster, or <a href="docs/media/trailer.mp4?raw=true">download the video</a>.</sub>
+  <a href="docs/media/trailer.mp4"><img src="docs/media/trailer-poster.jpg" alt="Watch the trailer (1:45)" width="85%"></a>
+  <br><sub>▶ 1:45 feature trailer (MP4, 37 MB), recorded in the game at GRAPHICS FIDELITY ULTRA: click the poster, or <a href="docs/media/trailer.mp4?raw=true">download the video</a>.</sub>
 </p>
+
+> **Which version is this?** This README describes version 0.2.0, the game after the twelve improvement rounds in
+> [docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md). The download on [Releases](https://github.com/nearbycoder/HandleWithCare/releases/latest)
+> is still **v0.1.0 from October 4, 2026** (Linux only), which has none of them: no Ask Mabel, Overtime, gamepad,
+> care meters, GIFs or Graphics Fidelity. To play 0.2.0, [build it from source](#build-from-source).
 
 ---
 
@@ -91,7 +96,7 @@ There is no touch support.
 
 ## Features
 
-<img src="docs/media/screenshots/02-packing.jpg" alt="Packing The Vase and the Dragon: Ember's item card is open and his translucent ghost is being placed next to the vase" width="100%">
+<img src="docs/media/screenshots/02-packing.jpg" alt="Packing The Vase and the Dragon: the order card's route with a knock icon after each stop, Ember's item card open with its controls line (Click drop, R face the other way, Esc back to the shelf), and his translucent ghost being placed next to the vase" width="100%">
 
 **Spatial packing with personality.** Everything sits on a grid and has to rest on something
 (balloons rest against the ceiling). Each of the 19 kinds of item has a quirk on its card. Fragile
@@ -115,6 +120,8 @@ stay at or under par for a star.
 
 <img src="docs/media/screenshots/03-ember-sneezes.jpg" alt="In the sorting depot the box is tipped on its side and Ember sneezes fire at the vase: ACHOO!" width="100%">
 
+<img src="docs/media/screenshots/11-ask-mabel.jpg" alt="Ask Mabel's fourth hint on The Vase and the Dragon: yellow ghosts of her whole packing in the box, each marked with a check or a cross, and her note counting what is in place, in the way and extra" width="100%">
+
 **Ask Mabel.** After a trip that missed a star, Mabel will help if you ask. The first hint is a note
 about the item at risk (where it sits in her packing and what is beside it). The next ones show that
 item's exact spot as a ghost in the box, then her dividers and shelves, then her whole packing. If the
@@ -125,6 +132,8 @@ with a cross, your pieces that aren't in her packing (extra padding, an item som
 tint and a cross too (so none of it depends on telling red from green), and her note counts them ("7/9 in
 place · 2 in the way · 2 extra"). Hints never cost stars; the delivery log just pencils
 in "hinted".
+
+<img src="docs/media/screenshots/12-care-meters.jpg" alt="The trip on the van: the tall vase has toppled at the hard brake and SMASHED into shards, and the care meters in the corner name it SHATTERED" width="100%">
 
 **Watch the trip.** Seal the box and the journey plays out with a director camera that knows the
 future: it slows down and leans in just before something goes wrong, and shakes on the big hits.
@@ -197,9 +206,8 @@ and random item-only packings never get through.
 That's 19 item types, 3 kinds of padding plus dividers, shelves and straps, and six journey
 environments. There's also an onboarding tutorial and shift title cards, plus a delivery log
 (point at a card to see which of its three stars is missing, your best cost against par and your
-best care against the 65% line), settings (volumes, screen shake, reduced motion, packing grid, gamepad button icons, larger
-text, fullscreen or a window size, VSync and a frame-rate limit, GRAPHICS FIDELITY from LOW to ULTRA, pausing
-when the window loses focus, and starting over), pause, and a replay with three camera modes.
+best care against the 65% line), [settings](#settings-and-accessibility), pause, and a replay with
+three camera modes.
 
 Progress is saved as you go, including a box you haven't sealed yet: leave for the menu or quit, and
 it's on the bench when you come back, with the last trip's report and trails (the last box shipped is
@@ -213,15 +221,49 @@ from v0.1.0, the last box you shipped for each delivery becomes MY BEST, if it s
 **Start over** in Settings clears the progress and keeps your settings. It asks first, and the old
 save stays on disk as `save.erased-<date>.json`.
 
+## Settings and accessibility
+
+<img src="docs/media/screenshots/13-settings.jpg" alt="Settings over the title screen: volumes, screen shake, reduced motion, packing grid, gamepad button icons, display options, larger text, the GRAPHICS FIDELITY steps LOW, MEDIUM, HIGH and ULTRA with ULTRA chosen, and the tape designs" width="100%">
+
+Settings opens from the title screen or the pause menu (`Esc`, or Start on a pad). The menus fade in over a
+fraction of a second, and the button under the pointer or the pad's cursor gets a ring.
+
+- **Sound:** master, music and sound-effect volumes.
+- **Display:** fullscreen or a window size (1280×720 up to 2560×1440, as far as the screen allows), VSync, a
+  frame-rate limit for when VSync is off (30, 60, 120 or unlimited), and pausing when the window loses focus.
+- **GRAPHICS FIDELITY** in four steps. Click a step, use the pad's cursor and A, or ← and → in Settings; each
+  step shows a line saying what it changes, and the change shows at once.
+
+  | Step | What it changes |
+  | --- | --- |
+  | LOW | 67% render scale, no MSAA, hard shadows to 18 m in one 1024 cascade, no SSAO, bloom or blur, half-size textures without anisotropic filtering, a 64-pixel reflection probe, a 16-step grading LUT, half the particles, no shadows from the unboxing's spotlight |
+  | MEDIUM | What the old HIGH QUALITY GRAPHICS switch did when off: 80% render scale, no MSAA, shadows to 22 m, no SSAO |
+  | HIGH (default) | Full resolution, 4× MSAA, soft shadows to 40 m in two 2048 cascades, SSAO, bloom, the background blur on the unboxing and the review |
+  | ULTRA | 125% supersampling with 4× MSAA, 4096 shadow maps in four cascades to 55 m, soft shadows from the bench lamp, high-quality bloom (more passes) and blur sampling, 16× anisotropic filtering, a 512-pixel reflection probe, a 64-step LUT, 1.6× particles |
+
+  A save from before this setting existed starts on HIGH (the old switch on) or MEDIUM (off).
+- **Comfort:** SCREEN SHAKE can be turned off, and REDUCED MOTION drops the slow motion, thins the particles
+  and makes the menus only fade.
+- **Reading:** LARGER TEXT grows the item cards, notes and hints (Mabel's sticky note gets taller instead,
+  so her hints stay at least 19 units, about 25 with it on). SHOW PACKING GRID draws the box's cells.
+- **Not only colour:** Mabel's hint ghosts carry a check mark or a cross as well as green or red, and her
+  note counts them; on the bench a failure is a red cross and a near miss an amber warning sign.
+- **Input:** everything works with the mouse, with the keyboard's shortcuts, or with a gamepad alone. Letter
+  shortcuts follow the keyboard layout's labels (QWERTZ, AZERTY). GAMEPAD BUTTON ICONS picks Xbox letters or
+  PlayStation shapes when AUTO guesses wrong. `Esc` and the pad's B back out of every menu.
+- **Tape design:** any tape you have unlocked.
+- **START OVER** clears the progress and keeps the settings (it asks first and keeps a copy of the old save).
+
 ## Screenshots
 
 | | |
 | --- | --- |
 | <img src="docs/media/screenshots/01-title.jpg" alt="Title screen: the Handle With Care sign above the menu, a taped parcel on the bench"> | <img src="docs/media/screenshots/02-packing.jpg" alt="Packing The Vase and the Dragon"> |
 | <img src="docs/media/screenshots/06-catapult.jpg" alt="Express catapult: the box flies through the air, WHEEE"> | <img src="docs/media/screenshots/07-ferry.jpg" alt="The ferry deck on rough seas, a BIG WAVE coming"> |
-| <img src="docs/media/screenshots/08-doorstep.jpg" alt="Dash the courier tosses the parcel onto the porch"> | <img src="docs/media/screenshots/09-last-trip-trails.jpg" alt="Back at the bench after a failed trip: the vase's trail and a red cross where it shattered"> |
+| <img src="docs/media/screenshots/08-doorstep.jpg" alt="The last mile: the parcel is tossed onto the porch, TOSS!"> | <img src="docs/media/screenshots/09-last-trip-trails.jpg" alt="Back at the bench after a failed trip: the vase's trail, a red cross where it shattered, the LAST TRIP report and the vase's card saying it shattered at the hard brake"> |
 | <img src="docs/media/screenshots/03-ember-sneezes.jpg" alt="Ember sneezes at the vase in the sorting depot"> | <img src="docs/media/screenshots/10-results.jpg" alt="Results: PERFECT DELIVERY with three stars and the customer's review"> |
 | <img src="docs/media/screenshots/05-box-on-fire.jpg" alt="BOX ON FIRE"> | <img src="docs/media/screenshots/04-unboxing.jpg" alt="The vase comes out PERFECT"> |
+| <img src="docs/media/screenshots/11-ask-mabel.jpg" alt="Ask Mabel: her whole packing as ghosts in the box"> | <img src="docs/media/screenshots/12-care-meters.jpg" alt="The care meters during the trip: the vase SHATTERED"> |
 
 ## Play it
 
@@ -234,8 +276,12 @@ cd HandleWithCare-v0.1.0-linux-x86_64
 ./HandleWithCare.x86_64                 # on Wayland, add -force-wayland if the window never appears
 ```
 
-It needs a 64-bit Linux desktop with working Vulkan or OpenGL drivers. Progress is saved to
-`~/.config/unity3d/Mossbury Parcel Post/Handle With Care/`.
+Progress is saved to `~/.config/unity3d/Mossbury Parcel Post/Handle With Care/`.
+
+**System requirements.** A 64-bit (x86_64) Linux desktop with working Vulkan or OpenGL
+drivers, and about 250 MB of disk space. A mouse and keyboard or a gamepad; there is no touch input. No
+minimum GPU has been established: it was made and tested on an AMD Radeon 8060S integrated GPU shared with
+other work, and GRAPHICS FIDELITY LOW is there for weaker hardware.
 
 The release on GitHub is still v0.1.0 (Linux only). Version 0.2.0 (this README) builds locally for
 Linux and macOS but hasn't been published.
@@ -372,10 +418,15 @@ changed during the run.
 **Recreate the trailer and README media.**
 
 ```sh
-Tools/trailer/capture.sh                # plays Tools/trailer/shots.txt in the built player (~6 min)
-python3 Tools/trailer/make_trailer.py   # docs/media/trailer.mp4
-python3 Tools/trailer/make_media.py     # docs/media/teaser.webp, docs/media/trailer-poster.jpg
+Tools/nested.sh Tools/trailer/capture.sh   # plays Tools/trailer/shots.txt in the built player, in a private KWin
+                                           # (~10 min, ~6 GB of frames in Recordings/clips; CLIPS=DIR elsewhere,
+                                           # FIDELITY=0..3 for another step than ULTRA)
+python3 Tools/trailer/make_trailer.py      # docs/media/trailer.mp4 (--clips DIR to match)
+python3 Tools/trailer/make_media.py        # docs/media/teaser.webp, docs/media/trailer-poster.jpg (--clips DIR)
 ```
+
+The trailer is cut from these clips only: every frame is the game, with its own sound effects and music.
+The README screenshots are frames of the same clips.
 
 ## Project structure
 
@@ -434,8 +485,9 @@ docs/                 Design brief, design plan, README media
   time, so it can slow down, lean in and shake before a failure happens. The replay has three
   camera modes.
 - **A trailer mode in the game.** `-hwcTrailer` plays a data-driven shot list with real mouse and
-  keyboard events. It renders on a fixed 30 fps clock (`Time.captureDeltaTime`) and records the
-  game's own audio mix with `AudioRenderer`, so the trailer is reproducible frame for frame.
+  keyboard events. It renders on a fixed 30 fps clock (`Time.captureDeltaTime`), so even GRAPHICS
+  FIDELITY ULTRA never drops a frame in the capture, and records the game's own audio mix with
+  `AudioRenderer`.
 
 ## Credits and tooling
 
@@ -466,19 +518,11 @@ Overtime), every one validated solvable with three stars.
   runs on a worker thread and the textures are BC7.
 - **Performance.** The frame rate on a dedicated GPU has not been measured. On the shared machine it
   was built on, other programs kept the GPU about 97% busy. The game's own main thread takes about 9 ms
-  per frame during a journey (`Tools/play.sh -hwcFps` logs this). Settings has VSync with a frame-rate
-  limit (30, 60, 120 or unlimited) for laptops and handhelds, and GRAPHICS FIDELITY in four steps (click a
-  step, the pad's cursor and A, or ← and → in Settings):
-
-  | Step | What it changes |
-  | --- | --- |
-  | LOW | 67% render scale, no MSAA, hard shadows to 18 m in one 1024 cascade, no SSAO, bloom or blur, half-size textures without anisotropic filtering, a 64-pixel reflection probe, a 16-step grading LUT, half the particles, no shadows from the unboxing's spotlight |
-  | MEDIUM | What the old HIGH QUALITY GRAPHICS switch did when off: 80% render scale, no MSAA, shadows to 22 m, no SSAO |
-  | HIGH (default) | The look as shipped: full resolution, 4× MSAA, soft shadows to 40 m in two 2048 cascades, SSAO, bloom, the background blur on the unboxing and the review |
-  | ULTRA | 125% supersampling with 4× MSAA, 4096 shadow maps in four cascades to 55 m, soft shadows from the bench lamp, high-quality bloom (more passes) and blur sampling, 16× anisotropic filtering, a 512-pixel reflection probe, a 64-step LUT, 1.6× particles |
-
-  `Tools/fidelity.sh` takes the same three frames at every step and times them (see docs/IMPROVEMENTS.md,
-  round 12, for the numbers). On this shared GPU they are only comparable within one run.
+  per frame during a journey (`Tools/play.sh -hwcFps` logs this). For laptops and handhelds there are VSync,
+  a frame-rate limit and the four [GRAPHICS FIDELITY](#settings-and-accessibility) steps.
+  `Tools/fidelity.sh` takes the same three frames at every step and times them (see
+  [docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md), round 12, for the numbers): LOW was the fastest, but on this
+  shared GPU the other steps couldn't be ranked, and ULTRA's cost on a quiet GPU is unknown.
 - **Foliage.** Trees and bushes use alpha-tested leaf cards over sculpted canopies. Up close they look
   more like good models than real foliage. Dash the courier is a simple jointed figure animated in
   code.
