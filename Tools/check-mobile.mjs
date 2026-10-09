@@ -731,8 +731,8 @@ async function play({ page, context, log, shot, waitLog, fps, env }) {
       }
     }
     await tapEl("#cam-btn");
-    await tapEl("#play-btn");   // (a speed starts it again: stop it after)
-    await tapEl("#speed-btn");
+    await tapEl("#speed-btn");   // (a speed plays it again: stop it after, so NEXT TROUBLE still has a replay)
+    await tapEl("#play-btn");
     g = await game();
     await shot("14-replay");
     check(g.speed !== 1 && /CLOSE|WIDE/.test(g.cam), `speed and camera by tap (speed ${g.speed}, camera ${g.cam})`);
