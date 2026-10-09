@@ -19,6 +19,9 @@
   <br><sub>▶ 1:45 feature trailer (MP4, 37 MB), recorded in the game at GRAPHICS FIDELITY ULTRA: click the poster, or <a href="docs/media/trailer.mp4?raw=true">download the video</a>.</sub>
 </p>
 
+<p align="center"><b><a href="https://nearbycoder.github.io/HandleWithCare/">▶ Play in your browser</a></b> · about a 71 MB download, no install
+<br><sub>Desktop Chrome, Edge or Firefox with WebGL 2, and a mouse and keyboard or a gamepad. <a href="#play-in-your-browser">What's different in the browser</a></sub></p>
+
 > **Which version is this?** This README describes version 0.2.0, the game after the twelve improvement rounds in
 > [docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md). The download on [Releases](https://github.com/nearbycoder/HandleWithCare/releases/latest)
 > is still **v0.1.0 from October 4, 2026** (Linux only), which has none of them: no Ask Mabel, Overtime, gamepad,
@@ -298,6 +301,31 @@ xattr -dr com.apple.quarantine "HandleWithCare.app"
 **Windows.** `Tools/unity.sh build-windows` is ready, but the Windows Build Support module isn't
 installed on the machine this was made on, so no Windows build has been made.
 
+### Play in your browser
+
+**[nearbycoder.github.io/HandleWithCare](https://nearbycoder.github.io/HandleWithCare/)** runs version 0.2.0
+in the browser (WebGL 2), served as static files by GitHub Pages.
+
+- **Download:** about 71 MB the first time (a 63 MB data file and a 7 MB WebAssembly file), then cached by the
+  browser. The page shows its progress and says so if WebGL 2 is missing or the download fails.
+- **Tested** headless in Chrome for Testing 151 and Firefox 157 on Linux with `Tools/check-pages.mjs` (a local
+  copy served under `/HandleWithCare/`): the title in about 3 to 5 seconds from a local server, the first
+  delivery packed with the mouse, shipped and reviewed, SAVE GIF, a setting kept across a reload, sound after
+  the first click, and no console errors. Not yet tried in Safari, on Windows or macOS, with a gamepad, or over a real network.
+- **Saves and settings** stay in the browser's own storage for this site (IndexedDB), not in a file. Clearing
+  the site's data clears them; they don't carry over to or from the desktop game.
+- **What's different from the desktop game:** GRAPHICS FIDELITY starts at MEDIUM (all four steps still work;
+  try HIGH on a strong GPU). There is no QUIT, WINDOW SIZE, FRAME RATE LIMIT or VSYNC: the browser owns the
+  window and the frame pacing. FULLSCREEN asks the browser (Esc leaves it). Sound starts with the first click or
+  key, as browsers require. SAVE GIF arrives as a download instead of going to Pictures; so do F12 photos where
+  the browser lets F12 through (most keep it for their developer tools). Pausing the game muffles the music by turning it down rather
+  than filtering it. Textures are smaller and more compressed (1024 pixels at most) to keep the download down.
+  Journeys simulate on the main thread, so shipping a box can pause the screen for a moment on a slow machine.
+- **Not supported:** phones and tablets (no touch input, as on desktop).
+
+To build it: `Tools/build-pages.sh` (the Unity WebGL build, then the site in `Builds/Pages`), and
+`node Tools/check-pages.mjs --serve Builds/Pages [--browser firefox] [--play]` to try it as GitHub serves it.
+
 ## Build from source
 
 You need **Unity 6000.6.2f1** with Linux Build Support (Mono scripting backend), plus Mac or Windows
@@ -311,6 +339,8 @@ Tools/unity.sh                  # open in the editor
 Tools/unity.sh build-linux      # batch build -> Builds/Linux/HandleWithCare.x86_64 (menu: Handle With Care > Build Linux Player)
 Tools/unity.sh build-mac        # Builds/Mac/HandleWithCare.app (universal, unsigned)
 Tools/unity.sh build-windows    # Builds/Windows/HandleWithCare.exe (not tried: module not installed)
+Tools/unity.sh build-web        # Builds/WebGL, the browser build (needs WebGL Build Support)
+Tools/build-pages.sh            # that build, then the GitHub Pages site in Builds/Pages (index.html, .nojekyll)
 Tools/play.sh                   # run the build windowed at 1920x1080
 python3 Tools/package.py        # zip every built player into Builds/Release/ (keeps permissions)
 ```
