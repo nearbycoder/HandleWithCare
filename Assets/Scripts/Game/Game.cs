@@ -56,7 +56,14 @@ namespace HWC.Gameplay
         {
             I = this;
             if (AutoPilot.Requested) AutoPilot.IgnoreFocus();
+            WebPlatform.StartMemoryCounters();
             Save = SaveData.Load();
+            if (WebPlatform.Lite && Save.FidelityLevel > GraphicsQuality.Low)
+            {
+                // the last visit's tab closed while the game ran: most likely the phone ran out of memory
+                Debug.Log("[Web] the last visit closed unexpectedly: GRAPHICS FIDELITY to LOW");
+                Save.Fidelity = GraphicsQuality.Low;
+            }
             BuildCore();
         }
 
@@ -89,6 +96,7 @@ namespace HWC.Gameplay
             es.transform.SetParent(transform, false);
             es.AddComponent<EventSystem>();
             es.AddComponent<InputSystemUIInputModule>();
+            TouchInput.Create(transform);   // before the HUD, which follows its safe area
 
             Canvas = Ui.CreateCanvas("UI", 10, transform);
             OverlayCanvas = Ui.CreateCanvas("Overlay", 50, transform);
@@ -256,7 +264,8 @@ namespace HWC.Gameplay
             }
             ShowTitle();
             WebPlatform.Ready($"save {SaveData.LastLoad}, fidelity {GraphicsQuality.Names[GraphicsQuality.Level]}, shake {(Save.ScreenShake ? "on" : "off")}, " +
-                              $"music {Save.MusicVolume:0.00}, {Screen.width}x{Screen.height}");
+                              $"music {Save.MusicVolume:0.00}, {Screen.width}x{Screen.height}{(WebPlatform.Mobile ? ", mobile" : "")}{(WebPlatform.Lite ? ", lite" : "")}");
+            WebPlatform.LogMemory("at the title");
         }
 
         public void ShowTitle()
@@ -403,6 +412,7 @@ namespace HWC.Gameplay
         {
             Phase = Phase.Results;
             WebPlatform.Log($"review: delivery {Level.Number}, {LastRun.Outcome.Stars} stars");
+            WebPlatform.LogMemory("at the review");
             Hud.ShowResults(Level, LastRun);
         }
 

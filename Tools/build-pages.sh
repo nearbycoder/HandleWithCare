@@ -18,7 +18,7 @@ if [ "${1:-}" != "--no-build" ]; then
     grep -E "error|\[HWC\]" "$ROOT/Logs/web-build.log" | tail -20 >&2 || true
     exit 1
   fi
-  grep "\[HWC\] WebGL build" "$ROOT/Logs/web-build.log" | tail -1
+  grep "\[HWC\] WebGL" "$ROOT/Logs/web-build.log" | tail -3   # the DXT build, the ETC2 build and its files
 fi
 [ -f "$WEB/index.html" ] || { echo "no browser build at $WEB" >&2; exit 1; }
 rm -rf "$SITE"

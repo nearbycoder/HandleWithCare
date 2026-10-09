@@ -22,7 +22,10 @@ namespace HWC.UI
         {
             var f = Resources.Load<Font>("Fonts/" + name);
             if (f == null) { Debug.LogError("[Ui] missing font " + name); return TMP_Settings.defaultFontAsset; }
-            var fa = TMP_FontAsset.CreateFontAsset(f, 90, 9, UnityEngine.TextCore.LowLevel.GlyphRenderMode.SDFAA, 2048, 2048);
+            // on a phone or tablet the text is drawn small and memory is short: quarter-size atlases (more get added if needed)
+            var fa = HWC.Gameplay.WebPlatform.Mobile
+                ? TMP_FontAsset.CreateFontAsset(f, 60, 6, UnityEngine.TextCore.LowLevel.GlyphRenderMode.SDFAA, 1024, 1024)
+                : TMP_FontAsset.CreateFontAsset(f, 90, 9, UnityEngine.TextCore.LowLevel.GlyphRenderMode.SDFAA, 2048, 2048);
             fa.name = name;
             return fa;
         }

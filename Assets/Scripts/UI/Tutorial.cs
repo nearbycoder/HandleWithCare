@@ -19,6 +19,7 @@ namespace HWC.Gameplay
         {
             public string Text;
             public string PadText;             // the same note for a gamepad
+            public string TouchText;           // and for the touch controls
             public Func<Vector2?> Target;      // screen position to point at (canvas local), null = no arrow
             public Func<bool> Done;
         }
@@ -61,6 +62,7 @@ namespace HWC.Gameplay
             {
                 Text = "Here's Edna's teacup. Click it to pick it up.",
                 PadText = "Here's Edna's teacup. Point at it and press {A}.",
+                TouchText = "Here's Edna's teacup. Drag it into the box.",
                 Target = () => WorldToCanvas(G.Station.SlotPosition(0) + Vector3.up * 0.25f),
                 Done = () => pc.Tool == Tool.Item || pc.RemainingItems().Count == 0,
             });
@@ -68,6 +70,7 @@ namespace HWC.Gameplay
             {
                 Text = "Now drop it into the box. Click a spot on the floor.",
                 PadText = "Now drop it into the box. Pick a spot on the floor, press {A}.",
+                TouchText = "Now into the box: let go over the floor, or tap a spot on it.",
                 Target = () => WorldToCanvas(G.Station.Box.CellToWorld(1.5f, 1.4f)),
                 Done = () => pc.RemainingItems().Count == 0,
             });
@@ -75,6 +78,7 @@ namespace HWC.Gameplay
             {
                 Text = "Teacups hate rattling about. Grab some crumpled paper.",
                 PadText = "Teacups hate rattling about. {RB} for crumpled paper.",
+                TouchText = "Teacups hate rattling about. Tap the crumpled paper.",
                 Target = () => G.Hud.SlotScreen(MaterialSlot.Paper),
                 Done = () => pc.Tool == Tool.Padding || pc.Pk.UsedMaterials().Paper > 0,
             });
@@ -82,6 +86,7 @@ namespace HWC.Gameplay
             {
                 Text = "Click and drag to stuff the gaps. Fill every empty spot!",
                 PadText = "Hold {A} and sweep the d-pad to stuff the gaps. Fill them all!",
+                TouchText = "Drag a finger across the gaps to stuff them. Fill every empty spot!",
                 Target = () => WorldToCanvas(G.Station.Box.CellToWorld(0.5f, 1.4f)),
                 Done = () => pc.Pk.UsedMaterials().Paper >= 4,
             });
@@ -89,6 +94,7 @@ namespace HWC.Gameplay
             {
                 Text = "Snug as a bug. Seal it and ship it!",
                 PadText = "Snug as a bug. Press {View} to seal it and ship it!",
+                TouchText = "Snug as a bug. Tap SEAL & SHIP!",
                 Target = () => G.Hud.SealScreen(),
                 Done = () => G.Phase != Phase.Packing,
             });
@@ -104,13 +110,15 @@ namespace HWC.Gameplay
             if (root != null) root.gameObject.SetActive(false);
         }
 
-        bool shownPad;
+        bool shownPad, shownTouch;
         int shownGlyphs = -1;
 
         string StepText(Step st)
         {
             shownGlyphs = PadGlyphs.Version;
-            return (shownPad = Hud.PadPrompts) && st.PadText != null ? PadGlyphs.Format(st.PadText) : st.Text;
+            shownTouch = Hud.TouchPrompts;
+            if ((shownPad = Hud.PadPrompts) && st.PadText != null) return PadGlyphs.Format(st.PadText);
+            return shownTouch && st.TouchText != null ? st.TouchText : st.Text;
         }
 
         /// <summary>The note on screen now (for the self-tests).</summary>
@@ -135,11 +143,11 @@ namespace HWC.Gameplay
         {
             if (!Active) return;
             if (G.Phase != Phase.Packing && index < steps.Count - 1) { Stop(); return; }
-            bool waiting = G.Hud.ShiftCardShowing;
+            bool waiting = G.Hud.ShiftCardShowing || G.Hud.Paused;   // (the note sits above the pause menu otherwise)
             note.gameObject.SetActive(!waiting);
             if (waiting) { arrow.gameObject.SetActive(false); t = 0; return; }
             var st = steps[index];
-            if (Hud.PadPrompts != shownPad || PadGlyphs.Version != shownGlyphs) text.text = StepText(st);   // the player switched devices
+            if (Hud.PadPrompts != shownPad || Hud.TouchPrompts != shownTouch || PadGlyphs.Version != shownGlyphs) text.text = StepText(st);   // the player switched devices
             if (st.Done())
             {
                 index++;

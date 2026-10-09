@@ -109,7 +109,7 @@ namespace HWC.Gameplay
             float foot = 0f;
             if (replay && n > 0)
             {
-                var tip = Ui.Text(careRoot, "tip", "click an item to see its moment", 16, new Color(1f, 0.95f, 0.85f, 0.75f), Ui.Bold, TextAlignmentOptions.Center);
+                var tip = Ui.Text(careRoot, "tip", TouchPrompts ? "tap an item to see its moment" : "click an item to see its moment", 16, new Color(1f, 0.95f, 0.85f, 0.75f), Ui.Bold, TextAlignmentOptions.Center);
                 tip.rectTransform.Place(new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 6), new Vector2(MeterW - 20, 24));
                 tip.enableAutoSizing = true; tip.fontSizeMin = 12; tip.fontSizeMax = 16;
                 foot = 26f;

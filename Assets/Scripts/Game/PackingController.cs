@@ -91,6 +91,7 @@ namespace HWC.Gameplay
         /// <summary>The last trip arrived after the bench opened (simulated again): show its trails.</summary>
         public Recording LastRunShown => lastRun;
         public int UndoDepth => undo.Count;
+        public int RedoDepth => redo.Count;
         public void ShowLastRun(Recording last)
         {
             lastRun = last;

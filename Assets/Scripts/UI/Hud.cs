@@ -63,6 +63,7 @@ namespace HWC.Gameplay
             BuildPause();
             BuildReveal();
             BuildShiftCard();
+            BuildTouch();
             HideAll();
         }
 
@@ -845,7 +846,7 @@ namespace HWC.Gameplay
             sealBtn.SetInteractable(pc.ReadyToSeal);
             if (pc.ReadyToSeal && !wasReady) { sealBtn.Pulse(); Sfx("stamp_ok", 0.5f); }
             wasReady = pc.ReadyToSeal;
-            sealHint.text = remaining > 0 ? $"Pack {remaining} more item{(remaining > 1 ? "s" : "")}" : (ready ? (PadPrompts ? PadGlyphs.Format("{View} to seal") : "Space to seal") : "");
+            sealHint.text = remaining > 0 ? $"Pack {remaining} more item{(remaining > 1 ? "s" : "")}" : (ready ? (PadPrompts ? PadGlyphs.Format("{View} to seal") : TouchPrompts ? "Ready to seal" : "Space to seal") : "");
             RefreshBest(lv);
         }
 
@@ -1073,8 +1074,9 @@ namespace HWC.Gameplay
                     markers.Add(mk.gameObject);
                     if (!failures) nearMarks++;
                 }
-            troubleHint.text = nearMarks > 0 ? "Click the timeline to jump  ·  <color=#F07A6A>red</color> = trouble  ·  <color=#F5A833>amber</color> = near miss"
-                                             : "Click the timeline to jump  ·  red marks = trouble";
+            string jump = TouchPrompts ? "Tap the timeline to jump" : "Click the timeline to jump";
+            troubleHint.text = nearMarks > 0 ? jump + "  ·  <color=#F07A6A>red</color> = trouble  ·  <color=#F5A833>amber</color> = near miss"
+                                             : jump + "  ·  red marks = trouble";
             // leg separators
             var kin = rec.Kin;
             legCuts.Clear();
@@ -1294,9 +1296,12 @@ namespace HWC.Gameplay
         TextMeshProUGUI Prompt(TextMeshProUGUI t, string kb, string pad)
         {
             prompts.Add((t, kb, pad));
-            t.text = PadPrompts ? PadGlyphs.Label(pad) : KeyLabel(kb);
+            t.text = PromptText(kb, pad);
             return t;
         }
+
+        /// <summary>A key or pad button hint as the device in use shows it: none with the touch controls.</summary>
+        static string PromptText(string kb, string pad) => TouchPrompts ? "" : PadPrompts ? PadGlyphs.Label(pad) : KeyLabel(kb);
 
         /// <summary>A one-letter key hint shows the label of the key that does it on this keyboard layout.</summary>
         static string KeyLabel(string kb) => kb != null && kb.Length == 1 && kb[0] >= 'A' && kb[0] <= 'Z' ? Shortcuts.Label(kb[0]) : kb;
@@ -1308,7 +1313,7 @@ namespace HWC.Gameplay
             padPrompts = PadPrompts;
             keysVersion = Shortcuts.Version;
             glyphsVersion = PadGlyphs.Version;
-            foreach (var (t, kb, pad) in prompts) if (t != null) t.text = padPrompts ? PadGlyphs.Label(pad) : KeyLabel(kb);
+            foreach (var (t, kb, pad) in prompts) if (t != null) t.text = PromptText(kb, pad);
             if (packRoot.gameObject.activeSelf && G.Packing.Level != null) RefreshPacking();
             // the item card's controls line is written in the device's prompts too
             if (itemCard.gameObject.activeSelf && !routeCardShown)
@@ -1570,6 +1575,7 @@ namespace HWC.Gameplay
             Shortcuts.Refresh(Keyboard.current);
             PadGlyphs.Refresh(G.Save.ButtonIcons);
             if (PadPrompts != padPrompts || Shortcuts.Version != keysVersion || PadGlyphs.Version != glyphsVersion) RefreshPrompts();
+            UpdateTouch();
             if (camBtn != null && camBtn.gameObject.activeInHierarchy) camBtn.Label.text = "CAM: " + JourneyPlayer.CameraModeNames[G.Journey.CameraMode];
 
             float dt = Clock.UnscaledDelta;

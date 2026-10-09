@@ -49,7 +49,7 @@ namespace HWC.Gameplay
         public bool Fullscreen = true;
         public bool ShowGrid = true;
         public bool HighQuality = true;       // before round 12; still written (HIGH or ULTRA) for older builds
-        public int Fidelity = WebPlatform.IsWeb ? 1 : -1;   // GRAPHICS FIDELITY, LOW 0 to ULTRA 3; -1: from HighQuality (on HIGH, off MEDIUM). MEDIUM in a browser
+        public int Fidelity = WebPlatform.IsWeb ? (WebPlatform.Mobile ? 0 : 1) : -1;   // GRAPHICS FIDELITY, LOW 0 to ULTRA 3; -1: from HighQuality (on HIGH, off MEDIUM). MEDIUM in a browser, LOW on a phone or tablet
         public bool VSync = true;
         public int FrameCap = 120;            // frames per second when VSync is off; 0 = unlimited
         public int WindowW, WindowH;          // windowed size; 0 = leave the window as launched

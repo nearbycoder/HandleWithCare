@@ -19,4 +19,14 @@ mergeInto(LibraryManager.library, {
   HWC_Ready: function () {
     if (typeof window.hwcReady === "function") window.hwcReady();
   },
+
+  // the touch controls follow the game (Assets/Scripts/Game/TouchInput.cs): a JSON object
+  HWC_TouchState: function (json) {
+    if (typeof window.hwcTouchState === "function") window.hwcTouchState(UTF8ToString(json));
+  },
+
+  // the game switched input device by itself ("pad": a gamepad took over)
+  HWC_InputMode: function (mode) {
+    if (typeof window.hwcInputMode === "function") window.hwcInputMode(UTF8ToString(mode));
+  },
 });

@@ -2,19 +2,28 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>{{{ PRODUCT_NAME }}}</title>
     <meta name="description" content="A physics packing puzzle: pack bizarre deliveries, then watch a deterministic journey decide whether they survive.">
     <meta name="theme-color" content="#1F2A44">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="apple-touch-icon" href="icon.png">
     <style>
+      @font-face { font-family: "HWC Display"; src: url("fonts/FiraSansCompressed-Heavy.ttf") format("truetype"); font-display: swap; }
+      :root { --st: env(safe-area-inset-top, 0px); --sr: env(safe-area-inset-right, 0px); --sb: env(safe-area-inset-bottom, 0px); --sl: env(safe-area-inset-left, 0px);
+              --s: 0.35; --cream: #F3E9D2; --paper: #FBF6EA; --ink: #1F2A44; --red: #D9483B; --red-dark: #A8322A; --teal: #2F8F8B; --sticky: #F6D55C; --kraft: #C8955A; }
       html, body { margin: 0; height: 100%; overflow: hidden; background: #1F2A44; color: #F3E9D2;
                    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; overscroll-behavior: none; }
+      /* a game, not a page: no scrolling, zooming, text selection, long-press callouts or tap flashes */
+      html, body, #game, #touch-ui, #rotate { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+      body { touch-action: none; position: fixed; inset: 0; }
       #game { position: fixed; inset: 0; }
       #unity-canvas { width: 100%; height: 100%; display: block; background: #1F2A44; outline: none; touch-action: none; }
-      #cover { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-               gap: 18px; background: #1F2A44; text-align: center; padding: 24px; box-sizing: border-box; }
+      #cover { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 30;
+               gap: 18px; background: #1F2A44; text-align: center; padding: 24px; padding: max(24px, var(--st)) max(24px, var(--sr)) max(24px, var(--sb)) max(24px, var(--sl)); box-sizing: border-box; }
       #cover img { width: 112px; height: 112px; border-radius: 22px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35); }
       .stamp { border: 5px solid #D9483B; border-radius: 14px; padding: 10px 26px; color: #F3E9D2; background: #D9483B;
                font-weight: 900; letter-spacing: 3px; line-height: 1; }
@@ -25,20 +34,124 @@
       #progress div { width: 0; height: 100%; background: #C8955A; transition: width 0.2s; }
       #status { color: #F3E9D2; opacity: 0.75; font-size: 14px; min-height: 1.4em; max-width: 620px; }
       #status.error { color: #FFD9D4; opacity: 1; font-size: 16px; background: rgba(217, 72, 59, 0.35); padding: 12px 18px; border-radius: 10px; }
-      #touch { display: none; color: #DDB27C; font-size: 14px; max-width: 420px; }
-      @media (hover: none) and (pointer: coarse) { #touch { display: block; } }
+      #notice { display: none; color: #1F2A44; background: #F6D55C; font-size: 14px; max-width: 460px; padding: 10px 16px; border-radius: 8px; transform: rotate(-1deg); }
+      #reload { display: none; font: 20px "HWC Display", system-ui, sans-serif; letter-spacing: 1px; color: #F3E9D2; background: #D9483B; border: 0;
+                border-radius: 10px; padding: 12px 28px; min-height: 48px; box-shadow: 0 4px 0 #A8322A; }
+      #touch-note { display: none; color: #DDB27C; font-size: 14px; max-width: 420px; }
+      html[data-input="touch"] #touch-note { display: block; }
       noscript { color: #FFD9D4; }
+      @media (max-height: 420px) { #cover { gap: 10px; } #cover img { width: 64px; height: 64px; border-radius: 14px; } .stamp b { font-size: 30px; } .stamp span { font-size: 22px; } .tagline { display: none; } }
+
+      /* ---- the touch controls: only on touch screens (html[data-input=touch]), never on desktop ---------- */
+      #touch-ui { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 10; font-family: "HWC Display", "Arial Narrow", system-ui, sans-serif; }
+      html[data-input="touch"] #touch-ui { display: block; }
+      #touch-ui .cluster { position: absolute; display: none; gap: 8px; pointer-events: none; }
+      #touch-ui .cluster.on { display: flex; }
+      .tb { pointer-events: auto; touch-action: none; box-sizing: border-box; min-width: 48px; min-height: 48px; padding: 0 12px; border: 0; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; gap: 6px; font: inherit; font-size: 18px; letter-spacing: 0.5px; line-height: 1; white-space: nowrap;
+            color: var(--ink); background: var(--cream); box-shadow: 0 3px 0 rgba(31, 42, 68, 0.35), 0 4px 12px rgba(0, 0, 0, 0.3); transition: transform 0.06s, opacity 0.15s; }
+      .tb.down { transform: translateY(2px) scale(0.96); box-shadow: 0 1px 0 rgba(31, 42, 68, 0.35), 0 2px 6px rgba(0, 0, 0, 0.3); }
+      .tb.off { opacity: 0.45; }
+      .tb.hide { display: none; }
+      .tb.red { color: var(--cream); background: var(--red); box-shadow: 0 3px 0 var(--red-dark), 0 4px 12px rgba(0, 0, 0, 0.3); }
+      .tb.teal { color: var(--cream); background: var(--teal); }
+      .tb.ink { color: var(--cream); background: var(--ink); }
+      .tb.sticky { background: var(--sticky); transform: rotate(1.5deg); }
+      .tb.lit { background: var(--sticky); box-shadow: 0 0 0 3px var(--ink), 0 4px 12px rgba(0, 0, 0, 0.3); }
+      .tb svg { width: 22px; height: 22px; fill: currentColor; flex: none; }
+      .tb.big { min-height: 58px; font-size: 26px; padding: 0 20px; border-radius: 14px; }
+      .label { color: var(--cream); font-size: 15px; text-shadow: 0 1px 2px #000, 0 0 6px rgba(0, 0, 0, 0.6); text-align: center; pointer-events: none; }
+      /* where: inside the safe area, clear of the notch and the home indicator */
+      #tc-pause { top: calc(var(--st) + 8px); right: calc(var(--sr) + 12px + var(--s) * 372px); }
+      #tc-left { left: calc(var(--sl) + 10px); bottom: calc(var(--sb) + 10px); flex-direction: column-reverse; }
+      #tc-left .row { display: flex; gap: 8px; }
+      #tc-right { right: calc(var(--sr) + 10px); bottom: calc(var(--sb) + 10px); flex-direction: column; align-items: flex-end; }
+      #tc-hand { right: calc(var(--sr) + 10px); bottom: calc(var(--sb) + 10px); flex-direction: column; align-items: flex-end; }
+      #tc-hand .row { display: flex; gap: 8px; }
+      #tc-skip { right: calc(var(--sr) + 10px); bottom: calc(var(--sb) + 10px); }
+      #tc-replay { left: calc(var(--sl) + 10px); right: calc(var(--sr) + 10px); bottom: calc(var(--sb) + 8px); flex-direction: column; }
+      #tc-replay .row { display: flex; gap: 8px; align-items: center; }
+      #tc-replay .grow { flex: 1; }
+      #scrub { pointer-events: auto; touch-action: none; position: relative; height: 44px; flex: 1; }
+      #scrub .track { position: absolute; left: 0; right: 0; top: 16px; height: 12px; border-radius: 6px; background: rgba(31, 26, 22, 0.7); box-shadow: 0 0 0 2px rgba(243, 233, 210, 0.5); }
+      #scrub .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 6px; background: var(--sticky); }
+      #scrub .mark { position: absolute; top: -6px; width: 8px; height: 24px; margin-left: -4px; border-radius: 4px; background: #E0503F; box-shadow: 0 0 0 1.5px var(--cream); }
+      #scrub .mark.near { background: #F5A833; box-shadow: 0 0 0 1.5px var(--ink); }
+      #scrub .knob { position: absolute; top: 8px; width: 28px; height: 28px; margin-left: -14px; border-radius: 14px; background: var(--cream); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
+      #seal-hint:empty { display: none; }
+
+      /* ---- turn the phone sideways: the game is laid out for landscape ----------------------------------- */
+      #rotate { display: none; position: fixed; inset: 0; z-index: 40; background: #1F2A44; color: var(--cream); flex-direction: column; align-items: center;
+                justify-content: center; gap: 22px; text-align: center; padding: 32px; box-sizing: border-box; font-family: "HWC Display", system-ui, sans-serif; }
+      #rotate .phone { width: 70px; height: 116px; border: 6px solid var(--cream); border-radius: 16px; position: relative; animation: turn 2.2s ease-in-out infinite; }
+      #rotate .phone::after { content: ""; position: absolute; left: 50%; bottom: 6px; width: 22px; height: 4px; margin-left: -11px; border-radius: 2px; background: var(--cream); }
+      #rotate b { font-size: 30px; letter-spacing: 1px; font-weight: normal; }
+      #rotate span { font: 16px/1.4 system-ui, -apple-system, sans-serif; color: #DDB27C; max-width: 300px; }
+      @keyframes turn { 0%, 25% { transform: rotate(0deg); } 55%, 100% { transform: rotate(-90deg); } }
+      @media (orientation: portrait) { html[data-input="touch"][data-phase="ready"] #rotate { display: flex; } }
     </style>
   </head>
   <body>
     <div id="game"><canvas id="unity-canvas" tabindex="-1"></canvas></div>
+
+    <div id="touch-ui" aria-hidden="true">
+      <div class="cluster" id="tc-pause">
+        <button class="tb ink" data-cmd="pause" aria-label="Pause"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="5" height="16" rx="1.5"/><rect x="14" y="4" width="5" height="16" rx="1.5"/></svg></button>
+      </div>
+      <div class="cluster" id="tc-left">
+        <div class="row">
+          <button class="tb" data-cmd="undo" data-k="undo"><svg viewBox="0 0 24 24"><path d="M9 5 3 10l6 5v-3.5c4.5 0 7.5 1.3 9.5 5 0-5-2.6-9.5-9.5-9.5z"/></svg>UNDO</button>
+          <button class="tb" data-cmd="redo" data-k="redo">REDO<svg viewBox="0 0 24 24"><path d="m15 5 6 5-6 5v-3.5c-4.5 0-7.5 1.3-9.5 5 0-5 2.6-9.5 9.5-9.5z"/></svg></button>
+        </div>
+        <div class="row">
+          <button class="tb" data-cmd="clear" data-k="clear">EMPTY BOX</button>
+          <button class="tb" data-cmd="best" data-k="best">MY BEST</button>
+        </div>
+      </div>
+      <div class="cluster" id="tc-right">
+        <button class="tb sticky" data-cmd="hint" data-k="hint" id="hint-btn">ASK MABEL</button>
+        <div class="label" id="seal-hint"></div>
+        <button class="tb red big" data-cmd="seal" id="seal-btn">SEAL &amp; SHIP</button>
+      </div>
+      <div class="cluster" id="tc-hand">
+        <button class="tb" data-cmd="erase" id="erase-btn"><svg viewBox="0 0 24 24"><path d="m15.5 3.5 5 5-10 10H5.5l-3-3zM4 20h16v2H4z"/></svg>ERASE</button>
+        <div class="row">
+          <button class="tb teal big" data-cmd="rotate" id="turn-btn"><svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 1 0 8 8h-2.5A5.5 5.5 0 1 1 12 6.5V10l5-4.5L12 1z"/></svg>TURN</button>
+          <button class="tb big" data-cmd="back" id="back-btn">BACK</button>
+        </div>
+      </div>
+      <div class="cluster" id="tc-skip">
+        <button class="tb big" data-cmd="skip">SKIP <svg viewBox="0 0 24 24"><path d="M3 5v14l9-7zm9 0v14l9-7z"/></svg></button>
+      </div>
+      <div class="cluster" id="tc-replay">
+        <div class="row"><div id="scrub"><div class="track"><div class="fill"></div></div><div class="knob"></div></div></div>
+        <div class="row">
+          <button class="tb" data-cmd="play" id="play-btn" aria-label="Play or pause"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></button>
+          <button class="tb" data-cmd="speed" id="speed-btn">1×</button>
+          <button class="tb red" data-cmd="trouble" id="trouble-btn">NEXT TROUBLE</button>
+          <div class="grow"></div>
+          <button class="tb teal" data-cmd="cam" id="cam-btn">CAM</button>
+          <button class="tb" data-cmd="gif" id="gif-btn">SAVE GIF</button>
+          <button class="tb red" data-cmd="skip">DONE</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="rotate" role="alert">
+      <div class="phone"></div>
+      <b>TURN YOUR PHONE SIDEWAYS</b>
+      <span>Handle With Care is laid out for a landscape screen. The game waits right where you left it.</span>
+    </div>
+
     <div id="cover">
       <img src="icon.png" alt="">
       <div class="stamp"><b>HANDLE</b><span>WITH CARE</span></div>
       <div class="tagline">MOSSBURY PARCEL POST · WE SHIP ANYTHING. CAREFULLY.</div>
+      <div id="notice"></div>
       <div id="progress"><div></div></div>
       <div id="status">Loading…</div>
-      <div id="touch">Handle With Care is played with a mouse and keyboard or a gamepad; touch screens aren't supported.</div>
+      <button id="reload" type="button">RELOAD</button>
+      <div id="touch-note">Plays sideways, by touch: drag items into the box, tap the buttons.</div>
       <noscript>Handle With Care needs JavaScript to run in the browser.</noscript>
     </div>
     <script>
@@ -46,56 +159,270 @@
       var cover = document.querySelector("#cover");
       var statusEl = document.querySelector("#status");
       var bar = document.querySelector("#progress div");
-      // for Tools/check-pages.mjs: "loading", "starting", "ready" or "error"
-      window.hwcState = { phase: "loading", progress: 0, error: null };
+      var root = document.documentElement;
+      // for Tools/check-pages.mjs and Tools/check-mobile.mjs: "loading", "starting", "ready" or "error"
+      window.hwcState = { phase: "loading", progress: 0, error: null, variant: null, input: null, lite: false };
+
+      // ---- which kind of screen: touch-first (a phone or tablet), or a mouse and keyboard -------------------
+      var touchFirst = matchMedia("(pointer: coarse)").matches && !matchMedia("(any-pointer: fine)").matches;
+      var inputMode = null, lastTouch = -1e9;
+      function setInput(mode) {
+        if (mode === inputMode) return;
+        inputMode = mode;
+        window.hwcState.input = mode;
+        root.dataset.input = mode === "touch" ? "touch" : "desktop";
+        if (window.hwcState.phase === "ready") window.unityInstance.SendMessage("TouchBridge", "SetMode", mode);
+      }
+      setInput(touchFirst ? "touch" : "mouse");
+      // a real touch shows the touch controls; a real mouse, a key or a gamepad (the game reports it) hides them
+      window.addEventListener("touchstart", function (e) { lastTouch = performance.now(); if (e.isTrusted !== false) setInput("touch"); }, { capture: true, passive: true });
+      window.addEventListener("pointerdown", function (e) { if (e.pointerType === "mouse" && performance.now() - lastTouch > 1000) setInput("mouse"); }, true);
+      window.addEventListener("pointermove", function (e) {
+        if (e.pointerType === "mouse" && performance.now() - lastTouch > 1000 && (Math.abs(e.movementX) + Math.abs(e.movementY) > 2)) setInput("mouse");
+      }, true);
+      window.addEventListener("keydown", function () { setInput("keyboard"); }, true);
+      window.hwcInputMode = function (mode) { inputMode = mode; window.hwcState.input = mode; root.dataset.input = "desktop"; };
+      // no scrolling, pinching, double-tap zoom or mouse events made up from touches
+      function stop(e) { if (e.cancelable) e.preventDefault(); }
+      document.addEventListener("touchmove", stop, { passive: false });
+      document.addEventListener("touchend", function (e) { if (e.target.id !== "reload") stop(e); }, { passive: false });
+      canvas.addEventListener("touchstart", stop, { passive: false });   // the engine reads the touches themselves
+      document.addEventListener("gesturestart", stop, { passive: false });
+      document.addEventListener("dblclick", stop, { passive: false });
+      document.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+
+      // ---- the last visit: did its tab close while the game ran (out of memory, most likely)? -------------
+      var aliveKey = "hwc-alive", lite = false;
+      try {
+        var was = JSON.parse(localStorage.getItem(aliveKey) || "null");
+        lite = !!(was && Date.now() - was.t < 12 * 3600 * 1000);
+      } catch (e) { /* no storage */ }
+      function alive(on) { try { if (on) localStorage.setItem(aliveKey, JSON.stringify({ t: Date.now() })); else localStorage.removeItem(aliveKey); } catch (e) { /* no storage */ } }
+      alive(true);
+      // leaving the page, or putting it in the background (where the system may close it), is not a crash
+      window.addEventListener("pagehide", function () { alive(false); });
+      document.addEventListener("visibilitychange", function () { alive(document.visibilityState === "visible" && window.hwcState.phase !== "error"); });
+      window.hwcState.lite = lite;
+      if (lite) {
+        var notice = document.querySelector("#notice");
+        notice.textContent = "Last time the game closed unexpectedly, probably because the device ran out of memory. " +
+                             "It starts with lighter graphics this time (GRAPHICS FIDELITY in SETTINGS).";
+        notice.style.display = "block";
+      }
 
       function fail(msg) {
         if (window.hwcState.phase === "error") return;
         window.hwcState.phase = "error";
+        root.dataset.phase = "error";
         window.hwcState.error = msg;
+        alive(false);
         cover.style.display = "flex";
         document.querySelector("#progress").style.display = "none";
+        document.querySelector("#reload").style.display = "block";
         statusEl.className = "error";
         statusEl.textContent = msg;
+      }
+      document.querySelector("#reload").addEventListener("click", function () { location.reload(); });
+      function memoryMessage(what) {
+        return /memory|allocation|OOM/i.test(String(what))
+          ? "The game ran out of memory on this device. Close other tabs or apps and reload: it will start with lighter graphics."
+          : null;
       }
 
       // the title screen is up (WebPlatform.Ready, through HwcWeb.jslib)
       window.hwcReady = function () {
         window.hwcState.phase = "ready";
+        root.dataset.phase = "ready";
         cover.style.display = "none";
         canvas.focus();
+        window.unityInstance.SendMessage("TouchBridge", "SetMode", inputMode);
+        sendView();
       };
 
       function showBanner(msg, type) {
-        if (type === "error") fail("The game stopped: " + msg);
+        if (type === "error") fail(memoryMessage(msg) || "The game stopped: " + msg);
         else console.warn(msg);
       }
+      window.addEventListener("error", function (e) { var m = memoryMessage(e.message); if (m) fail(m); });
+      // the GPU dropped the game's graphics (often a sign of too little memory): say so rather than freeze
+      canvas.addEventListener("webglcontextlost", function (e) {
+        fail("The graphics stopped (the browser took back the game's WebGL context, often because memory ran low). Reload to carry on: your progress is saved.");
+      });
 
-      // render at the screen's pixel density, up to a 1440p budget: a 3D game in a browser tab stays smooth on a
-      // high-DPI laptop, and never below one pixel per CSS pixel
-      var maxPixels = 2560 * 1440;
+      // ---- resolution: the screen's pixel density within a budget ----------------------------------------
+      // a 1440p budget on desktop keeps a 3D game in a browser tab smooth on a high-DPI laptop; phones and tablets
+      // get at most 2 pixels per point and about 1600x900 in all (a third of an iPhone's native pixels, a quarter of
+      // the GPU memory and fill), less after a visit that ran out of memory; never below one pixel per CSS pixel
+      var maxPixels = touchFirst ? (lite ? 1280 * 720 : 1600 * 900) : 2560 * 1440;
+      var maxRatio = touchFirst ? (lite ? 1.5 : 2) : 8;
       function pixelRatio() {
-        var dpr = window.devicePixelRatio || 1;
+        var dpr = Math.min(window.devicePixelRatio || 1, maxRatio);
         var css = Math.max(1, window.innerWidth * window.innerHeight);
         return Math.max(1, Math.min(dpr, Math.sqrt(maxPixels / css)));
       }
 
+      // ---- the page's size and safe area, for the game's layout and the touch controls --------------------
+      var probe = document.createElement("div");
+      probe.style.cssText = "position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)";
+      document.body.appendChild(probe);
+      function sendView() {
+        var cs = getComputedStyle(probe);
+        var w = window.innerWidth, h = window.innerHeight;
+        // the game's UI is laid out on 1920x1080 and scaled by the geometric mean of the two ratios (CanvasScaler, match 0.5)
+        root.style.setProperty("--s", Math.sqrt((w / 1920) * (h / 1080)).toFixed(4));
+        if (window.hwcState.phase !== "ready") return;
+        var v = [w, h, parseFloat(cs.paddingTop) || 0, parseFloat(cs.paddingRight) || 0, parseFloat(cs.paddingBottom) || 0, parseFloat(cs.paddingLeft) || 0];
+        window.unityInstance.SendMessage("TouchBridge", "SetView", v.map(function (x) { return x.toFixed(1); }).join(","));
+      }
+      sendView();
+      // turning the device: lock to landscape where the browser allows it (Android, fullscreen)
+      document.addEventListener("fullscreenchange", function () {
+        if (document.fullscreenElement && touchFirst && screen.orientation && screen.orientation.lock) screen.orientation.lock("landscape").catch(function () {});
+      });
+
+      // ---- sound starts with the first tap: iOS lets a page's audio start only in a touchend ------------------
+      // (the engine resumes its audio on touchstart and mousedown, which iOS doesn't count); so every audio context
+      // the game makes is remembered, and resumed in the first tap, click or key that ends
+      var audioContexts = [];
+      ["AudioContext", "webkitAudioContext"].forEach(function (name) {
+        var Orig = window[name];
+        if (!Orig) return;
+        var Wrapped = function (opts) { var c = new Orig(opts); audioContexts.push(c); return c; };
+        Wrapped.prototype = Orig.prototype;
+        window[name] = Wrapped;
+      });
+      function unlockAudio() {
+        audioContexts.forEach(function (c) { if (c.state !== "running" && c.state !== "closed") c.resume().catch(function () {}); });
+      }
+      ["touchend", "pointerup", "click", "keydown"].forEach(function (ev) { window.addEventListener(ev, unlockAudio, true); });
+
+      // ---- the touch controls -------------------------------------------------------------------------------
+      var ui = {
+        pause: document.querySelector("#tc-pause"), left: document.querySelector("#tc-left"), right: document.querySelector("#tc-right"),
+        hand: document.querySelector("#tc-hand"), skip: document.querySelector("#tc-skip"), replay: document.querySelector("#tc-replay"),
+      };
+      var game = {};   // the game's state, from TouchInput (HWC_TouchState)
+      function send(cmd) { if (window.hwcState.phase === "ready") window.unityInstance.SendMessage("TouchBridge", "Command", cmd); }
+      var speeds = [1, 2, 0.25, 0.5];
+      Array.prototype.forEach.call(document.querySelectorAll("#touch-ui .tb"), function (b) {
+        b.addEventListener("pointerdown", function (e) { e.preventDefault(); b.classList.add("down"); try { b.setPointerCapture(e.pointerId); } catch (x) { /* fine */ } });
+        b.addEventListener("pointercancel", function () { b.classList.remove("down"); });
+        b.addEventListener("pointerup", function (e) {
+          var inside = document.elementFromPoint(e.clientX, e.clientY);
+          var hit = inside && (inside === b || b.contains(inside));
+          b.classList.remove("down");
+          if (!hit) return;   // a dimmed button still asks: the game says why not ("Can't turn that")
+          var cmd = b.dataset.cmd;
+          if (cmd === "speed") { var i = speeds.indexOf(game.speed); cmd = "speed:" + speeds[(i + 1) % speeds.length]; }
+          send(cmd);
+        });
+        b.addEventListener("touchstart", stop, { passive: false });
+      });
+      // the replay's scrub bar: tap or drag to any moment
+      var scrub = document.querySelector("#scrub"), scrubFill = scrub.querySelector(".fill"), knob = scrub.querySelector(".knob"), track = scrub.querySelector(".track");
+      var scrubbing = false, scrubSent = 0, marksFor = null;
+      function scrubTo(e) {
+        var r = track.getBoundingClientRect();
+        var f = Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width)));
+        showTime(f);
+        var now = performance.now();
+        if (now - scrubSent > 70 || e.type === "pointerup") { scrubSent = now; send("seek:" + f.toFixed(4)); }
+      }
+      function showTime(f) { scrubFill.style.width = (100 * f).toFixed(2) + "%"; knob.style.left = (track.offsetLeft + f * track.offsetWidth).toFixed(1) + "px"; }
+      scrub.addEventListener("pointerdown", function (e) { e.preventDefault(); scrubbing = true; try { scrub.setPointerCapture(e.pointerId); } catch (x) { /* fine */ } scrubTo(e); });
+      scrub.addEventListener("pointermove", function (e) { if (scrubbing) scrubTo(e); });
+      scrub.addEventListener("pointerup", function (e) { if (scrubbing) scrubTo(e); scrubbing = false; });
+      scrub.addEventListener("pointercancel", function () { scrubbing = false; });
+      scrub.addEventListener("touchstart", stop, { passive: false });
+
+      function on(el, show) { el.classList.toggle("on", !!show); }
+      function flag(sel, cls, v) { var el = document.querySelector(sel); if (el) el.classList.toggle(cls, !!v); return el; }
+      window.hwcTouchState = function (json) {
+        try { game = JSON.parse(json); } catch (e) { return; }
+        window.hwcState.game = game;
+        var g = game, free = !g.paused && !g.menu && !g.busy && !g.card;
+        var packing = free && g.phase === "packing" && g.tool !== undefined;
+        var holding = packing && g.tool !== "none";
+        on(ui.pause, free && (g.phase === "packing" || g.phase === "journey"));
+        on(ui.left, packing && !holding);
+        on(ui.right, packing && !holding);
+        on(ui.hand, holding);
+        on(ui.skip, free && g.skip && (g.phase === "reveal" || (g.phase === "journey" && !g.replay)));
+        on(ui.replay, free && g.phase === "journey" && g.replay);
+        if (packing) {
+          ["undo", "redo", "clear"].forEach(function (k) { flag('[data-k="' + k + '"]', "off", !g[k]); });
+          flag('[data-k="best"]', "hide", !g.best);
+          var hb = flag("#hint-btn", "hide", !g.hint);
+          if (g.hintLabel) hb.textContent = g.hintLabel;
+          flag("#seal-btn", "off", !g.seal);
+          document.querySelector("#seal-hint").textContent = g.sealHint || "";
+          flag("#turn-btn", "hide", !(g.tool === "item" || g.tool === "padding"));
+          flag("#turn-btn", "off", !g.turn);
+          flag("#erase-btn", "hide", g.tool !== "padding");
+          flag("#erase-btn", "lit", g.erase);
+          document.querySelector("#back-btn").textContent = g.tool === "item" ? "BACK" : "DONE";
+        }
+        if (g.phase === "journey" && g.replay) {
+          if (!scrubbing) showTime(g.t || 0);
+          if (marksFor !== g.troubles) {
+            marksFor = g.troubles;
+            Array.prototype.forEach.call(track.querySelectorAll(".mark"), function (m) { m.remove(); });
+            (g.troubles || "").split(",").filter(Boolean).forEach(function (t) {
+              var m = document.createElement("div");
+              m.className = "mark" + (/n$/.test(t) ? " near" : "");
+              m.style.left = (100 * parseFloat(t)).toFixed(2) + "%";
+              track.appendChild(m);
+            });
+          }
+          document.querySelector("#play-btn").innerHTML = g.stopped
+            ? '<svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg>'
+            : '<svg viewBox="0 0 24 24"><rect x="5" y="4" width="5" height="16" rx="1.5"/><rect x="14" y="4" width="5" height="16" rx="1.5"/></svg>';
+          document.querySelector("#speed-btn").textContent = ({ 0.25: "¼×", 0.5: "½×", 1: "1×", 2: "2×" })[g.speed] || g.speed + "×";
+          document.querySelector("#cam-btn").textContent = "CAM: " + (g.cam === "CLOSE-UP" ? "CLOSE" : g.cam || "");
+          flag("#trouble-btn", "hide", !g.troubles);
+          flag("#gif-btn", "hide", !g.gif);
+        }
+      };
+      window.addEventListener("resize", function () { sendView(); });
+      window.addEventListener("orientationchange", function () { setTimeout(sendView, 300); });
+
       function hasWebGL2() {
         try { return !!document.createElement("canvas").getContext("webgl2"); } catch (e) { return false; }
       }
+      // phones and tablets have no DXT textures: they get the data made with ETC2 ones (WebGL-etc2.data), which
+      // they decode in hardware, instead of DXT unpacked to four to eight times its size
+      function textureSet() {
+        try {
+          var gl = document.createElement("canvas").getContext("webgl2");
+          if (!gl) return "dxt";
+          var dxt = gl.getExtension("WEBGL_compressed_texture_s3tc");
+          var etc = gl.getExtension("WEBGL_compressed_texture_etc");
+          var lose = gl.getExtension("WEBGL_lose_context");
+          if (lose) lose.loseContext();
+          return !dxt && etc ? "etc2" : "dxt";
+        } catch (e) { return "dxt"; }
+      }
 
       var buildUrl = "Build";
+      var variant = textureSet();
+      window.hwcState.variant = variant;
+      function file(name) { return buildUrl + "/" + name; }
+      // (the code is the same in both builds: only the data differs)
+      function dataFile(name) { return buildUrl + "/" + (variant === "etc2" ? name.replace(/^WebGL\./, "WebGL-etc2.") : name); }
+      var args = [];
+      if (touchFirst) args.push("-hwcMobile");
+      if (lite) args.push("-hwcLite");
       var config = {
-        arguments: [],
+        arguments: args,
 #if PROGRESSIVE_ASSET_LOADING
         primaryDataUrls: {{{ JSON.stringify(PRIMARY_DATA_FILES) }}},
         secondaryDataUrls: {{{ JSON.stringify(SECONDARY_DATA_FILES) }}},
 #else
-        dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
+        dataUrl: dataFile("{{{ DATA_FILENAME }}}"),
 #endif
-        frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
+        frameworkUrl: file("{{{ FRAMEWORK_FILENAME }}}"),
 #if USE_WASM
-        codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
+        codeUrl: file("{{{ CODE_FILENAME }}}"),
 #endif
 #if SYMBOLS_FILENAME
         symbolsUrl: buildUrl + "/{{{ SYMBOLS_FILENAME }}}",
@@ -110,12 +437,9 @@
         devicePixelRatio: pixelRatio(),
       };
 
-      // the right mouse button is the game's, not the page's
-      canvas.addEventListener("contextmenu", function (e) { e.preventDefault(); });
-
       if (!hasWebGL2()) {
         fail("This browser can't run Handle With Care: it needs WebGL 2, which is off or unsupported here. " +
-             "Try a current Chrome, Edge or Firefox, and check that hardware acceleration is turned on.");
+             "Try a current Chrome, Edge, Firefox or Safari, and check that hardware acceleration is turned on.");
       } else {
         var script = document.createElement("script");
         script.src = buildUrl + "/{{{ LOADER_FILENAME }}}";
@@ -131,7 +455,7 @@
             // the budget depends on the window size: follow resizes
             window.addEventListener("resize", function () { unityInstance.Module.devicePixelRatio = pixelRatio(); });
           }).catch(function (message) {
-            fail("The game couldn't start: " + message);
+            fail(memoryMessage(message) || "The game couldn't start: " + message);
           });
         };
         script.onerror = function () { fail("The game files couldn't be downloaded. Check the connection and reload the page."); };

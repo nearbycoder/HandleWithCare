@@ -101,6 +101,7 @@ namespace HWC.Gameplay
             var def = Catalog.Get(kind);
             bool pad = PadPrompts;
             string P(string s) => PadGlyphs.Format(s);   // after Phrases: button names have no spaces
+            if (TouchPrompts) return TouchDoLine(def, use, fromToolbar);
             if (fromToolbar)
                 return def.IsPadding ? (pad ? P(Phrases("<b>{A}</b> takes some, then hold <b>{A}</b> in the box to paint")) : Phrases(Key("Click") + ", then drag in the box to paint")) : null;
             string turn = def.Has(Quirk.Facing) ? "face the other way" : def.Rotatable ? "turn" : null;
@@ -124,11 +125,29 @@ namespace HWC.Gameplay
             }
         }
 
+        /// <summary>The same with the touch controls (TouchInput): taps, drags and the page's buttons.</summary>
+        static string TouchDoLine(PieceDef def, PackingController.CardUse use, bool fromToolbar)
+        {
+            if (fromToolbar) return def.IsPadding ? Phrases(Key("Tap") + ", then drag in the box to paint") : null;
+            string turn = def.Has(Quirk.Facing) ? "face the other way" : def.Rotatable ? "turn" : null;
+            string back = def.IsPadding ? "bin it" : "back to the shelf";
+            switch (use)
+            {
+                case PackingController.CardUse.Shelf: return Phrases(Key("Drag") + " it into the box", "or " + Key("tap") + " to pick it up");
+                case PackingController.CardUse.Placed: return Phrases(Key("Drag") + " to move it", Key("ERASE") + ", then tap: " + back);
+                case PackingController.CardUse.HoldItem:
+                    return Phrases(Key("Tap") + " the box to drop", turn != null ? Key("TURN") + " " + turn : null, Key("BACK") + " to the shelf");
+                case PackingController.CardUse.HoldPadding: return Phrases(Key("Drag") + " to paint", Key("ERASE") + " to rub out", Key("DONE") + " put it down");
+                case PackingController.CardUse.Strap: return Phrases(Key("Tap") + " straps it down, or takes the strap off");
+                default: return null;
+            }
+        }
+
         /// <summary>Dividers, shelves and straps, pointed at on the toolbar.</summary>
         string ToolbarDoLine(MaterialSlot s)
         {
-            string a = PadPrompts ? PadGlyphs.Format("<b>{A}</b>") : Key("Click");
-            string again = PadPrompts ? PadGlyphs.Format("<b>{A}</b>") : "click";
+            string a = PadPrompts ? PadGlyphs.Format("<b>{A}</b>") : TouchPrompts ? Key("Tap") : Key("Click");
+            string again = PadPrompts ? PadGlyphs.Format("<b>{A}</b>") : TouchPrompts ? "tap" : "click";
             switch (s)
             {
                 case MaterialSlot.Divider: return $"{a}, then a line in the box ({again} one to take it out)";

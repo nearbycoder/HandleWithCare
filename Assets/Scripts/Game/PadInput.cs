@@ -85,7 +85,7 @@ namespace HWC.Gameplay
             bool used = false;
             foreach (var d in InputSystem.devices)
             {
-                if (d is Mouse m && m != padMouse)
+                if (d is Mouse m && m != padMouse && !TouchInput.IsVirtual(m))
                 {
                     if (m.delta.ReadValue().sqrMagnitude > 9f || m.leftButton.wasPressedThisFrame || m.rightButton.wasPressedThisFrame) used = true;
                 }
@@ -129,7 +129,7 @@ namespace HWC.Gameplay
 
         Mouse RealMouse()
         {
-            foreach (var d in InputSystem.devices) if (d is Mouse m && m != padMouse) return m;
+            foreach (var d in InputSystem.devices) if (d is Mouse m && m != padMouse && !TouchInput.IsVirtual(m)) return m;
             return null;
         }
 

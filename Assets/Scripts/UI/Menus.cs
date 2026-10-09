@@ -71,6 +71,21 @@ namespace HWC.Gameplay
             HideAll();
         }
 
+        /// <summary>The screens inside the page's safe area (left, bottom, right, top in screen pixels; touch
+        /// screens with a notch), their full-screen dimming still edge to edge.</summary>
+        public void ApplySafeArea(Vector4 sa)
+        {
+            var canvas = root.GetComponentInParent<Canvas>();
+            float k = canvas != null && canvas.scaleFactor > 0 ? canvas.scaleFactor : 1f;
+            Vector2 min = new Vector2(sa.x, sa.y) / k, max = new Vector2(sa.z, sa.w) / k;
+            foreach (var screen in new[] { title, select, settings, credits, confirm })
+            {
+                screen.offsetMin = min;
+                screen.offsetMax = -max;
+                if (screen.Find("dim") is RectTransform dim) { dim.offsetMin = -min; dim.offsetMax = max; }
+            }
+        }
+
         public void HideAll()
         {
             title.gameObject.SetActive(false);
