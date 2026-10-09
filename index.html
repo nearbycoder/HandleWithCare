@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
+    <title>Handle With Care</title>
+    <meta name="description" content="A physics packing puzzle: pack bizarre deliveries, then watch a deterministic journey decide whether they survive.">
+    <meta name="theme-color" content="#1F2A44">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #1F2A44; color: #F3E9D2;
+                   font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; overscroll-behavior: none; }
+      #game { position: fixed; inset: 0; }
+      #unity-canvas { width: 100%; height: 100%; display: block; background: #1F2A44; outline: none; touch-action: none; }
+      #cover { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+               gap: 18px; background: #1F2A44; text-align: center; padding: 24px; box-sizing: border-box; }
+      #cover img { width: 112px; height: 112px; border-radius: 22px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35); }
+      .stamp { border: 5px solid #D9483B; border-radius: 14px; padding: 10px 26px; color: #F3E9D2; background: #D9483B;
+               font-weight: 900; letter-spacing: 3px; line-height: 1; }
+      .stamp b { display: block; font-size: clamp(34px, 6vw, 64px); }
+      .stamp span { display: block; font-size: clamp(24px, 4.4vw, 48px); margin-top: 4px; }
+      .tagline { color: #DDB27C; font-size: clamp(14px, 1.8vw, 18px); letter-spacing: 1px; }
+      #progress { width: min(420px, 70vw); height: 10px; border-radius: 5px; background: rgba(243, 233, 210, 0.15); overflow: hidden; }
+      #progress div { width: 0; height: 100%; background: #C8955A; transition: width 0.2s; }
+      #status { color: #F3E9D2; opacity: 0.75; font-size: 14px; min-height: 1.4em; max-width: 620px; }
+      #status.error { color: #FFD9D4; opacity: 1; font-size: 16px; background: rgba(217, 72, 59, 0.35); padding: 12px 18px; border-radius: 10px; }
+      #touch { display: none; color: #DDB27C; font-size: 14px; max-width: 420px; }
+      @media (hover: none) and (pointer: coarse) { #touch { display: block; } }
+      noscript { color: #FFD9D4; }
+    </style>
+  </head>
+  <body>
+    <div id="game"><canvas id="unity-canvas" tabindex="-1"></canvas></div>
+    <div id="cover">
+      <img src="icon.png" alt="">
+      <div class="stamp"><b>HANDLE</b><span>WITH CARE</span></div>
+      <div class="tagline">MOSSBURY PARCEL POST · WE SHIP ANYTHING. CAREFULLY.</div>
+      <div id="progress"><div></div></div>
+      <div id="status">Loading…</div>
+      <div id="touch">Handle With Care is played with a mouse and keyboard or a gamepad; touch screens aren't supported.</div>
+      <noscript>Handle With Care needs JavaScript to run in the browser.</noscript>
+    </div>
+    <script>
+      var canvas = document.querySelector("#unity-canvas");
+      var cover = document.querySelector("#cover");
+      var statusEl = document.querySelector("#status");
+      var bar = document.querySelector("#progress div");
+      // for Tools/check-pages.mjs: "loading", "starting", "ready" or "error"
+      window.hwcState = { phase: "loading", progress: 0, error: null };
+
+      function fail(msg) {
+        if (window.hwcState.phase === "error") return;
+        window.hwcState.phase = "error";
+        window.hwcState.error = msg;
+        cover.style.display = "flex";
+        document.querySelector("#progress").style.display = "none";
+        statusEl.className = "error";
+        statusEl.textContent = msg;
+      }
+
+      // the title screen is up (WebPlatform.Ready, through HwcWeb.jslib)
+      window.hwcReady = function () {
+        window.hwcState.phase = "ready";
+        cover.style.display = "none";
+        canvas.focus();
+      };
+
+      function showBanner(msg, type) {
+        if (type === "error") fail("The game stopped: " + msg);
+        else console.warn(msg);
+      }
+
+      // render at the screen's pixel density, up to a 1440p budget: a 3D game in a browser tab stays smooth on a
+      // high-DPI laptop, and never below one pixel per CSS pixel
+      var maxPixels = 2560 * 1440;
+      function pixelRatio() {
+        var dpr = window.devicePixelRatio || 1;
+        var css = Math.max(1, window.innerWidth * window.innerHeight);
+        return Math.max(1, Math.min(dpr, Math.sqrt(maxPixels / css)));
+      }
+
+      function hasWebGL2() {
+        try { return !!document.createElement("canvas").getContext("webgl2"); } catch (e) { return false; }
+      }
+
+      var buildUrl = "Build";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/WebGL.data.unityweb",
+        frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb",
+        codeUrl: buildUrl + "/WebGL.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Mossbury Parcel Post",
+        productName: "Handle With Care",
+        productVersion: "0.2.0",
+        showBanner: showBanner,
+        // the save and settings (save.json) persist to IndexedDB as soon as they are written
+        autoSyncPersistentDataPath: true,
+        devicePixelRatio: pixelRatio(),
+      };
+
+      // the right mouse button is the game's, not the page's
+      canvas.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+
+      if (!hasWebGL2()) {
+        fail("This browser can't run Handle With Care: it needs WebGL 2, which is off or unsupported here. " +
+             "Try a current Chrome, Edge or Firefox, and check that hardware acceleration is turned on.");
+      } else {
+        var script = document.createElement("script");
+        script.src = buildUrl + "/WebGL.loader.js";
+        script.onload = function () {
+          createUnityInstance(canvas, config, function (progress) {
+            if (window.hwcState.phase === "error") return;
+            window.hwcState.progress = progress;
+            bar.style.width = Math.round(100 * progress) + "%";
+            statusEl.textContent = progress < 0.9 ? "Loading… " + Math.round(100 * progress) + "%" : "Opening the post office…";
+          }).then(function (unityInstance) {
+            window.unityInstance = unityInstance;
+            if (window.hwcState.phase === "loading") window.hwcState.phase = "starting";
+            // the budget depends on the window size: follow resizes
+            window.addEventListener("resize", function () { unityInstance.Module.devicePixelRatio = pixelRatio(); });
+          }).catch(function (message) {
+            fail("The game couldn't start: " + message);
+          });
+        };
+        script.onerror = function () { fail("The game files couldn't be downloaded. Check the connection and reload the page."); };
+        document.body.appendChild(script);
+      }
+    </script>
+  </body>
+</html>
