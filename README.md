@@ -20,7 +20,7 @@
 </p>
 
 <p align="center"><b><a href="https://nearbycoder.github.io/HandleWithCare/">▶ Play in your browser</a></b> · about a 71 MB download, no install
-<br><sub>Desktop Chrome, Edge or Firefox with WebGL 2, and a mouse and keyboard or a gamepad. <a href="#play-in-your-browser">What's different in the browser</a></sub></p>
+<br><sub>Desktop Chrome, Edge or Firefox with WebGL 2 and a mouse and keyboard or a gamepad; phones and tablets (held sideways) by touch. <a href="#play-in-your-browser">What's different in the browser</a></sub></p>
 
 > **Which version is this?** This README describes version 0.2.0, the game after the twelve improvement rounds in
 > [docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md). The download on [Releases](https://github.com/nearbycoder/HandleWithCare/releases/latest)
@@ -95,7 +95,27 @@ DualShock or DualSense. If a pad shows the wrong ones, Settings > GAMEPAD BUTTON
 | During the journey | A pause, B skip, X speed, Y camera; in a replay RB jumps to the next trouble |
 | Unboxing / review | A or B skip / X repack, Y replay, A on NEXT |
 
-There is no touch support.
+**Touch (phones and tablets, in the browser).** On a touch screen the browser version shows its own
+thumb-sized buttons, kept clear of the notch and the home indicator; they never show with a mouse, and they
+step aside the moment a mouse, a key or a gamepad is used (the next touch brings them back). The game's own
+buttons (the toolbar, the menus, the review) work by tap as they are, and the cards and Mabel's notes say
+"tap" and "drag". It plays sideways: in portrait the page asks you to turn the device.
+
+| Touch | Action |
+| --- | --- |
+| Drag an item from the shelf | Carry it into the box: it rides a little above your finger, so you can see where it lands; let go to drop it (over the shelf or a button, it goes back) |
+| Tap an item, then tap the box | The same in two taps |
+| Hold a finger on an item | Its card (quirk, jolt limit, last trip) without picking it up |
+| TURN / BACK (while holding an item) | Rotate it, or turn a creature or dragon the other way / put it back on the shelf |
+| Tap the toolbar | Paper, bubble wrap, foam, divider, shelf, strap |
+| Drag in the box (padding) | Paint padding; ERASE switches the finger to rubbing it out; DONE puts the padding down |
+| Drag a placed piece | Move it; with ERASE on, a tap returns an item to the shelf or bins padding |
+| UNDO, REDO, EMPTY BOX, MY BEST (bottom left) | As on desktop |
+| ASK MABEL, SEAL & SHIP (bottom right) | As on desktop |
+| Pause button (top) | The pause menu (RESUME, RESTART DELIVERY, SETTINGS, ...) |
+| During the journey | SKIP (bottom right) |
+| Replay | Tap or drag the scrub bar to any moment (red and amber marks are the troubles), play/pause, speed, NEXT TROUBLE, CAM, SAVE GIF, DONE |
+| Unboxing / review | SKIP / the review's own REPACK, REPLAY and NEXT buttons |
 
 ## Features
 
@@ -316,15 +336,36 @@ in the browser (WebGL 2), served as static files by GitHub Pages.
   the site's data clears them; they don't carry over to or from the desktop game.
 - **What's different from the desktop game:** GRAPHICS FIDELITY starts at MEDIUM (all four steps still work;
   try HIGH on a strong GPU). There is no QUIT, WINDOW SIZE, FRAME RATE LIMIT or VSYNC: the browser owns the
-  window and the frame pacing. FULLSCREEN asks the browser (Esc leaves it). Sound starts with the first click or
+  window and the frame pacing. FULLSCREEN asks the browser (Esc leaves it). Sound starts with the first click, tap or
   key, as browsers require. SAVE GIF arrives as a download instead of going to Pictures; so do F12 photos where
   the browser lets F12 through (most keep it for their developer tools). Pausing the game muffles the music by turning it down rather
   than filtering it. Textures are smaller and more compressed (1024 pixels at most) to keep the download down.
   Journeys simulate on the main thread, so shipping a box can pause the screen for a moment on a slow machine.
-- **Not supported:** phones and tablets (no touch input, as on desktop).
+- **Phones and tablets:** played sideways by touch, with on-screen buttons that show only on touch screens
+  (see [How to play](#how-to-play)); in portrait the page asks you to turn the device. A touch-first device gets
+  the same build with ETC2 textures (`WebGL-etc2.data.unityweb`, 67 MB instead of 63), which phones decode in hardware:
+  the DXT textures desktops use would be unpacked to four to eight times their size there, which is what closed
+  the tab on an iPhone. GRAPHICS FIDELITY starts at LOW, the screen renders at most 2 pixels per point and about
+  1600×900 in all, and the text atlases are smaller. If a visit's tab closes while the game is running (out of
+  memory, most likely), the next visit says so and starts lighter still; if the game runs out of memory or loses
+  its graphics, the page says so with a RELOAD button instead of freezing. The game's own buttons (the menus,
+  SETTINGS, the review) work by tap but stay their desktop size, which on a phone is smaller than the touch
+  buttons (on a tablet they're big enough); the pause menu grows to fit a thumb.
+- **Tested on phones and tablets** only in headless browsers on Linux with `Tools/check-mobile.mjs`: WebKit with the
+  iPhone 15 and iPad Pro 11 profiles and Chromium with the Pixel 7 profile (desktop GPU formats hidden, as on a
+  phone), a session played with touch events through the on-screen controls: the title, SETTINGS, the bench,
+  items dragged and tapped into the box, TURN, BACK, a long press for a card, padding painted and erased, UNDO and
+  REDO, pause, the rotate prompt, SEAL & SHIP, SKIP, the review and the replay's scrub bar and buttons, then five
+  more trips; and that desktop Chromium and Firefox never show the touch controls. At the title the game's WebGL
+  memory went from about 183 MB to 46 MB on the iPhone profile (229 to 57 MB on the iPad), the canvas from
+  2202×1029 to 1468×686, and the engine holds about 350 MB of its 512 MB heap, steady over the trips. Not yet
+  tried on a real phone or tablet: iOS's memory limit, the notch and home indicator insets, real fingers,
+  frame rate and sound on iOS need one.
 
 To build it: `Tools/build-pages.sh` (the Unity WebGL build, then the site in `Builds/Pages`), and
-`node Tools/check-pages.mjs --serve Builds/Pages [--browser firefox] [--play]` to try it as GitHub serves it.
+`node Tools/check-pages.mjs --serve Builds/Pages [--browser firefox] [--play]` to try it as GitHub serves it;
+`node Tools/check-mobile.mjs --serve Builds/Pages --device iphone|ipad|pixel|desktop|firefox [--play|--session]`
+for phones, tablets and the touch controls.
 
 ## Build from source
 
