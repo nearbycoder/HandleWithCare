@@ -12,8 +12,8 @@
 // allocates, by format, and the browser processes' resident memory), and the frame rate on the title and in
 // play. --play then drives a short session with real touch events through the on-screen controls: the title,
 // START SHIFT, items dragged from the shelf into the box, ROTATE, a padding tool, ASK MABEL, pause and resume,
-// SEAL & SHIP, the journey's controls and the review. --session also measures memory over a longer run
-// (several deliveries).
+// SEAL & SHIP, the journey's controls and the review. --session goes on for five more trips (REPACK, seal,
+// skip, review) to see the memory over a longer run.
 //
 // WebKit and Chromium here run on a desktop GPU, which offers the texture formats phones lack (S3TC/DXT, BPTC,
 // RGTC). Unless --desktop-textures is given, the phone and tablet profiles hide those, as iOS and Android do, so
@@ -275,7 +275,7 @@ async function main() {
     await sleep(800);
   }
   const hide = !!dev.profile && !opt.desktopTextures;   // phones and tablets: no DXT, as on the real ones
-  say(`[Run] ${opt.device} (${dev.profile || "desktop " + dev.browser}) ${opt.play ? "touch session" : "load check"} of ${url}${hide ? ", iOS texture formats (no S3TC/BPTC/RGTC)" : ""}${dev.browser === "webkit" && !opt.webkitAudio ? ", no WebAudio" : ""}`);
+  say(`[Run] ${opt.device} (${dev.profile || "desktop " + dev.browser}) ${opt.play ? "touch session" : "load check"} of ${url}${hide ? ", phone texture formats (no S3TC/BPTC/RGTC)" : ""}${dev.browser === "webkit" && !opt.webkitAudio ? ", no WebAudio" : ""}`);
   say(`[Run] playwright-core ${pwPath}; load average ${os.loadavg().map((v) => v.toFixed(1)).join(" ")} on ${os.cpus().length} cores`);
 
   const launch = { headless: true };
@@ -742,36 +742,27 @@ async function play({ page, context, log, shot, waitLog, fps, env }) {
     check(g, "DONE by tap goes back to the review");
   }
 
-  // -- more deliveries (--session): NEXT, Mabel's packing by drags, seal, skip; memory over a longer run
+  // -- a longer run (--session): REPACK, SEAL & SHIP, SKIP and the review, five more times (the box keeps its
+  // packing; later deliveries stay locked until this one earns a star): memory over repeated trips
   if (opt.session) {
     for (let n = 2; n <= 6; n++) {
       at = await report();
-      if (!at.NEXT) break;
-      await tap(...at.NEXT);
-      g = await waitGame((x) => x.phase === "packing" && x.tool !== undefined && !x.card, 40, "the next bench");
+      if (!at.REPACK) { say(`[Session] trip ${n}: no REPACK on the review`); break; }
+      await tap(...at.REPACK);
+      g = await waitGame((x) => x.phase === "packing" && x.tool !== undefined && !x.card, 40, "the bench again");
       if (!g) break;
       await sleep(1200);
-      const m0 = log.length;
-      await page.evaluate(() => window.unityInstance.SendMessage("Packing", "WebReportBench"));
-      const bl = await waitLog(/\[Web\] bench/, 10, m0);
-      const ms = bl ? [...bl.matchAll(/(\w+) (-?\d+),(-?\d+) > (-?\d+),(-?\d+)( rotated)?;/g)] : [];
-      for (const m of ms) {
-        const from = [m[2] * env.w / 1920, m[3] * env.h / 1080], to = [m[4] * env.w / 1920, m[5] * env.h / 1080];
-        if (m[6]) { await tap(...from); await tapEl("#turn-btn"); await touch(stroke(from, [to[0], to[1] + LIFT], 12)); }
-        else await touch(stroke(from, [to[0], to[1] + LIFT], 12));
-        await sleep(300);
-      }
-      g = await game();
       mark = log.length;
-      if (g.seal) await tapEl("#seal-btn");
-      else { say(`[Session] delivery ${n}: not sealable by drags alone (${g.sealHint}); MEMORY only`); break; }
+      if (!(await waitGame((x) => x.seal, 5, "ready to seal"))) { say(`[Session] trip ${n}: not ready to seal`); break; }
+      await tapEl("#seal-btn");
       if (!(await waitLog(/\[Web\] journey/, 30, mark))) break;
       await sleep(1500);
-      await tapEl("#tc-skip .tb");
+      if (await shown("#tc-skip")) await tapEl("#tc-skip .tb");
       await waitGame((x) => x.phase === "reveal" || x.phase === "results", 30, "the unboxing");
       if (await shown("#tc-skip")) await tapEl("#tc-skip .tb");
       const rv = await waitLog(/\[Web\] review/, 90, mark);
-      say(`[Session] delivery ${n}: ${rv ? rv.replace(/^.*\[Web\] /, "") : "no review"}`);
+      const mem = await waitLog(/\[Web\] memory at the review/, 5, mark);
+      say(`[Session] trip ${n}: ${rv ? rv.replace(/^.*\[Web\] /, "") : "no review"}; ${mem ? mem.replace(/^.*memory at the review: /, "").replace(/, Audio.*?MB/, "") : ""}`);
       if (!rv) break;
       await sleep(2000);
     }
